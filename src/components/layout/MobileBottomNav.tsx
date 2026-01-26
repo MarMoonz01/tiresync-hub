@@ -4,7 +4,7 @@ import {
   LayoutDashboard, 
   CircleDot, 
   Search, 
-  Store, 
+  ShoppingBag, 
   Menu 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
   { icon: CircleDot, label: "Tires", path: "/inventory" },
   { icon: Search, label: "Market", path: "/marketplace" },
-  { icon: Store, label: "Store", path: "/store" },
+  { icon: ShoppingBag, label: "Orders", path: "/orders" },
   { icon: Menu, label: "More", path: "/settings" },
 ];
 
