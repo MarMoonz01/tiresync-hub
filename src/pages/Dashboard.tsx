@@ -2,17 +2,26 @@ import { motion } from "framer-motion";
 import { 
   CircleDot, 
   TrendingUp, 
+  TrendingDown,
   AlertTriangle, 
   Package,
   Plus,
   Upload,
-  ArrowRight
+  ArrowRight,
+  ShoppingCart,
+  XCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { QuickActionCard } from "@/components/dashboard/QuickActionCard";
+import { StockMovementChart } from "@/components/dashboard/StockMovementChart";
+import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -31,35 +40,92 @@ const itemVariants = {
 
 export default function Dashboard() {
   const { profile, store } = useAuth();
+  const { loading, tireStats, salesStats, dailyMovements, recentLogs } = useDashboardStats();
 
   const stats = [
     {
       title: "Total Tires",
-      value: "0",
+      value: tireStats.totalTires,
       icon: CircleDot,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
       title: "Total Stock",
-      value: "0",
+      value: tireStats.totalStock,
       icon: Package,
       color: "text-accent",
       bgColor: "bg-accent/10",
     },
     {
       title: "Low Stock",
-      value: "0",
+      value: tireStats.lowStockCount,
       icon: AlertTriangle,
       color: "text-warning",
       bgColor: "bg-warning/10",
     },
     {
-      title: "This Month",
-      value: "฿0",
-      icon: TrendingUp,
+      title: "Out of Stock",
+      value: tireStats.outOfStockCount,
+      icon: XCircle,
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
+    },
+  ];
+
+  const salesMetrics = [
+    {
+      title: "This Month Sales",
+      value: salesStats.thisMonth,
+      icon: ShoppingCart,
       color: "text-success",
       bgColor: "bg-success/10",
+      trend: salesStats.percentChange !== 0 ? {
+        value: salesStats.percentChange,
+        isPositive: salesStats.percentChange > 0,
+      } : undefined,
+    },
+    {
+      title: "Last Month Sales",
+      value: salesStats.lastMonth,
+      icon: salesStats.percentChange >= 0 ? TrendingUp : TrendingDown,
+      color: "text-muted-foreground",
+      bgColor: "bg-muted",
+    },
+  ];
+
+  const quickActions = [
+    {
+      to: "/inventory/add",
+      icon: Plus,
+      label: "Add Tire",
+      bgColor: "bg-primary/10",
+      hoverBgColor: "bg-primary/20",
+      iconColor: "text-primary",
+    },
+    {
+      to: "/import",
+      icon: Upload,
+      label: "Import Excel",
+      bgColor: "bg-accent/10",
+      hoverBgColor: "bg-accent/20",
+      iconColor: "text-accent",
+    },
+    {
+      to: "/inventory",
+      icon: CircleDot,
+      label: "View Inventory",
+      bgColor: "bg-success/10",
+      hoverBgColor: "bg-success/20",
+      iconColor: "text-success",
+    },
+    {
+      to: "/marketplace",
+      icon: Package,
+      label: "Marketplace",
+      bgColor: "bg-warning/10",
+      hoverBgColor: "bg-warning/20",
+      iconColor: "text-warning",
     },
   ];
 
@@ -84,7 +150,7 @@ export default function Dashboard() {
             </p>
           </motion.div>
 
-          {/* Quick Actions */}
+          {/* Store Setup CTA */}
           {!store && (
             <motion.div variants={itemVariants}>
               <Card className="glass-card border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
@@ -108,97 +174,85 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Stats Grid */}
-          <motion.div 
-            variants={itemVariants}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            {stats.map((stat) => (
-              <Card key={stat.title} className="glass-card hover-scale">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
-                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground">{stat.title}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Inventory Stats Grid */}
+          <motion.div variants={itemVariants}>
+            <h2 className="font-semibold text-lg mb-4">Inventory Overview</h2>
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {stats.map((stat, index) => (
+                  <StatCard
+                    key={stat.title}
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                    bgColor={stat.bgColor}
+                    delay={index * 0.05}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Sales Stats */}
+          <motion.div variants={itemVariants}>
+            <h2 className="font-semibold text-lg mb-4">Sales Performance</h2>
+            {loading ? (
+              <div className="grid grid-cols-2 gap-4">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {salesMetrics.map((stat, index) => (
+                  <StatCard
+                    key={stat.title}
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                    bgColor={stat.bgColor}
+                    trend={stat.trend}
+                    delay={index * 0.05}
+                  />
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Quick Actions */}
           <motion.div variants={itemVariants}>
             <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link to="/inventory/add">
-                <Card className="glass-card hover-scale cursor-pointer group">
-                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Plus className="w-6 h-6 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium">Add Tire</span>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link to="/import">
-                <Card className="glass-card hover-scale cursor-pointer group">
-                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-                      <Upload className="w-6 h-6 text-accent" />
-                    </div>
-                    <span className="text-sm font-medium">Import Excel</span>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link to="/inventory">
-                <Card className="glass-card hover-scale cursor-pointer group">
-                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors">
-                      <CircleDot className="w-6 h-6 text-success" />
-                    </div>
-                    <span className="text-sm font-medium">View Inventory</span>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link to="/marketplace">
-                <Card className="glass-card hover-scale cursor-pointer group">
-                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center group-hover:bg-warning/20 transition-colors">
-                      <Package className="w-6 h-6 text-warning" />
-                    </div>
-                    <span className="text-sm font-medium">Marketplace</span>
-                  </CardContent>
-                </Card>
-              </Link>
+              {quickActions.map((action) => (
+                <QuickActionCard key={action.to} {...action} />
+              ))}
             </div>
           </motion.div>
 
-          {/* Empty State for Recent Activity */}
-          <motion.div variants={itemVariants}>
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Package className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground">No recent activity</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Start by adding tires to your inventory
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Charts & Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Stock Movement Chart */}
+            {loading ? (
+              <Skeleton className="h-[380px] rounded-lg" />
+            ) : (
+              <StockMovementChart data={dailyMovements} />
+            )}
+
+            {/* Recent Activity */}
+            {loading ? (
+              <Skeleton className="h-[380px] rounded-lg" />
+            ) : (
+              <RecentActivityList logs={recentLogs} />
+            )}
+          </div>
         </motion.div>
       </div>
     </AppLayout>
