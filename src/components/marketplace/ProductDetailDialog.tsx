@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { 
   Store, 
   Package, 
@@ -9,7 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import {
   Dialog,
@@ -22,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketplaceProduct, ProductStore } from "@/hooks/useMarketplaceProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { cn } from "@/lib/utils";
@@ -37,7 +40,8 @@ export function ProductDetailDialog({
   open, 
   onOpenChange,
 }: ProductDetailDialogProps) {
-  const { createOrder, loading: orderLoading } = useOrders();
+  const navigate = useNavigate();
+  const { createOrder, loading: orderLoading, hasStore } = useOrders();
   const [expandedStores, setExpandedStores] = useState<Set<string>>(new Set());
   const [interestedItems, setInterestedItems] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -68,10 +72,15 @@ export function ProductDetailDialog({
       unitPrice: storeEntry.network_price || undefined,
     });
 
-    if (result) {
+    if (result.success) {
       setInterestedItems(prev => new Set(prev).add(itemKey));
     }
     setProcessingId(null);
+  };
+
+  const handleSetupStore = () => {
+    onOpenChange(false);
+    navigate("/store/setup");
   };
 
   return (
@@ -131,6 +140,25 @@ export function ProductDetailDialog({
             >
               Select a store & DOT to express interest:
             </motion.h4>
+
+            {/* No store warning */}
+            {!hasStore && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.3 }}
+              >
+                <Alert className="mb-4 border-warning/50 bg-warning/10">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <AlertDescription className="flex items-center justify-between gap-2">
+                    <span className="text-sm">You need to set up your store first to express interest.</span>
+                    <Button size="sm" variant="outline" onClick={handleSetupStore}>
+                      Setup Store
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </motion.div>
+            )}
           </div>
 
           <ScrollArea className="max-h-[50vh] px-6 pb-6">
@@ -264,7 +292,7 @@ export function ProductDetailDialog({
                                       <Button 
                                         size="sm"
                                         onClick={() => handleInterested(storeEntry, dot)}
-                                        disabled={isInterested || isProcessing || orderLoading}
+                                        disabled={isInterested || isProcessing || orderLoading || !hasStore}
                                         className={cn(
                                           "shrink-0 transition-all",
                                           isInterested 
