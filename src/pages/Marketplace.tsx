@@ -30,8 +30,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { NetworkTireCard } from "@/components/marketplace/NetworkTireCard";
-import { useNetworkTires, NetworkTire } from "@/hooks/useNetworkTires";
+import { ProductCard } from "@/components/marketplace/ProductCard";
+import { ProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
+import { useMarketplaceProducts, MarketplaceProduct, ProductStore } from "@/hooks/useMarketplaceProducts";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useToast } from "@/hooks/use-toast";
 
 const containerVariants = {
@@ -50,60 +52,76 @@ const itemVariants = {
 };
 
 export default function Marketplace() {
+  const { toast } = useToast();
+  
+  // Local search state for immediate input response
+  const [localSearch, setLocalSearch] = useState("");
+  const [localSizeFilter, setLocalSizeFilter] = useState("");
+  
+  // Debounce the search values
+  const debouncedSearch = useDebouncedValue(localSearch, 400);
+  const debouncedSizeFilter = useDebouncedValue(localSizeFilter, 400);
+
   const {
-    tires,
+    products,
     loading,
     page,
     totalPages,
     totalCount,
-    searchQuery,
     setSearchQuery,
     brandFilter,
     setBrandFilter,
-    sizeFilter,
     setSizeFilter,
     brands,
     goToPage,
-  } = useNetworkTires();
-  const { toast } = useToast();
+  } = useMarketplaceProducts();
+
+  // Sync debounced values with hook
+  useEffect(() => {
+    setSearchQuery(debouncedSearch);
+  }, [debouncedSearch, setSearchQuery]);
+
+  useEffect(() => {
+    setSizeFilter(debouncedSizeFilter);
+  }, [debouncedSizeFilter, setSizeFilter]);
 
   const [showFilters, setShowFilters] = useState(false);
-  const [localSearch, setLocalSearch] = useState("");
-  const [selectedTire, setSelectedTire] = useState<NetworkTire | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [interestDialogOpen, setInterestDialogOpen] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<ProductStore | null>(null);
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(localSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [localSearch, setSearchQuery]);
+  const handleProductClick = (product: MarketplaceProduct) => {
+    setSelectedProduct(product);
+    setDetailDialogOpen(true);
+  };
 
-  const handleInterested = (tire: NetworkTire) => {
-    setSelectedTire(tire);
+  const handleInterested = (product: MarketplaceProduct, store: ProductStore) => {
+    setSelectedProduct(product);
+    setSelectedStore(store);
+    setDetailDialogOpen(false);
     setInterestDialogOpen(true);
   };
 
   const confirmInterest = () => {
-    if (selectedTire) {
+    if (selectedProduct && selectedStore) {
       toast({
         title: "Interest Registered",
-        description: `The store "${selectedTire.store?.name}" will be notified of your interest in ${selectedTire.brand} ${selectedTire.model}`,
+        description: `The store "${selectedStore.store.name}" will be notified of your interest in ${selectedProduct.brand} ${selectedProduct.model}`,
       });
       setInterestDialogOpen(false);
-      setSelectedTire(null);
+      setSelectedProduct(null);
+      setSelectedStore(null);
     }
   };
 
   const clearFilters = () => {
     setLocalSearch("");
-    setSearchQuery("");
+    setLocalSizeFilter("");
     setBrandFilter("all");
-    setSizeFilter("");
   };
 
-  const hasActiveFilters = searchQuery || brandFilter !== "all" || sizeFilter;
+  const hasActiveFilters = debouncedSearch || brandFilter !== "all" || debouncedSizeFilter;
 
   return (
     <AppLayout>
@@ -119,7 +137,7 @@ export default function Marketplace() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Marketplace</h1>
               <p className="text-muted-foreground mt-1">
-                {totalCount} shared tires from partner stores
+                {totalCount} products from partner stores
               </p>
             </div>
           </motion.div>
@@ -172,8 +190,8 @@ export default function Marketplace() {
 
                     <Input
                       placeholder="Filter by size..."
-                      value={sizeFilter}
-                      onChange={(e) => setSizeFilter(e.target.value)}
+                      value={localSizeFilter}
+                      onChange={(e) => setLocalSizeFilter(e.target.value)}
                       className="w-40"
                     />
 
@@ -191,10 +209,10 @@ export default function Marketplace() {
             {/* Active filter badges */}
             {hasActiveFilters && !showFilters && (
               <div className="flex flex-wrap gap-2">
-                {searchQuery && (
+                {debouncedSearch && (
                   <Badge variant="secondary">
-                    Search: {searchQuery}
-                    <button onClick={() => { setLocalSearch(""); setSearchQuery(""); }} className="ml-1">
+                    Search: {debouncedSearch}
+                    <button onClick={() => setLocalSearch("")} className="ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>
@@ -207,10 +225,10 @@ export default function Marketplace() {
                     </button>
                   </Badge>
                 )}
-                {sizeFilter && (
+                {debouncedSizeFilter && (
                   <Badge variant="secondary">
-                    Size: {sizeFilter}
-                    <button onClick={() => setSizeFilter("")} className="ml-1">
+                    Size: {debouncedSizeFilter}
+                    <button onClick={() => setLocalSizeFilter("")} className="ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>
@@ -227,7 +245,7 @@ export default function Marketplace() {
           )}
 
           {/* Empty State */}
-          {!loading && tires.length === 0 && (
+          {!loading && products.length === 0 && (
             <motion.div variants={itemVariants}>
               <Card className="glass-card">
                 <CardContent className="py-16">
@@ -240,7 +258,7 @@ export default function Marketplace() {
                       )}
                     </div>
                     <h2 className="text-xl font-semibold mb-2">
-                      {hasActiveFilters ? "No Results Found" : "No Shared Listings Yet"}
+                      {hasActiveFilters ? "No Results Found" : "No Products Yet"}
                     </h2>
                     <p className="text-muted-foreground max-w-md">
                       {hasActiveFilters 
@@ -258,18 +276,18 @@ export default function Marketplace() {
             </motion.div>
           )}
 
-          {/* Tire Grid */}
-          {!loading && tires.length > 0 && (
+          {/* Product Grid */}
+          {!loading && products.length > 0 && (
             <motion.div 
               variants={itemVariants} 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
             >
               <AnimatePresence mode="popLayout">
-                {tires.map((tire) => (
-                  <NetworkTireCard
-                    key={tire.id}
-                    tire={tire}
-                    onInterested={handleInterested}
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.productKey}
+                    product={product}
+                    onClick={() => handleProductClick(product)}
                   />
                 ))}
               </AnimatePresence>
@@ -327,7 +345,15 @@ export default function Marketplace() {
           )}
         </motion.div>
 
-        {/* Interest Dialog */}
+        {/* Product Detail Dialog */}
+        <ProductDetailDialog
+          product={selectedProduct}
+          open={detailDialogOpen}
+          onOpenChange={setDetailDialogOpen}
+          onInterested={handleInterested}
+        />
+
+        {/* Interest Confirmation Dialog */}
         <Dialog open={interestDialogOpen} onOpenChange={setInterestDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -340,21 +366,21 @@ export default function Marketplace() {
               </DialogDescription>
             </DialogHeader>
 
-            {selectedTire && (
+            {selectedProduct && selectedStore && (
               <div className="p-4 bg-muted/30 rounded-lg space-y-2">
                 <p className="font-semibold">
-                  {selectedTire.brand} {selectedTire.model}
+                  {selectedProduct.brand} {selectedProduct.model}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedTire.size}
+                  {selectedProduct.size}
                 </p>
-                {selectedTire.network_price && (
+                {selectedStore.network_price && (
                   <p className="text-lg font-bold text-primary">
-                    ฿{selectedTire.network_price.toLocaleString()}
+                    ฿{selectedStore.network_price.toLocaleString()}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  Sold by: {selectedTire.store?.name}
+                  From: {selectedStore.store.name}
                 </p>
               </div>
             )}
