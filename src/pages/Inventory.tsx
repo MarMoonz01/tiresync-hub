@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -8,7 +8,9 @@ import {
   CircleDot,
   Package,
   Loader2,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -45,53 +47,46 @@ const itemVariants = {
 
 export default function Inventory() {
   const { store } = useAuth();
-  const { tires, loading, deleteTire, updateDotQuantity } = useTires();
+  const { 
+    tires, 
+    loading, 
+    deleteTire, 
+    updateDotQuantity,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    searchQuery,
+    setSearchQuery,
+    brandFilter,
+    setBrandFilter,
+    stockFilter,
+    setStockFilter
+  } = useTires();
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  const [searchQuery, setSearchQuery] = useState("");
-  const [brandFilter, setBrandFilter] = useState<string>("all");
-  const [stockFilter, setStockFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
 
-  // Get unique brands for filter
+  // Debounced search
+  const handleSearchChange = (value: string) => {
+    setLocalSearch(value);
+    // Debounce the actual search
+    const timer = setTimeout(() => {
+      setSearchQuery(value);
+    }, 300);
+    return () => clearTimeout(timer);
+  };
+
+  // Get unique brands for filter (from current page - could be improved with separate query)
   const brands = useMemo(() => {
     const uniqueBrands = [...new Set(tires.map((t) => t.brand))];
     return uniqueBrands.sort();
   }, [tires]);
 
-  // Filter tires
-  const filteredTires = useMemo(() => {
-    return tires.filter((tire) => {
-      // Search query
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
-        !searchQuery ||
-        tire.brand.toLowerCase().includes(searchLower) ||
-        tire.size.toLowerCase().includes(searchLower) ||
-        (tire.model?.toLowerCase().includes(searchLower)) ||
-        tire.tire_dots?.some((dot) =>
-          dot.dot_code.toLowerCase().includes(searchLower)
-        );
-
-      // Brand filter
-      const matchesBrand = brandFilter === "all" || tire.brand === brandFilter;
-
-      // Stock filter
-      const totalQty = tire.tire_dots?.reduce((sum, d) => sum + d.quantity, 0) || 0;
-      const matchesStock =
-        stockFilter === "all" ||
-        (stockFilter === "out" && totalQty === 0) ||
-        (stockFilter === "low" && totalQty > 0 && totalQty <= 4) ||
-        (stockFilter === "in" && totalQty > 4);
-
-      return matchesSearch && matchesBrand && matchesStock;
-    });
-  }, [tires, searchQuery, brandFilter, stockFilter]);
-
-  // Stats
+  // Stats from current page (for display)
   const stats = useMemo(() => {
-    const totalTires = tires.length;
     const totalStock = tires.reduce(
       (sum, t) => sum + (t.tire_dots?.reduce((s, d) => s + d.quantity, 0) || 0),
       0
@@ -104,8 +99,8 @@ export default function Inventory() {
       return qty > 0 && qty <= 4;
     }).length;
 
-    return { totalTires, totalStock, outOfStock, lowStock };
-  }, [tires]);
+    return { totalTires: totalCount, totalStock, outOfStock, lowStock };
+  }, [tires, totalCount]);
 
   const handleEdit = (tire: Tire) => {
     navigate(`/inventory/edit/${tire.id}`);
@@ -142,12 +137,20 @@ export default function Inventory() {
   };
 
   const clearFilters = () => {
+    setLocalSearch("");
     setSearchQuery("");
     setBrandFilter("all");
     setStockFilter("all");
   };
 
   const hasActiveFilters = searchQuery || brandFilter !== "all" || stockFilter !== "all";
+
+  const goToPage = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   if (!store) {
     return (
@@ -253,9 +256,9 @@ export default function Inventory() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by brand, size, model, DOT..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by brand, size, model..."
+                  value={localSearch}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -322,7 +325,7 @@ export default function Inventory() {
                 {searchQuery && (
                   <Badge variant="secondary">
                     Search: {searchQuery}
-                    <button onClick={() => setSearchQuery("")} className="ml-1">
+                    <button onClick={() => { setLocalSearch(""); setSearchQuery(""); }} className="ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>
@@ -348,7 +351,7 @@ export default function Inventory() {
           </motion.div>
 
           {/* Tire List */}
-          {tires.length === 0 ? (
+          {tires.length === 0 && !hasActiveFilters ? (
             <motion.div variants={itemVariants}>
               <Card className="glass-card">
                 <CardContent className="py-16">
@@ -378,7 +381,7 @@ export default function Inventory() {
                 </CardContent>
               </Card>
             </motion.div>
-          ) : filteredTires.length === 0 ? (
+          ) : tires.length === 0 ? (
             <motion.div variants={itemVariants}>
               <Card className="glass-card">
                 <CardContent className="py-12">
@@ -396,7 +399,7 @@ export default function Inventory() {
           ) : (
             <motion.div variants={itemVariants} className="space-y-3">
               <AnimatePresence mode="popLayout">
-                {filteredTires.map((tire) => (
+                {tires.map((tire) => (
                   <TireCard
                     key={tire.id}
                     tire={tire}
@@ -406,6 +409,60 @@ export default function Inventory() {
                   />
                 ))}
               </AnimatePresence>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (page <= 3) {
+                        pageNum = i + 1;
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = page - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => goToPage(pageNum)}
+                          className="w-9"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  
+                  <span className="text-sm text-muted-foreground ml-2">
+                    Page {page} of {totalPages}
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
         </motion.div>

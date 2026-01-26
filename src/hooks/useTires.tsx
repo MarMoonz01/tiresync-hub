@@ -44,31 +44,69 @@ export interface TireFormData {
   }[];
 }
 
+const PAGE_SIZE = 20;
+
 export function useTires() {
   const { store } = useAuth();
   const { toast } = useToast();
   const [tires, setTires] = useState<Tire[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [brandFilter, setBrandFilter] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<string>("all");
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const fetchTires = useCallback(async () => {
     if (!store) {
       setTires([]);
       setLoading(false);
+      setTotalCount(0);
       return;
     }
 
     try {
       setLoading(true);
+      
+      // Build query with filters
+      let query = supabase
+        .from("tires")
+        .select("*", { count: "exact" })
+        .eq("store_id", store.id);
+
+      // Apply search filter
+      if (searchQuery) {
+        query = query.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
+      }
+
+      // Apply brand filter
+      if (brandFilter !== "all") {
+        query = query.eq("brand", brandFilter);
+      }
+
+      // Get total count first
+      const { count } = await query;
+      setTotalCount(count || 0);
+
+      // Fetch paginated data
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       const { data: tiresData, error: tiresError } = await supabase
         .from("tires")
         .select("*")
         .eq("store_id", store.id)
-        .order("created_at", { ascending: false });
+        .or(searchQuery ? `brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%` : "brand.neq.___never_match___")
+        .eq(brandFilter !== "all" ? "brand" : "id", brandFilter !== "all" ? brandFilter : undefined as any)
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (tiresError) throw tiresError;
 
-      // Fetch tire_dots for all tires
+      // Fetch tire_dots for paginated tires
       if (tiresData && tiresData.length > 0) {
         const tireIds = tiresData.map((t) => t.id);
         const { data: dotsData, error: dotsError } = await supabase
@@ -79,11 +117,22 @@ export function useTires() {
 
         if (dotsError) throw dotsError;
 
-        // Combine tires with their dots
-        const tiresWithDots = tiresData.map((tire) => ({
+        // Combine tires with their dots and apply stock filter client-side
+        let tiresWithDots = tiresData.map((tire) => ({
           ...tire,
           tire_dots: dotsData?.filter((dot) => dot.tire_id === tire.id) || [],
         }));
+
+        // Apply stock filter (must be done client-side after fetching dots)
+        if (stockFilter !== "all") {
+          tiresWithDots = tiresWithDots.filter((tire) => {
+            const totalQty = tire.tire_dots.reduce((sum, d) => sum + d.quantity, 0);
+            if (stockFilter === "out") return totalQty === 0;
+            if (stockFilter === "low") return totalQty > 0 && totalQty <= 4;
+            if (stockFilter === "in") return totalQty > 4;
+            return true;
+          });
+        }
 
         setTires(tiresWithDots);
       } else {
@@ -100,7 +149,7 @@ export function useTires() {
     } finally {
       setLoading(false);
     }
-  }, [store, toast]);
+  }, [store, toast, page, searchQuery, brandFilter, stockFilter]);
 
   const createTire = async (formData: TireFormData) => {
     if (!store) {
@@ -240,10 +289,25 @@ export function useTires() {
     fetchTires();
   }, [fetchTires]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, brandFilter, stockFilter]);
+
   return {
     tires,
     loading,
     error,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    searchQuery,
+    setSearchQuery,
+    brandFilter,
+    setBrandFilter,
+    stockFilter,
+    setStockFilter,
     fetchTires,
     createTire,
     updateTire,
