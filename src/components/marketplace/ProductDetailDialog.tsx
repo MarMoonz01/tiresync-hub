@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { 
   Store, 
   Package, 
   Calendar, 
   Tag,
-  ShoppingBag,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  CheckCircle2,
-  AlertTriangle
+  ChevronDown
 } from "lucide-react";
 import {
   Dialog,
@@ -21,12 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketplaceProduct, ProductStore } from "@/hooks/useMarketplaceProducts";
-import { useOrders } from "@/hooks/useOrders";
 import { cn } from "@/lib/utils";
 
 interface ProductDetailDialogProps {
@@ -40,11 +31,7 @@ export function ProductDetailDialog({
   open, 
   onOpenChange,
 }: ProductDetailDialogProps) {
-  const navigate = useNavigate();
-  const { createOrder, loading: orderLoading, hasStore } = useOrders();
   const [expandedStores, setExpandedStores] = useState<Set<string>>(new Set());
-  const [interestedItems, setInterestedItems] = useState<Set<string>>(new Set());
-  const [processingId, setProcessingId] = useState<string | null>(null);
 
   if (!product) return null;
 
@@ -58,29 +45,6 @@ export function ProductDetailDialog({
       }
       return next;
     });
-  };
-
-  const handleInterested = async (storeEntry: ProductStore, dot?: { id: string; quantity: number }) => {
-    const itemKey = dot ? `${storeEntry.id}-${dot.id}` : storeEntry.id;
-    setProcessingId(itemKey);
-
-    const result = await createOrder({
-      sellerStoreId: storeEntry.store_id,
-      tireId: storeEntry.id,
-      tireDotId: dot?.id,
-      quantity: dot?.quantity || 1,
-      unitPrice: storeEntry.network_price || undefined,
-    });
-
-    if (result.success) {
-      setInterestedItems(prev => new Set(prev).add(itemKey));
-    }
-    setProcessingId(null);
-  };
-
-  const handleSetupStore = () => {
-    onOpenChange(false);
-    navigate("/store/setup");
   };
 
   return (
@@ -138,27 +102,8 @@ export function ProductDetailDialog({
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.3 }}
             >
-              Select a store & DOT to express interest:
+              Available stores:
             </motion.h4>
-
-            {/* No store warning */}
-            {!hasStore && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35, duration: 0.3 }}
-              >
-                <Alert className="mb-4 border-warning/50 bg-warning/10">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <AlertDescription className="flex items-center justify-between gap-2">
-                    <span className="text-sm">You need to set up your store first to express interest.</span>
-                    <Button size="sm" variant="outline" onClick={handleSetupStore}>
-                      Setup Store
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              </motion.div>
-            )}
           </div>
 
           <ScrollArea className="max-h-[50vh] px-6 pb-6">
@@ -253,70 +198,38 @@ export function ProductDetailDialog({
                                   No stock available
                                 </p>
                               ) : (
-                                dotsWithStock.map((dot, dotIndex) => {
-                                  const itemKey = `${storeEntry.id}-${dot.id}`;
-                                  const isInterested = interestedItems.has(itemKey);
-                                  const isProcessing = processingId === itemKey;
-
-                                  return (
-                                    <motion.div
-                                      key={dot.id}
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: dotIndex * 0.05, duration: 0.2 }}
-                                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 gap-3"
-                                    >
-                                      <div className="flex items-center gap-2 flex-wrap flex-1">
-                                        <Badge variant="outline" className="text-xs font-mono">
-                                          <Calendar className="w-3 h-3 mr-1" />
-                                          DOT {dot.dot_code}
-                                        </Badge>
-                                        <Badge 
-                                          variant="secondary" 
-                                          className={cn(
-                                            "text-xs",
-                                            dot.quantity <= 4 ? "bg-warning/10 text-warning" : ""
-                                          )}
-                                        >
-                                          <Package className="w-3 h-3 mr-1" />
-                                          {dot.quantity} pcs
-                                        </Badge>
-                                        {dot.promotion && (
-                                          <Badge className="text-xs bg-accent/10 text-accent border-accent/20">
-                                            <Tag className="w-3 h-3 mr-1" />
-                                            {dot.promotion}
-                                          </Badge>
-                                        )}
-                                      </div>
-
-                                      <Button 
-                                        size="sm"
-                                        onClick={() => handleInterested(storeEntry, dot)}
-                                        disabled={isInterested || isProcessing || orderLoading || !hasStore}
+                                dotsWithStock.map((dot, dotIndex) => (
+                                  <motion.div
+                                    key={dot.id}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: dotIndex * 0.05, duration: 0.2 }}
+                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 gap-3"
+                                  >
+                                    <div className="flex items-center gap-2 flex-wrap flex-1">
+                                      <Badge variant="outline" className="text-xs font-mono">
+                                        <Calendar className="w-3 h-3 mr-1" />
+                                        DOT {dot.dot_code}
+                                      </Badge>
+                                      <Badge 
+                                        variant="secondary" 
                                         className={cn(
-                                          "shrink-0 transition-all",
-                                          isInterested 
-                                            ? "bg-success hover:bg-success text-success-foreground" 
-                                            : "bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                                          "text-xs",
+                                          dot.quantity <= 4 ? "bg-warning/10 text-warning" : ""
                                         )}
                                       >
-                                        {isProcessing ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : isInterested ? (
-                                          <>
-                                            <CheckCircle2 className="w-4 h-4 mr-1" />
-                                            Sent
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShoppingBag className="w-4 h-4 mr-1" />
-                                            Interested
-                                          </>
-                                        )}
-                                      </Button>
-                                    </motion.div>
-                                  );
-                                })
+                                        <Package className="w-3 h-3 mr-1" />
+                                        {dot.quantity} pcs
+                                      </Badge>
+                                      {dot.promotion && (
+                                        <Badge className="text-xs bg-accent/10 text-accent border-accent/20">
+                                          <Tag className="w-3 h-3 mr-1" />
+                                          {dot.promotion}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                ))
                               )}
                             </div>
                           </motion.div>
