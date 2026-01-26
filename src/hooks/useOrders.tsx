@@ -19,12 +19,7 @@ export function useOrders() {
 
   const createOrder = async (params: CreateOrderParams) => {
     if (!store) {
-      toast({
-        title: "Error",
-        description: "You need a store to express interest",
-        variant: "destructive",
-      });
-      return null;
+      return { success: false, error: "no_store" as const };
     }
 
     try {
@@ -52,7 +47,7 @@ export function useOrders() {
         description: "The seller has been notified of your interest.",
       });
 
-      return data;
+      return { success: true, data };
     } catch (err) {
       console.error("Error creating order:", err);
       toast({
@@ -60,7 +55,7 @@ export function useOrders() {
         description: "Failed to express interest. Please try again.",
         variant: "destructive",
       });
-      return null;
+      return { success: false, error: "failed" as const };
     } finally {
       setLoading(false);
     }
@@ -69,5 +64,6 @@ export function useOrders() {
   return {
     createOrder,
     loading,
+    hasStore: !!store,
   };
 }
