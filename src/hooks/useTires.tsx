@@ -95,12 +95,22 @@ export function useTires() {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      const { data: tiresData, error: tiresError } = await supabase
+      let tiresQuery = supabase
         .from("tires")
         .select("*")
-        .eq("store_id", store.id)
-        .or(searchQuery ? `brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%` : "brand.neq.___never_match___")
-        .eq(brandFilter !== "all" ? "brand" : "id", brandFilter !== "all" ? brandFilter : undefined as any)
+        .eq("store_id", store.id);
+
+      // Apply search filter
+      if (searchQuery) {
+        tiresQuery = tiresQuery.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
+      }
+
+      // Apply brand filter
+      if (brandFilter !== "all") {
+        tiresQuery = tiresQuery.eq("brand", brandFilter);
+      }
+
+      const { data: tiresData, error: tiresError } = await tiresQuery
         .order("created_at", { ascending: false })
         .range(from, to);
 
