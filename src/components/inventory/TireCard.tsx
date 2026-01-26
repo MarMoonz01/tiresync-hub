@@ -9,11 +9,13 @@ import {
   Package,
   AlertTriangle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tire, TireDot } from "@/hooks/useTires";
 import { cn } from "@/lib/utils";
 
@@ -33,15 +40,26 @@ interface TireCardProps {
   onEdit: (tire: Tire) => void;
   onDelete: (tireId: string) => void;
   onQuantityChange: (dotId: string, change: number) => void;
+  onToggleShare: (tireId: string, isShared: boolean) => void;
 }
 
-export function TireCard({ tire, onEdit, onDelete, onQuantityChange }: TireCardProps) {
+export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleShare }: TireCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const totalQuantity = tire.tire_dots?.reduce((sum, dot) => sum + dot.quantity, 0) || 0;
   const isLowStock = totalQuantity > 0 && totalQuantity <= 4;
   const isOutOfStock = totalQuantity === 0;
+
+  const handleToggleShare = async () => {
+    setShareLoading(true);
+    try {
+      await onToggleShare(tire.id, !tire.is_shared);
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const handleQuantityChange = async (dotId: string, change: number) => {
     setLoading(dotId);
@@ -68,16 +86,10 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange }: TireCardP
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-foreground truncate">
                     {tire.brand} {tire.model}
                   </h3>
-                  {tire.is_shared && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Share2 className="w-3 h-3 mr-1" />
-                      Shared
-                    </Badge>
-                  )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   {tire.size}
@@ -135,7 +147,34 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange }: TireCardP
                 )}
               </Button>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-3">
+                {/* Share Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      {shareLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Share2 className={cn(
+                          "w-4 h-4 transition-colors",
+                          tire.is_shared ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      )}
+                      <Switch
+                        checked={tire.is_shared}
+                        onCheckedChange={handleToggleShare}
+                        disabled={shareLoading}
+                        className="data-[state=checked]:bg-primary"
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {tire.is_shared ? "Shared to Network" : "Share to Network"}
+                  </TooltipContent>
+                </Tooltip>
+
+                <div className="w-px h-6 bg-border" />
+
                 <Button
                   variant="ghost"
                   size="icon"

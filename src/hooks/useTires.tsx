@@ -304,6 +304,16 @@ export function useTires() {
     setPage(1);
   }, [searchQuery, brandFilter, stockFilter]);
 
+  const toggleShare = async (tireId: string, isShared: boolean) => {
+    const { error } = await supabase
+      .from("tires")
+      .update({ is_shared: isShared })
+      .eq("id", tireId);
+
+    if (error) throw error;
+    await fetchTires();
+  };
+
   return {
     tires,
     loading,
@@ -323,5 +333,6 @@ export function useTires() {
     updateTire,
     deleteTire,
     updateDotQuantity,
+    toggleShare,
   };
 }

@@ -61,7 +61,8 @@ export default function Inventory() {
     brandFilter,
     setBrandFilter,
     stockFilter,
-    setStockFilter
+    setStockFilter,
+    toggleShare
   } = useTires();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -131,6 +132,25 @@ export default function Inventory() {
       toast({
         title: "Error",
         description: "Failed to update quantity",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleShare = async (tireId: string, isShared: boolean) => {
+    try {
+      await toggleShare(tireId, isShared);
+      toast({
+        title: isShared ? "Shared to Network" : "Removed from Network",
+        description: isShared 
+          ? "This tire is now visible to other stores" 
+          : "This tire is now private",
+      });
+    } catch (error) {
+      console.error("Error toggling share:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update sharing status",
         variant: "destructive",
       });
     }
@@ -406,6 +426,7 @@ export default function Inventory() {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onQuantityChange={handleQuantityChange}
+                    onToggleShare={handleToggleShare}
                   />
                 ))}
               </AnimatePresence>
