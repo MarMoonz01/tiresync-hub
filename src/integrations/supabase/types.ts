@@ -228,6 +228,13 @@ export type Database = {
             referencedRelation: "stores"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tires_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -253,7 +260,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      stores_public: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_store_id: { Args: { _user_id: string }; Returns: string }
