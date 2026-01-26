@@ -17,6 +17,7 @@ import MyStore from "./pages/MyStore";
 import StoreSetup from "./pages/StoreSetup";
 import Marketplace from "./pages/Marketplace";
 import Network from "./pages/Network";
+import Orders from "./pages/Orders";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -60,6 +61,9 @@ const App = () => (
             } />
             <Route path="/network" element={
               <ProtectedRoute><Network /></ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute><Orders /></ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute><Settings /></ProtectedRoute>

@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Upload,
   Users,
-  LogOut
+  LogOut,
+  ShoppingBag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const navItems = [
   { icon: Upload, label: "Import", path: "/import" },
   { icon: Store, label: "My Store", path: "/store" },
   { icon: Search, label: "Marketplace", path: "/marketplace" },
+  { icon: ShoppingBag, label: "Orders", path: "/orders" },
   { icon: Users, label: "Network", path: "/network" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
