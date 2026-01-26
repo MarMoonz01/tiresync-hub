@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -29,6 +29,7 @@ import { TireCard } from "@/components/inventory/TireCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useTires, Tire } from "@/hooks/useTires";
 import { useToast } from "@/hooks/use-toast";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -69,16 +70,14 @@ export default function Inventory() {
   
   const [showFilters, setShowFilters] = useState(false);
   const [localSearch, setLocalSearch] = useState("");
+  
+  // Debounce the search value
+  const debouncedSearch = useDebouncedValue(localSearch, 400);
 
-  // Debounced search
-  const handleSearchChange = (value: string) => {
-    setLocalSearch(value);
-    // Debounce the actual search
-    const timer = setTimeout(() => {
-      setSearchQuery(value);
-    }, 300);
-    return () => clearTimeout(timer);
-  };
+  // Sync debounced search with hook
+  useEffect(() => {
+    setSearchQuery(debouncedSearch);
+  }, [debouncedSearch, setSearchQuery]);
 
   // Get unique brands for filter (from current page - could be improved with separate query)
   const brands = useMemo(() => {
@@ -158,12 +157,11 @@ export default function Inventory() {
 
   const clearFilters = () => {
     setLocalSearch("");
-    setSearchQuery("");
     setBrandFilter("all");
     setStockFilter("all");
   };
 
-  const hasActiveFilters = searchQuery || brandFilter !== "all" || stockFilter !== "all";
+  const hasActiveFilters = debouncedSearch || brandFilter !== "all" || stockFilter !== "all";
 
   const goToPage = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -278,7 +276,7 @@ export default function Inventory() {
                 <Input
                   placeholder="Search by brand, size, model..."
                   value={localSearch}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onChange={(e) => setLocalSearch(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -342,10 +340,10 @@ export default function Inventory() {
             {/* Active filter badges */}
             {hasActiveFilters && !showFilters && (
               <div className="flex flex-wrap gap-2">
-                {searchQuery && (
+                {debouncedSearch && (
                   <Badge variant="secondary">
-                    Search: {searchQuery}
-                    <button onClick={() => { setLocalSearch(""); setSearchQuery(""); }} className="ml-1">
+                    Search: {debouncedSearch}
+                    <button onClick={() => setLocalSearch("")} className="ml-1">
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>

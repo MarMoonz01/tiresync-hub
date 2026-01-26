@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StoreCard } from "@/components/network/StoreCard";
 import { useNetworkStores } from "@/hooks/useNetworkStores";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -23,16 +24,16 @@ const itemVariants = {
 };
 
 export default function Network() {
-  const { stores, loading, searchQuery, setSearchQuery } = useNetworkStores();
+  const { stores, loading, setSearchQuery } = useNetworkStores();
   const [localSearch, setLocalSearch] = useState("");
+  
+  // Debounce the search value
+  const debouncedSearch = useDebouncedValue(localSearch, 400);
 
-  // Debounce search
+  // Sync debounced value with hook
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(localSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [localSearch, setSearchQuery]);
+    setSearchQuery(debouncedSearch);
+  }, [debouncedSearch, setSearchQuery]);
 
   return (
     <AppLayout>
@@ -80,10 +81,10 @@ export default function Network() {
                       <Users className="w-10 h-10 text-muted-foreground" />
                     </div>
                     <h2 className="text-xl font-semibold mb-2">
-                      {searchQuery ? "No stores found" : "Your Network is Growing"}
+                      {debouncedSearch ? "No stores found" : "Your Network is Growing"}
                     </h2>
                     <p className="text-muted-foreground max-w-md">
-                      {searchQuery
+                      {debouncedSearch
                         ? "Try adjusting your search to find partner stores."
                         : "Partner stores will appear here once they join the network. Connect with trusted tire businesses to expand your reach."}
                     </p>
