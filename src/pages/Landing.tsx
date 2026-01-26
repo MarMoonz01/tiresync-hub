@@ -39,13 +39,13 @@ export default function Landing() {
             {/* Auth Buttons */}
             <div className="flex items-center gap-3">
               <Button variant="outline" asChild className="hidden sm:flex">
-                <Link to="/auth">
+                <Link to="/auth?mode=login">
                   <LogIn className="w-4 h-4 mr-2" />
                   Member
                 </Link>
               </Button>
               <Button asChild className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                <Link to="/auth">
+                <Link to="/auth?mode=signup">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Join
                 </Link>
@@ -116,7 +116,7 @@ export default function Landing() {
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Button size="lg" asChild className="bg-gradient-to-r from-primary to-accent hover:opacity-90 h-12 px-8 text-base">
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <UserPlus className="w-5 h-5 mr-2" />
                 Get Started
               </Link>
@@ -214,7 +214,7 @@ export default function Landing() {
               Start managing your inventory smarter, not harder.
             </p>
             <Button size="lg" asChild className="bg-gradient-to-r from-primary to-accent hover:opacity-90 h-12 px-8 text-base">
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <UserPlus className="w-5 h-5 mr-2" />
                 Join TireVault Now
               </Link>
