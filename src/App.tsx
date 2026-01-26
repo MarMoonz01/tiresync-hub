@@ -18,6 +18,8 @@ import StoreSetup from "./pages/StoreSetup";
 import Marketplace from "./pages/Marketplace";
 import Network from "./pages/Network";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import Staff from "./pages/Staff";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +65,12 @@ const App = () => (
             } />
             <Route path="/settings" element={
               <ProtectedRoute><Settings /></ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute><Profile /></ProtectedRoute>
+            } />
+            <Route path="/staff" element={
+              <ProtectedRoute requireAdmin><Staff /></ProtectedRoute>
             } />
             
             <Route path="*" element={<NotFound />} />

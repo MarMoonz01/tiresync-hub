@@ -10,8 +10,10 @@ import {
   ChevronRight,
   Upload,
   Users,
+  UserCog,
   LogOut
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,19 +25,34 @@ interface DesktopSidebarProps {
   onToggle: () => void;
 }
 
-const navItems = [
+const baseNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: CircleDot, label: "Tire Vault", path: "/inventory" },
   { icon: Upload, label: "Import", path: "/import" },
   { icon: Store, label: "My Store", path: "/store" },
   { icon: Search, label: "Marketplace", path: "/marketplace" },
   { icon: Users, label: "Network", path: "/network" },
+];
+
+const adminNavItems = [
+  { icon: UserCog, label: "Staff", path: "/staff" },
+];
+
+const bottomNavItems = [
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+
+  // Build nav items based on role
+  const navItems = [
+    ...baseNavItems,
+    ...(isAdmin ? adminNavItems : []),
+    ...bottomNavItems,
+  ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
