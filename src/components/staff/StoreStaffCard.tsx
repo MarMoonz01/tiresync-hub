@@ -19,14 +19,8 @@ interface StoreStaffCardProps {
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 8 },
   visible: { opacity: 1, y: 0 },
-};
-
-const roleColors: Record<string, string> = {
-  manager: "bg-primary text-primary-foreground",
-  staff: "bg-secondary text-secondary-foreground",
-  sales: "bg-accent text-accent-foreground",
 };
 
 export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCardProps) {
@@ -42,21 +36,21 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
   return (
     <motion.div
       variants={itemVariants}
-      className="glass-card p-4 rounded-xl hover:shadow-lg transition-shadow"
+      className="p-4 rounded-2xl border-0 shadow-soft bg-card/60 backdrop-blur-sm hover:shadow-soft-lg transition-all"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={profile?.avatar_url || ""} alt={profile?.full_name || "User"} />
-            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="font-medium text-foreground truncate">
+            <p className="font-medium text-sm text-foreground truncate">
               {profile?.full_name || "Unknown User"}
             </p>
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate">
               {profile?.email || "No email"}
             </p>
           </div>
@@ -76,26 +70,26 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onRemove} className="text-destructive">
               <UserX className="h-4 w-4 mr-2" />
-              Remove from Store
+              Remove
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <Badge className={roleColors[member.role] || "bg-muted text-muted-foreground"}>
-          {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+        <Badge variant="outline" className="text-[10px] capitalize">
+          {member.role}
         </Badge>
         {profile?.status && (
           <Badge
-            variant="outline"
-            className={
+            variant={
               profile.status === "approved"
-                ? "border-success text-success"
+                ? "success"
                 : profile.status === "pending"
-                ? "border-warning text-warning"
-                : "border-destructive text-destructive"
+                ? "warning"
+                : "destructive"
             }
+            className="text-[10px]"
           >
             {profile.status}
           </Badge>
@@ -103,7 +97,7 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
       </div>
 
       {profile?.phone && (
-        <p className="mt-2 text-sm text-muted-foreground">{profile.phone}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{profile.phone}</p>
       )}
     </motion.div>
   );
