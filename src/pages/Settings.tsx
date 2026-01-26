@@ -132,7 +132,10 @@ export default function Settings() {
 
           {/* Settings Menu */}
           <motion.div variants={itemVariants} className="space-y-2">
-            <Card className="glass-card hover-scale cursor-pointer">
+            <Card 
+              className="glass-card hover-scale cursor-pointer"
+              onClick={() => navigate("/profile")}
+            >
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <User className="w-5 h-5 text-primary" />
