@@ -7,8 +7,7 @@ import {
   Loader2,
   X,
   ChevronLeft,
-  ChevronRight,
-  ShoppingBag
+  ChevronRight
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,20 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { ProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
-import { useMarketplaceProducts, MarketplaceProduct, ProductStore } from "@/hooks/useMarketplaceProducts";
+import { useMarketplaceProducts, MarketplaceProduct } from "@/hooks/useMarketplaceProducts";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useToast } from "@/hooks/use-toast";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -52,8 +42,6 @@ const itemVariants = {
 };
 
 export default function Marketplace() {
-  const { toast } = useToast();
-  
   // Local search state for immediate input response
   const [localSearch, setLocalSearch] = useState("");
   const [localSizeFilter, setLocalSizeFilter] = useState("");
@@ -88,31 +76,10 @@ export default function Marketplace() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [interestDialogOpen, setInterestDialogOpen] = useState(false);
-  const [selectedStore, setSelectedStore] = useState<ProductStore | null>(null);
 
   const handleProductClick = (product: MarketplaceProduct) => {
     setSelectedProduct(product);
     setDetailDialogOpen(true);
-  };
-
-  const handleInterested = (product: MarketplaceProduct, store: ProductStore) => {
-    setSelectedProduct(product);
-    setSelectedStore(store);
-    setDetailDialogOpen(false);
-    setInterestDialogOpen(true);
-  };
-
-  const confirmInterest = () => {
-    if (selectedProduct && selectedStore) {
-      toast({
-        title: "Interest Registered",
-        description: `The store "${selectedStore.store.name}" will be notified of your interest in ${selectedProduct.brand} ${selectedProduct.model}`,
-      });
-      setInterestDialogOpen(false);
-      setSelectedProduct(null);
-      setSelectedStore(null);
-    }
   };
 
   const clearFilters = () => {
@@ -276,18 +243,18 @@ export default function Marketplace() {
             </motion.div>
           )}
 
-          {/* Product Grid */}
           {!loading && products.length > 0 && (
             <motion.div 
               variants={itemVariants} 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
             >
               <AnimatePresence mode="popLayout">
-                {products.map((product) => (
+                {products.map((product, index) => (
                   <ProductCard
                     key={product.productKey}
                     product={product}
                     onClick={() => handleProductClick(product)}
+                    index={index}
                   />
                 ))}
               </AnimatePresence>
@@ -350,54 +317,7 @@ export default function Marketplace() {
           product={selectedProduct}
           open={detailDialogOpen}
           onOpenChange={setDetailDialogOpen}
-          onInterested={handleInterested}
         />
-
-        {/* Interest Confirmation Dialog */}
-        <Dialog open={interestDialogOpen} onOpenChange={setInterestDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-primary" />
-                Express Interest
-              </DialogTitle>
-              <DialogDescription>
-                Let the seller know you're interested in this tire
-              </DialogDescription>
-            </DialogHeader>
-
-            {selectedProduct && selectedStore && (
-              <div className="p-4 bg-muted/30 rounded-lg space-y-2">
-                <p className="font-semibold">
-                  {selectedProduct.brand} {selectedProduct.model}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedProduct.size}
-                </p>
-                {selectedStore.network_price && (
-                  <p className="text-lg font-bold text-primary">
-                    ฿{selectedStore.network_price.toLocaleString()}
-                  </p>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  From: {selectedStore.store.name}
-                </p>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setInterestDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={confirmInterest}
-                className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-              >
-                Confirm Interest
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );

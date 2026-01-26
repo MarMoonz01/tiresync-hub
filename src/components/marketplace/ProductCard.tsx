@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Package, Store, Tag } from "lucide-react";
+import { Package, Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MarketplaceProduct } from "@/hooks/useMarketplaceProducts";
@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 interface ProductCardProps {
   product: MarketplaceProduct;
   onClick: () => void;
+  index?: number;
 }
 
-export function ProductCard({ product, onClick }: ProductCardProps) {
+export function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
   const isLowStock = product.totalQuantity > 0 && product.totalQuantity <= 4;
   const isOutOfStock = product.totalQuantity === 0;
 
@@ -25,14 +26,27 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.05,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }}
+      whileHover={{ 
+        scale: 1.03,
+        y: -4,
+        transition: { duration: 0.2, ease: "easeOut" }
+      }}
+      whileTap={{ 
+        scale: 0.98,
+        transition: { duration: 0.1 }
+      }}
+      layout
     >
       <Card 
-        className="glass-card overflow-hidden hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-primary/20"
+        className="glass-card overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary/30 hover:shadow-xl transition-shadow duration-300"
         onClick={onClick}
       >
         <CardContent className="p-4">
@@ -55,24 +69,32 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
             </div>
 
             {/* Stock Badge */}
-            <div className={cn(
-              "flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium shrink-0",
-              isOutOfStock 
-                ? "bg-destructive/10 text-destructive" 
-                : isLowStock 
-                ? "bg-warning/10 text-warning" 
-                : "bg-success/10 text-success"
-            )}>
+            <motion.div 
+              className={cn(
+                "flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium shrink-0",
+                isOutOfStock 
+                  ? "bg-destructive/10 text-destructive" 
+                  : isLowStock 
+                  ? "bg-warning/10 text-warning" 
+                  : "bg-success/10 text-success"
+              )}
+              whileHover={{ scale: 1.05 }}
+            >
               <Package className="w-3.5 h-3.5" />
               {product.totalQuantity}
-            </div>
+            </motion.div>
           </div>
 
           {/* Price */}
           {priceDisplay() && (
-            <p className="text-lg font-bold text-primary mt-3">
+            <motion.p 
+              className="text-lg font-bold text-primary mt-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
               {priceDisplay()}
-            </p>
+            </motion.p>
           )}
 
           {/* Store count badge */}

@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      orders: {
+        Row: {
+          buyer_store_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          quantity: number
+          seller_store_id: string
+          status: Database["public"]["Enums"]["order_status"]
+          tire_dot_id: string | null
+          tire_id: string
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_store_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          seller_store_id: string
+          status?: Database["public"]["Enums"]["order_status"]
+          tire_dot_id?: string | null
+          tire_id: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_store_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          seller_store_id?: string
+          status?: Database["public"]["Enums"]["order_status"]
+          tire_dot_id?: string | null
+          tire_id?: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_buyer_store_id_fkey"
+            columns: ["buyer_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_buyer_store_id_fkey"
+            columns: ["buyer_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_store_id_fkey"
+            columns: ["seller_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_store_id_fkey"
+            columns: ["seller_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tire_dot_id_fkey"
+            columns: ["tire_dot_id"]
+            isOneToOne: false
+            referencedRelation: "tire_dots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
