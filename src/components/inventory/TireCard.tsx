@@ -72,26 +72,24 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      exit={{ opacity: 0, y: -8 }}
     >
       <Card className={cn(
-        "glass-card overflow-hidden transition-all",
-        isOutOfStock && "border-destructive/30",
-        isLowStock && "border-warning/30"
+        "overflow-hidden border-0 shadow-soft bg-card/60 backdrop-blur-sm transition-all",
+        isOutOfStock && "ring-1 ring-destructive/20",
+        isLowStock && "ring-1 ring-warning/20"
       )}>
         <CardContent className="p-0">
           {/* Main Info */}
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-foreground truncate">
-                    {tire.brand} {tire.model}
-                  </h3>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h3 className="font-semibold text-sm text-foreground">
+                  {tire.brand} {tire.model}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {tire.size}
                   {tire.load_index && ` • ${tire.load_index}`}
                   {tire.speed_rating && tire.speed_rating}
@@ -100,8 +98,8 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
                   <p className="text-sm font-medium text-primary mt-1">
                     ฿{tire.price.toLocaleString()}
                     {tire.network_price && (
-                      <span className="text-muted-foreground ml-2">
-                        Network: ฿{tire.network_price.toLocaleString()}
+                      <span className="text-muted-foreground text-xs ml-2">
+                        Net: ฿{tire.network_price.toLocaleString()}
                       </span>
                     )}
                   </p>
@@ -110,7 +108,7 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
 
               {/* Stock Badge */}
               <div className={cn(
-                "flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium",
+                "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium",
                 isOutOfStock 
                   ? "bg-destructive/10 text-destructive" 
                   : isLowStock 
@@ -118,45 +116,45 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
                   : "bg-success/10 text-success"
               )}>
                 {isOutOfStock ? (
-                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <AlertTriangle className="w-3 h-3" />
                 ) : (
-                  <Package className="w-3.5 h-3.5" />
+                  <Package className="w-3 h-3" />
                 )}
                 {totalQuantity}
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setExpanded(!expanded)}
-                className="text-muted-foreground"
+                className="text-muted-foreground text-xs h-8 px-2"
               >
                 {expanded ? (
                   <>
-                    <ChevronUp className="w-4 h-4 mr-1" />
-                    Hide DOT Details
+                    <ChevronUp className="w-3.5 h-3.5 mr-1" />
+                    Hide
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="w-4 h-4 mr-1" />
-                    {tire.tire_dots?.length || 0} DOT Codes
+                    <ChevronDown className="w-3.5 h-3.5 mr-1" />
+                    {tire.tire_dots?.length || 0} DOTs
                   </>
                 )}
               </Button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {/* Share Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {shareLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
                       ) : (
                         <Share2 className={cn(
-                          "w-4 h-4 transition-colors",
+                          "w-3.5 h-3.5 transition-colors",
                           tire.is_shared ? "text-primary" : "text-muted-foreground"
                         )} />
                       )}
@@ -164,33 +162,33 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
                         checked={tire.is_shared}
                         onCheckedChange={handleToggleShare}
                         disabled={shareLoading}
-                        className="data-[state=checked]:bg-primary"
+                        className="scale-75 data-[state=checked]:bg-primary"
                       />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    {tire.is_shared ? "Shared to Network" : "Share to Network"}
+                  <TooltipContent className="text-xs">
+                    {tire.is_shared ? "Shared" : "Share to Network"}
                   </TooltipContent>
                 </Tooltip>
 
-                <div className="w-px h-6 bg-border" />
+                <div className="w-px h-4 bg-border/50" />
 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-7 w-7"
                   onClick={() => onEdit(tire)}
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-3.5 h-3.5" />
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -198,7 +196,6 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
                       <AlertDialogTitle>Delete Tire</AlertDialogTitle>
                       <AlertDialogDescription>
                         Are you sure you want to delete {tire.brand} {tire.model} ({tire.size})?
-                        This will also delete all DOT codes and stock history.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -222,9 +219,9 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="border-t border-border/50 bg-muted/30"
+              className="border-t border-border/30 bg-secondary/30"
             >
-              <div className="p-4 space-y-3">
+              <div className="p-3 space-y-2">
                 {tire.tire_dots.map((dot) => (
                   <DotRow
                     key={dot.id}
@@ -253,31 +250,31 @@ function DotRow({ dot, loading, onQuantityChange }: DotRowProps) {
   const isOut = dot.quantity === 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 p-3 bg-background rounded-lg">
+    <div className="flex items-center justify-between gap-3 p-2.5 bg-background rounded-xl">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm font-medium">{dot.dot_code}</span>
+          <span className="font-mono text-xs font-medium">{dot.dot_code}</span>
           {dot.promotion && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
               {dot.promotion}
             </Badge>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           disabled={loading || dot.quantity === 0}
           onClick={() => dot.id && onQuantityChange(dot.id, -1)}
         >
-          <Minus className="w-4 h-4" />
+          <Minus className="w-3 h-3" />
         </Button>
 
         <span className={cn(
-          "w-10 text-center font-semibold",
+          "w-8 text-center text-sm font-medium",
           isOut && "text-destructive",
           isLow && "text-warning"
         )}>
@@ -287,11 +284,11 @@ function DotRow({ dot, loading, onQuantityChange }: DotRowProps) {
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           disabled={loading}
           onClick={() => dot.id && onQuantityChange(dot.id, 1)}
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3 h-3" />
         </Button>
       </div>
     </div>

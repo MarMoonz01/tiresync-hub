@@ -20,47 +20,46 @@ export function StoreCard({ store }: StoreCardProps) {
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.15 }}
     >
-      <Card className="glass-card h-full cursor-pointer hover:border-primary/30 transition-colors">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            <Avatar className="w-14 h-14 rounded-xl border-2 border-border">
+      <Card className="h-full cursor-pointer border-0 shadow-soft bg-card/60 backdrop-blur-sm hover:shadow-soft-lg transition-all">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Avatar className="w-11 h-11 rounded-xl border border-border/40">
               <AvatarImage src={store.logo_url || undefined} alt={store.name} />
-              <AvatarFallback className="rounded-xl bg-muted text-muted-foreground font-semibold">
+              <AvatarFallback className="rounded-xl bg-primary/10 text-primary text-sm font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-foreground truncate">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="font-medium text-sm text-foreground truncate">
                   {store.name}
                 </h3>
-                <Badge variant="secondary" className="text-xs shrink-0">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   Partner
                 </Badge>
               </div>
 
               {store.description ? (
-                <p className="text-sm text-muted-foreground line-clamp-2">
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                   {store.description}
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground/60 italic">
-                  No description available
+                <p className="text-xs text-muted-foreground/50 italic">
+                  No description
                 </p>
               )}
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Store className="w-3.5 h-3.5" />
-              <span>Active Partner</span>
+          <div className="mt-3 pt-3 border-t border-border/30 flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Store className="w-3 h-3" />
+              <span>Active</span>
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
               Since {new Date(store.created_at).toLocaleDateString()}
             </span>
           </div>

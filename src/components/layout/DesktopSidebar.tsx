@@ -62,22 +62,22 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ duration: 0.2, ease: "easeInOut" }}
+      animate={{ width: collapsed ? 72 : 240 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0"
     >
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
+      <div className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
         <Link to="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <CircleDot className="w-6 h-6 text-primary-foreground" />
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+            <CircleDot className="w-5 h-5 text-primary-foreground" />
           </div>
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="font-bold text-xl text-sidebar-foreground"
+              className="font-semibold text-lg text-sidebar-foreground"
             >
               TireVault
             </motion.span>
@@ -95,13 +95,20 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
             <Link
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
-              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+              {isActive && (
+                <motion.div
+                  layoutId="activeIndicator"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <Icon className="w-5 h-5 flex-shrink-0" />
               {!collapsed && (
                 <motion.span
                   initial={{ opacity: 0 }}
@@ -131,21 +138,20 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-sidebar-border space-y-2">
+      <div className="p-3 border-t border-sidebar-border/50 space-y-1">
         {/* Logout Button */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
+            <button
               onClick={handleLogout}
               className={cn(
-                "w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
-                collapsed && "justify-center px-0"
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10",
+                collapsed && "justify-center"
               )}
             >
               <LogOut className="w-5 h-5" />
-              {!collapsed && <span>Logout</span>}
-            </Button>
+              {!collapsed && <span className="text-sm">Logout</span>}
+            </button>
           </TooltipTrigger>
           {collapsed && (
             <TooltipContent side="right">Logout</TooltipContent>
@@ -158,7 +164,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
           size="sm"
           onClick={onToggle}
           className={cn(
-            "w-full text-sidebar-foreground/50 hover:text-sidebar-foreground",
+            "w-full text-sidebar-foreground/40 hover:text-sidebar-foreground rounded-xl",
             collapsed ? "justify-center" : "justify-end"
           )}
         >

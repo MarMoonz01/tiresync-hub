@@ -77,49 +77,49 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Back Button */}
       <Link
         to="/"
-        className="absolute top-4 left-4 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute top-4 left-4 flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="text-sm">Back to Home</span>
+        <span>Back</span>
       </Link>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-md"
+        transition={{ duration: 0.3 }}
+        className="w-full max-w-sm"
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <motion.div
-            initial={{ scale: 0.8 }}
+            initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4 shadow-lg"
+            transition={{ duration: 0.2, delay: 0.1 }}
+            className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mb-3 shadow-sm"
           >
-            <CircleDot className="w-9 h-9 text-primary-foreground" />
+            <CircleDot className="w-6 h-6 text-primary-foreground" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-foreground">TireVault</h1>
-          <p className="text-muted-foreground text-sm">Tire Business Network</p>
+          <h1 className="text-xl font-semibold text-foreground">TireVault</h1>
+          <p className="text-muted-foreground text-xs">Tire Business Network</p>
         </div>
 
-        <Card className="glass-card border-0 shadow-xl">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl">
+        <Card className="border-0 shadow-soft-lg bg-card/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-2 pt-6">
+            <CardTitle className="text-lg font-semibold">
               {isLogin ? "Welcome Back" : "Create Account"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               {isLogin
                 ? "Sign in to access your tire inventory"
                 : "Join the tire business network"}
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <AnimatePresence mode="wait">
                 {!isLogin && (
@@ -128,10 +128,10 @@ export default function Auth() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="space-y-2"
+                    transition={{ duration: 0.15 }}
+                    className="space-y-1.5"
                   >
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName" className="text-xs">Full Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -148,8 +148,8 @@ export default function Auth() {
                 )}
               </AnimatePresence>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -164,8 +164,8 @@ export default function Auth() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -194,7 +194,7 @@ export default function Auth() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                className="w-full"
                 disabled={loading}
               >
                 {loading ? (
@@ -207,11 +207,11 @@ export default function Auth() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
               >
                 {isLogin
                   ? "Don't have an account? Sign up"
@@ -221,7 +221,7 @@ export default function Auth() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-[10px] text-muted-foreground mt-4">
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
       </motion.div>

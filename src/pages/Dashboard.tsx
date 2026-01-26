@@ -23,21 +23,6 @@ import { QuickActionCard } from "@/components/dashboard/QuickActionCard";
 import { StockMovementChart } from "@/components/dashboard/StockMovementChart";
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function Dashboard() {
   const { profile, store } = useAuth();
   const { loading, tireStats, salesStats, dailyMovements, recentLogs } = useDashboardStats();
@@ -106,7 +91,7 @@ export default function Dashboard() {
     {
       to: "/import",
       icon: Upload,
-      label: "Import Excel",
+      label: "Import",
       bgColor: "bg-accent/10",
       hoverBgColor: "bg-accent/20",
       iconColor: "text-accent",
@@ -114,7 +99,7 @@ export default function Dashboard() {
     {
       to: "/inventory",
       icon: CircleDot,
-      label: "View Inventory",
+      label: "Inventory",
       bgColor: "bg-success/10",
       hoverBgColor: "bg-success/20",
       iconColor: "text-success",
@@ -122,7 +107,7 @@ export default function Dashboard() {
     {
       to: "/marketplace",
       icon: Package,
-      label: "Marketplace",
+      label: "Market",
       bgColor: "bg-warning/10",
       hoverBgColor: "bg-warning/20",
       iconColor: "text-warning",
@@ -133,39 +118,43 @@ export default function Dashboard() {
     <AppLayout>
       <div className="page-container">
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
           className="space-y-6"
         >
           {/* Header */}
-          <motion.div variants={itemVariants}>
-            <h1 className="text-2xl font-bold text-foreground">
-              Welcome back, {profile?.full_name?.split(" ")[0] || "there"}! 👋
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">
+              Welcome, {profile?.full_name?.split(" ")[0] || "there"} 👋
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {store 
-                ? `Managing inventory for ${store.name}` 
-                : "Set up your store to start managing inventory"}
+                ? `Managing ${store.name}` 
+                : "Set up your store to start"}
             </p>
-          </motion.div>
+          </div>
 
           {/* Store Setup CTA */}
           {!store && (
-            <motion.div variants={itemVariants}>
-              <Card className="glass-card border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="border-0 shadow-soft bg-primary/5">
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">Set Up Your Store</h3>
-                      <p className="text-muted-foreground text-sm mt-1">
-                        Create your store profile to start managing your tire inventory
+                      <h3 className="font-medium text-sm">Set Up Your Store</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        Create your store profile to start managing inventory
                       </p>
                     </div>
                     <Link to="/store/setup">
-                      <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                      <Button size="sm">
                         Get Started
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
                       </Button>
                     </Link>
                   </div>
@@ -175,16 +164,16 @@ export default function Dashboard() {
           )}
 
           {/* Inventory Stats Grid */}
-          <motion.div variants={itemVariants}>
-            <h2 className="font-semibold text-lg mb-4">Inventory Overview</h2>
+          <div>
+            <p className="section-header mb-3">Inventory</p>
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-24 rounded-lg" />
+                  <Skeleton key={i} className="h-20 rounded-2xl" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {stats.map((stat, index) => (
                   <StatCard
                     key={stat.title}
@@ -193,24 +182,24 @@ export default function Dashboard() {
                     icon={stat.icon}
                     color={stat.color}
                     bgColor={stat.bgColor}
-                    delay={index * 0.05}
+                    delay={index * 0.03}
                   />
                 ))}
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* Sales Stats */}
-          <motion.div variants={itemVariants}>
-            <h2 className="font-semibold text-lg mb-4">Sales Performance</h2>
+          <div>
+            <p className="section-header mb-3">Sales</p>
             {loading ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {[...Array(2)].map((_, i) => (
-                  <Skeleton key={i} className="h-24 rounded-lg" />
+                  <Skeleton key={i} className="h-20 rounded-2xl" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {salesMetrics.map((stat, index) => (
                   <StatCard
                     key={stat.title}
@@ -220,37 +209,35 @@ export default function Dashboard() {
                     color={stat.color}
                     bgColor={stat.bgColor}
                     trend={stat.trend}
-                    delay={index * 0.05}
+                    delay={index * 0.03}
                   />
                 ))}
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* Quick Actions */}
-          <motion.div variants={itemVariants}>
-            <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="section-header mb-3">Quick Actions</p>
+            <div className="grid grid-cols-4 gap-3">
               {quickActions.map((action) => (
                 <QuickActionCard key={action.to} {...action} />
               ))}
             </div>
-          </motion.div>
+          </div>
 
           {/* Charts & Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Stock Movement Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {loading ? (
-              <Skeleton className="h-[380px] rounded-lg" />
+              <>
+                <Skeleton className="h-[320px] rounded-2xl" />
+                <Skeleton className="h-[320px] rounded-2xl" />
+              </>
             ) : (
-              <StockMovementChart data={dailyMovements} />
-            )}
-
-            {/* Recent Activity */}
-            {loading ? (
-              <Skeleton className="h-[380px] rounded-lg" />
-            ) : (
-              <RecentActivityList logs={recentLogs} />
+              <>
+                <StockMovementChart data={dailyMovements} />
+                <RecentActivityList logs={recentLogs} />
+              </>
             )}
           </div>
         </motion.div>
