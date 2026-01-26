@@ -1,178 +1,253 @@
 
-# Profile Page and Staff Management Implementation Plan
+# Design Overhaul: Beautiful, Polished, Professional & Minimal
 
-## Overview
-This plan covers building two main features:
-1. **Profile Page** - A dedicated page where users can view and edit their personal information
-2. **Staff Management Pages** - Admin-only pages for managing all users/staff in the system
+A comprehensive redesign to transform TireVault into a premium, modern application with clean aesthetics and elegant visual identity.
 
 ---
 
-## Feature 1: Profile Page
+## Design Philosophy
 
-### What It Does
-- Allows users to view their complete profile information
-- Provides a form to update personal details (full name, phone, avatar)
-- Shows current role and account status
-- Links from the Settings page "Edit Profile" card
-
-### Files to Create/Modify
-
-**New Files:**
-- `src/pages/Profile.tsx` - The profile editing page with a form
-
-**Modified Files:**
-- `src/App.tsx` - Add route for `/profile`
-- `src/pages/Settings.tsx` - Make "Edit Profile" card clickable and navigate to `/profile`
-
-### Profile Page Design
-- Header with avatar (large, centered)
-- Form fields: Full Name, Phone, Email (read-only)
-- Save button with loading state
-- Uses existing `useAuth` hook and `refetchProfile` after updates
+**Core Principles:**
+- **Minimal**: Remove visual clutter, embrace whitespace, simplify UI elements
+- **Clean**: Consistent spacing, refined typography, subtle color palette
+- **Professional**: Premium feel with purposeful design decisions
+- **Beautiful**: Elegant transitions, harmonious colors, polished details
 
 ---
 
-## Feature 2: Staff Management Pages (Admin Only)
+## 1. Color System Refinement
 
-### What It Does
-- Lists all users in the system with their profiles and roles
-- Allows admins to:
-  - View all staff members
-  - Change user status (pending, approved, rejected, suspended)
-  - Assign/remove roles (admin, moderator, store_member, pending)
-  - Search and filter users
-- Protected by `requireAdmin` flag in `ProtectedRoute`
+### Updated Color Palette
+- **Background**: Softer off-white (#FAFBFC) for less harsh contrast
+- **Primary**: Refined deep blue (#2563EB) with subtle gradient accents
+- **Accent**: Warm indigo (#6366F1) for secondary highlights
+- **Muted**: Soft gray (#64748B) for better readability
+- **Borders**: Ultra-subtle (#E2E8F0) for cleaner separation
 
-### Database Changes Required
-Currently, the `profiles` table RLS only allows users to view their own profile. We need to add a policy that allows admins to view all profiles.
-
-**RLS Policy to Add:**
-```sql
--- Admins can view all profiles (already exists for ALL command)
--- But we need to ensure admins can read profiles they don't own
-```
-
-Looking at the existing policies, there's already an "Admins can manage all profiles" policy with the ALL command. This should cover admin access.
-
-### Files to Create
-
-**New Files:**
-1. `src/pages/Staff.tsx` - Main staff listing page
-2. `src/components/staff/StaffCard.tsx` - Card component for each staff member
-3. `src/components/staff/StaffStatusDialog.tsx` - Dialog to change user status
-4. `src/components/staff/StaffRoleDialog.tsx` - Dialog to manage user roles
-5. `src/hooks/useStaff.tsx` - Hook to fetch all profiles and roles (admin only)
-
-**Modified Files:**
-- `src/App.tsx` - Add route for `/staff` with `requireAdmin`
-- `src/components/layout/DesktopSidebar.tsx` - Add Staff link (shown only to admins)
-
-### Staff Page Design
-
-```text
-+------------------------------------------+
-|  Staff Management                        |
-|  Manage all users and their permissions  |
-+------------------------------------------+
-|  [Search users...]           [Filters v] |
-+------------------------------------------+
-|  +-------------+  +-------------+        |
-|  | User Card   |  | User Card   |  ...   |
-|  | - Avatar    |  | - Avatar    |        |
-|  | - Name      |  | - Name      |        |
-|  | - Email     |  | - Email     |        |
-|  | - Role Badge|  | - Role Badge|        |
-|  | - Status    |  | - Status    |        |
-|  | [Actions v] |  | [Actions v] |        |
-|  +-------------+  +-------------+        |
-+------------------------------------------+
-```
-
-### Staff Card Actions
-- **Change Status**: Opens dialog to set pending/approved/rejected/suspended
-- **Manage Roles**: Opens dialog to add/remove roles
+### Glassmorphism Enhancement
+- Reduce blur intensity for subtlety
+- Add very subtle shadow layers
+- Use more transparent backgrounds
 
 ---
 
-## Implementation Details
+## 2. Typography Improvements
 
-### 1. useStaff Hook (`src/hooks/useStaff.tsx`)
-```typescript
-// Fetches all profiles with their roles
-// Only works for admin users
-// Includes search/filter functionality
-// Provides mutation functions for status and role updates
-```
+### Font Hierarchy
+- **Display (h1)**: 2rem, font-semibold, tracking-tight
+- **Headings (h2)**: 1.5rem, font-medium
+- **Body**: 0.875rem, font-normal, leading-relaxed
+- **Captions**: 0.75rem, text-muted-foreground
 
-### 2. Staff Page Flow
-1. Check if user is admin (redirect if not)
-2. Fetch all profiles from database
-3. For each profile, fetch associated roles
-4. Display in searchable, filterable grid
-5. Each card has dropdown menu with actions
-
-### 3. Status Change Flow
-1. Admin clicks "Change Status" on a user
-2. Dialog opens with status options
-3. Admin selects new status and confirms
-4. Updates `profiles` table `status` column
-5. Refreshes the list
-
-### 4. Role Management Flow
-1. Admin clicks "Manage Roles" on a user
-2. Dialog opens showing current roles
-3. Admin can add or remove roles
-4. Updates `user_roles` table
-5. Refreshes the list
-
-### 5. Navigation Integration
-- Staff link appears in sidebar only for admins
-- Uses `isAdmin` from `useAuth` hook
-- Icon: `Users` or `UserCog` from lucide-react
+### Refinements
+- Tighten letter-spacing on headings
+- Increase line-height on body text
+- Use Inter font weights more intentionally
 
 ---
 
-## Route Structure
+## 3. Layout & Spacing System
 
-| Route | Page | Access |
-|-------|------|--------|
-| `/profile` | Profile | Authenticated users |
-| `/staff` | Staff Management | Admin only |
+### Consistent Spacing Scale
+- Section gaps: 32px (2rem)
+- Card padding: 24px (1.5rem)
+- Element gaps: 16px (1rem)
+- Tight gaps: 8px (0.5rem)
 
----
-
-## Technical Considerations
-
-### Security
-- Staff management routes protected by `requireAdmin={true}`
-- All database mutations use existing RLS policies that require admin role
-- Role changes validated server-side through RLS
-
-### Existing Patterns Followed
-- Uses `AppLayout` for consistent navigation
-- Framer Motion animations matching other pages
-- Glass-card styling for cards
-- Toast notifications for success/error feedback
-- Debounced search like Network page
-
-### Dependencies
-No new dependencies required. Uses existing:
-- `@radix-ui/react-dropdown-menu` for action menus
-- `@radix-ui/react-dialog` for dialogs
-- `framer-motion` for animations
-- `lucide-react` for icons
+### Grid Improvements
+- Maximum content width: 1200px
+- Centered content with generous margins
+- Responsive breakpoints refined
 
 ---
 
-## File Creation Order
+## 4. Component Redesigns
 
-1. `src/hooks/useStaff.tsx` - Staff data hook
-2. `src/components/staff/StaffCard.tsx` - User card component
-3. `src/components/staff/StaffStatusDialog.tsx` - Status change dialog
-4. `src/components/staff/StaffRoleDialog.tsx` - Role management dialog
-5. `src/pages/Staff.tsx` - Staff listing page
-6. `src/pages/Profile.tsx` - Profile editing page
-7. Update `src/App.tsx` - Add routes
-8. Update `src/components/layout/DesktopSidebar.tsx` - Add staff navigation
-9. Update `src/pages/Settings.tsx` - Make profile card clickable
+### Cards (glass-card)
+- Lighter background: rgba(255, 255, 255, 0.8)
+- Softer border: 1px solid rgba(0, 0, 0, 0.04)
+- Refined shadow: 0 1px 3px rgba(0, 0, 0, 0.04)
+- Increased border-radius: 16px
+
+### Buttons
+- Remove gradient backgrounds (cleaner solid colors)
+- Subtle hover states with scale(1.01)
+- Refined focus rings
+- Consistent height: 40px (default), 36px (sm), 48px (lg)
+
+### Inputs
+- Cleaner border styling
+- Subtle focus ring (not heavy shadow)
+- Consistent 40px height
+- Placeholder color refinement
+
+### Badges
+- Softer colors (pastel tones)
+- Smaller font size (11px)
+- More padding horizontally
+- Pill shape (full border-radius)
+
+### Stats Cards
+- Larger, bolder numbers
+- Smaller, lighter labels
+- Icon in soft-colored circle
+- Remove aggressive background colors
+
+---
+
+## 5. Page-Specific Improvements
+
+### Landing Page
+- Cleaner hero with more whitespace
+- Refined navigation (thinner, more minimal)
+- Feature cards with icons only (no colored backgrounds)
+- Subtle section dividers
+- More elegant CTA buttons (outlined variants)
+
+### Auth Page
+- Centered form with max-width: 400px
+- Remove heavy gradient background
+- Cleaner card with subtle shadow
+- Refined input styling
+- Toggle link as subtle underlined text
+
+### Dashboard
+- Section headers with smaller text
+- Stat cards in a cleaner grid
+- Chart with refined colors
+- Activity list with cleaner separators
+- Welcome message more subtle
+
+### Inventory Page
+- Cleaner search bar styling
+- Filter badges more subtle
+- Tire cards with refined spacing
+- Stock indicators as small dots/pills
+- Pagination simplified
+
+### Marketplace
+- Product cards with hover lift effect
+- Price displayed more prominently
+- Store badges refined
+- Favorites heart more subtle
+
+### Staff Page
+- Staff cards with cleaner layout
+- Role badges as outlined pills
+- Stats section simplified
+- Search integrated more cleanly
+
+### Settings Page
+- Menu items as clean list
+- Avatar smaller and subtle
+- Store info in subtle card
+- Logout as text link, not button
+
+---
+
+## 6. Navigation Improvements
+
+### Desktop Sidebar
+- Lighter background (white or off-white)
+- Menu items with rounded hover states
+- Active indicator as subtle left border
+- Logo simplified
+- Collapse animation smoother
+
+### Mobile Bottom Nav
+- Thinner bar (64px instead of 72px)
+- Icons smaller (20px)
+- Labels only for active item
+- Subtle active indicator (dot)
+
+### Mobile Header
+- Cleaner logo treatment
+- Notification dot smaller
+- Avatar with subtle ring
+
+---
+
+## 7. Animation Refinements
+
+### Principles
+- Faster, snappier animations (200ms default)
+- Subtle entrance animations
+- No aggressive scale effects
+- Smooth page transitions
+
+### Specific Changes
+- Reduce hover scale to 1.01 (from 1.02-1.05)
+- Entrance animations: fade only, no Y translation
+- Remove bounce effects
+- Stagger delays reduced (30ms instead of 50-100ms)
+
+---
+
+## 8. Empty States
+
+### Design
+- Smaller icons (48px instead of 80px)
+- Lighter icon color
+- More concise messaging
+- Subtle CTA buttons (outlined)
+
+---
+
+## 9. Dialogs & Modals
+
+### Refinements
+- Rounded corners: 16px
+- Lighter overlay (rgba(0,0,0,0.3))
+- Clean header with subtle border
+- Footer buttons right-aligned
+- Reduced padding
+
+---
+
+## Technical Implementation Files
+
+### CSS Updates
+- `src/index.css`: Updated color variables, glass-card styles, utility classes
+
+### Tailwind Config
+- `tailwind.config.ts`: Refined shadow values, animation timing
+
+### Component Updates
+- `src/components/ui/button.tsx`: Cleaner variants
+- `src/components/ui/card.tsx`: Refined styling
+- `src/components/ui/badge.tsx`: Softer colors
+- `src/components/ui/input.tsx`: Cleaner focus states
+
+### Layout Updates
+- `src/components/layout/DesktopSidebar.tsx`: Cleaner styling
+- `src/components/layout/MobileBottomNav.tsx`: Refined design
+- `src/components/layout/MobileHeader.tsx`: Simplified
+
+### Page Updates
+- `src/pages/Landing.tsx`: Complete redesign
+- `src/pages/Auth.tsx`: Cleaner form
+- `src/pages/Dashboard.tsx`: Refined layout
+- `src/pages/Inventory.tsx`: Cleaner cards
+- `src/pages/Marketplace.tsx`: Polished grid
+- `src/pages/Staff.tsx`: Minimal layout
+- `src/pages/Settings.tsx`: Clean menu
+- `src/pages/Network.tsx`: Refined cards
+
+### Card Components
+- `src/components/dashboard/StatCard.tsx`: Cleaner design
+- `src/components/dashboard/QuickActionCard.tsx`: Simplified
+- `src/components/inventory/TireCard.tsx`: Refined
+- `src/components/marketplace/ProductCard.tsx`: Polished
+- `src/components/staff/StoreStaffCard.tsx`: Minimal
+- `src/components/network/StoreCard.tsx`: Clean
+
+---
+
+## Expected Result
+
+A cohesive, premium application that feels:
+- Light and airy with generous whitespace
+- Professional and trustworthy
+- Modern with subtle animations
+- Consistent across all pages
+- Accessible and easy to navigate
