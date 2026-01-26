@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Pending from "./pages/Pending";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
+import AddTire from "./pages/AddTire";
+import EditTire from "./pages/EditTire";
 import Import from "./pages/Import";
 import MyStore from "./pages/MyStore";
 import StoreSetup from "./pages/StoreSetup";
@@ -37,6 +39,12 @@ const App = () => (
             } />
             <Route path="/inventory" element={
               <ProtectedRoute><Inventory /></ProtectedRoute>
+            } />
+            <Route path="/inventory/add" element={
+              <ProtectedRoute><AddTire /></ProtectedRoute>
+            } />
+            <Route path="/inventory/edit/:id" element={
+              <ProtectedRoute><EditTire /></ProtectedRoute>
             } />
             <Route path="/import" element={
               <ProtectedRoute><Import /></ProtectedRoute>
