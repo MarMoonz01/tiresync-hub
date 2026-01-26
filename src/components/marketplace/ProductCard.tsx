@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { Package, Store } from "lucide-react";
+import { Package, Store, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MarketplaceProduct } from "@/hooks/useMarketplaceProducts";
 import { cn } from "@/lib/utils";
 
@@ -9,9 +10,11 @@ interface ProductCardProps {
   product: MarketplaceProduct;
   onClick: () => void;
   index?: number;
+  isFavorite?: boolean;
+  onToggleFavorite?: (tireId: string) => void;
 }
 
-export function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, onClick, index = 0, isFavorite = false, onToggleFavorite }: ProductCardProps) {
   const isLowStock = product.totalQuantity > 0 && product.totalQuantity <= 4;
   const isOutOfStock = product.totalQuantity === 0;
 
@@ -50,6 +53,30 @@ export function ProductCard({ product, onClick, index = 0 }: ProductCardProps) {
         onClick={onClick}
       >
         <CardContent className="p-4">
+          {/* Favorite button */}
+          {onToggleFavorite && (
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(product.stores[0]?.id || "");
+                }}
+              >
+                <Heart
+                  className={cn(
+                    "w-5 h-5 transition-colors",
+                    isFavorite
+                      ? "fill-destructive text-destructive"
+                      : "text-muted-foreground hover:text-destructive"
+                  )}
+                />
+              </Button>
+            </div>
+          )}
+
           {/* Tire Info */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">

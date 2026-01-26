@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          tire_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tire_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tire_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           buyer_store_id: string
