@@ -12,6 +12,8 @@ export const translations = {
     staff: "Staff",
     settings: "Settings",
     logout: "Logout",
+    salesReport: "Sales Report",
+    auditLog: "Audit Log",
     
     // Auth
     welcomeBack: "Welcome Back",
@@ -111,6 +113,8 @@ export const translations = {
     staff: "พนักงาน",
     settings: "ตั้งค่า",
     logout: "ออกจากระบบ",
+    salesReport: "รายงานการขาย",
+    auditLog: "บันทึกการตรวจสอบ",
     
     // Auth
     welcomeBack: "ยินดีต้อนรับกลับ",

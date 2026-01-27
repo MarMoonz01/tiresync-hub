@@ -11,7 +11,9 @@ import {
   Upload,
   Users,
   UserCog,
-  LogOut
+  LogOut,
+  BarChart3,
+  ClipboardList
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,12 @@ const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: Users, labelKey: "network", path: "/network" },
 ];
 
+// Owner-only nav items (requires store)
+const ownerNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+  { icon: BarChart3, labelKey: "salesReport", path: "/sales-report" },
+  { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },
+];
+
 const adminNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: UserCog, labelKey: "staff", path: "/staff" },
 ];
@@ -48,12 +56,13 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasStore } = useAuth();
   const { t } = useLanguage();
 
-  // Build nav items based on role
+  // Build nav items based on role and store ownership
   const navItems = [
     ...baseNavItems,
+    ...(hasStore ? ownerNavItems : []),
     ...(isAdmin ? adminNavItems : []),
     ...bottomNavItems,
   ];
