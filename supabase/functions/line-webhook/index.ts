@@ -200,7 +200,7 @@ function canViewStock(userPerms: UserPermissions | null): boolean {
   return userPerms.permissions?.line?.view ?? true;
 }
 
-// Generate success Flex Message after linking
+// Generate success Flex Message after linking (for general users)
 function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): object {
   const isOwner = userPerms?.is_owner ?? false;
   const canView = userPerms?.is_owner || userPerms?.permissions?.line?.view;
@@ -345,6 +345,179 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
   };
 }
 
+// Generate staff-specific success Flex Message (Blue/Indigo theme)
+function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, storeId?: string): object {
+  const canView = userPerms?.permissions?.line?.view ?? true;
+  const canAdjust = userPerms?.permissions?.line?.adjust ?? false;
+  const isApproved = userPerms?.is_approved ?? false;
+
+  const capabilities: object[] = [];
+
+  if (!isApproved) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "⏳",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "รอการอนุมัติจากเจ้าของร้าน",
+          size: "sm",
+          color: "#F59E0B",
+          margin: "sm",
+          flex: 1,
+          weight: "bold"
+        }
+      ]
+    });
+  }
+
+  if (canView) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "📦",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "ค้นหาและดูสต็อก",
+          size: "sm",
+          color: "#333333",
+          margin: "sm",
+          flex: 1
+        }
+      ],
+      margin: capabilities.length > 0 ? "sm" : "none"
+    });
+  }
+
+  if (canAdjust) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "➕",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "ปรับจำนวนสต็อก",
+          size: "sm",
+          color: "#333333",
+          margin: "sm",
+          flex: 1
+        }
+      ],
+      margin: "sm"
+    });
+  } else {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "👀",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "ดูสต็อกเท่านั้น (ไม่สามารถปรับได้)",
+          size: "sm",
+          color: "#888888",
+          margin: "sm",
+          flex: 1
+        }
+      ],
+      margin: "sm"
+    });
+  }
+
+  return {
+    type: "flex",
+    altText: "👤 เชื่อมต่อบัญชีพนักงานสำเร็จ!",
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "👤 เชื่อมต่อบัญชีพนักงานสำเร็จ!",
+            weight: "bold",
+            size: "lg",
+            color: "#FFFFFF"
+          }
+        ],
+        backgroundColor: "#4F46E5", // Indigo for staff
+        paddingAll: "lg"
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: isApproved 
+              ? "บัญชีของคุณเชื่อมต่อและพร้อมใช้งานแล้ว" 
+              : "บัญชีของคุณเชื่อมต่อแล้ว รอการอนุมัติ",
+            size: "sm",
+            color: "#666666",
+            wrap: true
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "สิทธิ์ของคุณ:",
+            size: "sm",
+            color: "#888888",
+            margin: "lg"
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            contents: capabilities,
+            margin: "md"
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: isApproved 
+              ? "💡 ลองค้นหา: \"265/65R17\"" 
+              : "💡 ติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม",
+            size: "sm",
+            color: isApproved ? "#4F46E5" : "#888888",
+            margin: "lg",
+            wrap: true
+          }
+        ],
+        paddingAll: "lg"
+      }
+    }
+  };
+}
+
 // Generate owner-specific success Flex Message
 function generateOwnerSuccessFlexMessage(storeName: string): object {
   return {
@@ -447,10 +620,13 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
   };
 }
 
-// Handle LINE account linking
+// Handle LINE account linking (Multi-store aware)
 // deno-lint-ignore no-explicit-any
 async function handleLinkCode(supabase: any, lineUserId: string, code: string, storeId?: string): Promise<object | string> {
-  console.log(`[LINK] Attempting to link code: ${code} for LINE user: ${lineUserId}`);
+  console.log(`[LINK] ==========================================`);
+  console.log(`[LINK] Attempting to link code: ${code}`);
+  console.log(`[LINK] LINE User ID: ${lineUserId}`);
+  console.log(`[LINK] Store context: ${storeId || 'none'}`);
   
   // Check if this is a link code
   const { data: linkCode, error } = await supabase
@@ -475,6 +651,8 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string, s
     return "⏰ รหัสหมดอายุแล้ว\n\nกรุณาสร้างรหัสใหม่ในเว็บแอพ";
   }
 
+  console.log(`[LINK] Valid code found for user_id: ${linkCode.user_id}`);
+
   // Link the LINE user ID to the profile
   const { error: updateError } = await supabase
     .from("profiles")
@@ -492,24 +670,58 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string, s
     .delete()
     .eq("code", code.toUpperCase());
 
-  console.log("[LINK] Successfully linked LINE account");
+  console.log("[LINK] ✅ Successfully linked LINE account");
 
-  // Get user permissions for the success message (filter by store if provided)
-  const userPerms = await getUserPermissions(supabase, lineUserId, storeId);
-  
-  // If owner, get store name and return owner-specific message
-  if (userPerms?.is_owner && userPerms.store_id) {
-    const { data: store } = await supabase
-      .from("stores")
-      .select("name")
-      .eq("id", userPerms.store_id)
-      .maybeSingle();
-    
-    console.log(`[LINK] User is owner of store: ${store?.name}`);
-    return generateOwnerSuccessFlexMessage(store?.name || "ร้านค้าของคุณ");
+  // Check if this user is a store owner - if so, verify webhook for their store
+  const { data: ownedStores, error: storeError } = await supabase
+    .from("stores")
+    .select("id, name")
+    .eq("owner_id", linkCode.user_id);
+
+  if (storeError) {
+    console.error("[LINK] Error checking store ownership:", storeError);
   }
+
+  if (ownedStores && ownedStores.length > 0) {
+    console.log(`[LINK] User owns ${ownedStores.length} store(s)`);
+    
+    // If we have a specific store context, verify that store
+    // Otherwise, verify all owned stores
+    const storesToVerify = storeId 
+      ? ownedStores.filter((s: { id: string }) => s.id === storeId)
+      : ownedStores;
+
+    for (const store of storesToVerify) {
+      console.log(`[LINK] Marking store verified: ${store.name} (${store.id})`);
+      const { error: verifyError } = await supabase
+        .from("stores")
+        .update({
+          line_webhook_verified: true,
+          line_webhook_verified_at: new Date().toISOString()
+        })
+        .eq("id", store.id);
+
+      if (verifyError) {
+        console.error(`[LINK] Error verifying store ${store.id}:`, verifyError);
+      } else {
+        console.log(`[LINK] ✅ Store ${store.name} webhook verified via owner linking`);
+      }
+    }
+
+    // Return owner-specific success message
+    const ownerStore = storeId 
+      ? ownedStores.find((s: { id: string }) => s.id === storeId)
+      : ownedStores[0];
+    
+    return generateOwnerSuccessFlexMessage(ownerStore?.name || "ร้านค้าของคุณ");
+  }
+
+  // Not an owner - get staff permissions
+  const userPerms = await getUserPermissions(supabase, lineUserId, storeId);
+  console.log(`[LINK] User permissions: is_owner=${userPerms?.is_owner}, is_approved=${userPerms?.is_approved}`);
   
-  return generateLinkSuccessFlexMessage(userPerms);
+  // Return staff success Flex Message with their specific permissions
+  return generateStaffSuccessFlexMessage(userPerms, storeId);
 }
 
 // Generate Flex Message for tire search results with optional adjust buttons
@@ -1124,8 +1336,20 @@ Deno.serve(async (req) => {
     const body = await req.text();
     const signature = req.headers.get("x-line-signature");
 
-    console.log("[WEBHOOK] Received request");
+    console.log("[WEBHOOK] ==========================================");
+    console.log("[WEBHOOK] Received LINE webhook request");
     console.log(`[WEBHOOK] Signature present: ${!!signature}`);
+    console.log(`[WEBHOOK] Body length: ${body.length} bytes`);
+    
+    // Try to extract destination for logging
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.destination) {
+        console.log(`[WEBHOOK] Destination ID (Bot ID): ${parsed.destination}`);
+      }
+    } catch {
+      console.log("[WEBHOOK] Could not parse body for destination ID");
+    }
 
     if (!signature) {
       console.error("[WEBHOOK] Missing X-Line-Signature header");
