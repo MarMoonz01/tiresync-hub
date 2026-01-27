@@ -193,6 +193,25 @@ export function useStaffRequests() {
         }
         throw error;
       }
+
+      // Send LINE push notification to store owner
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        await fetch(`${supabaseUrl}/functions/v1/line-push-notification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "staff_request",
+            store_id: storeId,
+            requester_user_id: user.id,
+          }),
+        });
+      } catch (notifyError) {
+        console.error("Failed to send LINE notification:", notifyError);
+        // Don't throw - notification failure shouldn't block the request
+      }
     },
     onSuccess: () => {
       toast({

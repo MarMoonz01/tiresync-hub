@@ -28,6 +28,13 @@ interface TireWithDots {
   stores: Store | Store[] | null;
 }
 
+interface StaffRequestData {
+  requester_name: string;
+  requester_email: string;
+  store_name: string;
+  requested_at: string;
+}
+
 // Helper to get store name from stores field (handles both single object and array)
 function getStoreName(stores: Store | Store[] | null | undefined): string {
   if (!stores) return "ร้านค้า";
@@ -35,6 +42,127 @@ function getStoreName(stores: Store | Store[] | null | undefined): string {
     return stores[0]?.name || "ร้านค้า";
   }
   return stores.name || "ร้านค้า";
+}
+
+// Generate staff request alert Flex Message
+function generateStaffRequestAlert(data: StaffRequestData): object {
+  const requestDate = new Date(data.requested_at).toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  return {
+    type: "flex",
+    altText: `👤 คำขอเข้าร่วมร้าน: ${data.requester_name}`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "👤 คำขอเข้าร่วมทีมใหม่",
+            weight: "bold",
+            size: "lg",
+            color: "#FFFFFF"
+          }
+        ],
+        backgroundColor: "#2563EB",
+        paddingAll: "lg"
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: data.requester_name || "ไม่ระบุชื่อ",
+            weight: "bold",
+            size: "lg",
+            color: "#1F2937"
+          },
+          {
+            type: "text",
+            text: data.requester_email,
+            size: "sm",
+            color: "#6B7280",
+            margin: "xs"
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "ร้านค้า:",
+                size: "sm",
+                color: "#6B7280",
+                flex: 1
+              },
+              {
+                type: "text",
+                text: data.store_name,
+                size: "sm",
+                color: "#1F2937",
+                weight: "bold",
+                flex: 2,
+                align: "end"
+              }
+            ],
+            margin: "lg"
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "วันที่ขอ:",
+                size: "sm",
+                color: "#6B7280",
+                flex: 1
+              },
+              {
+                type: "text",
+                text: requestDate,
+                size: "sm",
+                color: "#1F2937",
+                flex: 2,
+                align: "end"
+              }
+            ],
+            margin: "sm"
+          }
+        ],
+        paddingAll: "lg"
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            action: {
+              type: "uri",
+              label: "จัดการคำขอ",
+              uri: "https://id-preview--a5cdc804-bf59-4c95-96b8-dab96ec988fc.lovable.app/staff"
+            },
+            style: "primary",
+            color: "#2563EB"
+          }
+        ],
+        paddingAll: "md"
+      }
+    }
+  };
 }
 
 // Generate low stock alert Flex Message
@@ -193,9 +321,71 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body = await req.json().catch(() => ({}));
-    const { tire_id, admin_line_user_id } = body;
+    const { tire_id, admin_line_user_id, type, store_id, requester_user_id } = body;
 
-    // Option 1: Check specific tire
+    // Handle staff request notification
+    if (type === "staff_request" && store_id && requester_user_id) {
+      // Get store owner's LINE user ID
+      const { data: store, error: storeError } = await supabase
+        .from("stores")
+        .select("name, owner_id")
+        .eq("id", store_id)
+        .single();
+
+      if (storeError || !store) {
+        console.error("Store not found:", storeError);
+        return new Response(JSON.stringify({ error: "Store not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // Get owner's LINE user ID
+      const { data: ownerProfile, error: ownerError } = await supabase
+        .from("profiles")
+        .select("line_user_id")
+        .eq("user_id", store.owner_id)
+        .single();
+
+      if (ownerError || !ownerProfile?.line_user_id) {
+        console.log("Owner has no LINE linked:", ownerError);
+        return new Response(JSON.stringify({ 
+          success: true, 
+          sent: false, 
+          reason: "Owner has no LINE account linked" 
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // Get requester's profile
+      const { data: requesterProfile, error: requesterError } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", requester_user_id)
+        .single();
+
+      if (requesterError) {
+        console.error("Requester profile not found:", requesterError);
+      }
+
+      const alertMessage = generateStaffRequestAlert({
+        requester_name: requesterProfile?.full_name || "ไม่ระบุชื่อ",
+        requester_email: requesterProfile?.email || "ไม่ระบุอีเมล",
+        store_name: store.name,
+        requested_at: new Date().toISOString()
+      });
+
+      await sendPushMessage(ownerProfile.line_user_id, [alertMessage]);
+
+      return new Response(JSON.stringify({ success: true, sent: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Option 1: Check specific tire (low stock alert)
     if (tire_id) {
       const { data: tire, error } = await supabase
         .from("tires")
