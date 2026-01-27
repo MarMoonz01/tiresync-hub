@@ -22,6 +22,8 @@ import Network from "./pages/Network";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Staff from "./pages/Staff";
+import SalesReport from "./pages/SalesReport";
+import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +76,12 @@ const App = () => (
               } />
               <Route path="/staff" element={
                 <ProtectedRoute requireAdmin><Staff /></ProtectedRoute>
+              } />
+              <Route path="/sales-report" element={
+                <ProtectedRoute requireStore><SalesReport /></ProtectedRoute>
+              } />
+              <Route path="/audit-log" element={
+                <ProtectedRoute requireStore><AuditLog /></ProtectedRoute>
               } />
               
               <Route path="*" element={<NotFound />} />
