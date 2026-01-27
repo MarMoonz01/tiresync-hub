@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CircleDot, LogIn, UserPlus, ChevronDown, Shield, Users, Package, TrendingUp, ArrowRight } from "lucide-react";
+import { ChevronDown, Shield, Users, Package, TrendingUp, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TireLogo } from "@/components/icons/TireLogo";
 import heroImage from "@/assets/landing-hero.jpg";
 export default function Landing() {
   const scrollToFeatures = () => {
@@ -16,10 +17,10 @@ export default function Landing() {
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <CircleDot className="w-4 h-4 text-primary-foreground" />
+              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+                <TireLogo size={18} className="text-primary-foreground" />
               </div>
-              <span className="text-lg font-semibold text-foreground">HOUSE OF AKE</span>
+              <span className="text-lg font-semibold text-foreground tracking-tight">HOUSE OF AKE</span>
             </div>
 
             {/* Nav Links - Desktop */}
@@ -72,7 +73,7 @@ export default function Landing() {
         }}>
             <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">
               <span>ระบบจัดการ STOCK</span>
-              <CircleDot className="w-3.5 h-3.5" />
+              <TireLogo size={14} className="text-primary" />
               <span>The Premier Tire Business Network</span>
             </p>
           </motion.div>
@@ -243,8 +244,8 @@ export default function Landing() {
       <footer className="py-6 px-4 border-t border-border/40">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
-              <CircleDot className="w-3 h-3 text-primary-foreground" />
+            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+              <TireLogo size={14} className="text-primary-foreground" />
             </div>
             <span className="font-medium text-sm text-foreground">TireVault</span>
           </div>
