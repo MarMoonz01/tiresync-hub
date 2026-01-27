@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Store, Loader2, ArrowLeft } from "lucide-react";
+import { Store, Loader2, ArrowLeft, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +19,9 @@ export default function StoreSetup() {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [lineEnabled, setLineEnabled] = useState(false);
+  const [lineChannelId, setLineChannelId] = useState("");
+  const [lineChannelSecret, setLineChannelSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,6 +40,9 @@ export default function StoreSetup() {
         address: address || null,
         phone: phone || null,
         email: email || null,
+        line_enabled: lineEnabled,
+        line_channel_id: lineEnabled ? lineChannelId || null : null,
+        line_channel_secret: lineEnabled ? lineChannelSecret || null : null,
       });
 
       if (error) throw error;
@@ -147,6 +154,50 @@ export default function StoreSetup() {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* LINE Chatbot Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#00B900]/10 flex items-center justify-center">
+                      <MessageCircle className="w-4 h-4 text-[#00B900]" />
+                    </div>
+                    <div>
+                      <Label htmlFor="lineEnabled" className="font-medium">Enable LINE Chatbot</Label>
+                      <p className="text-xs text-muted-foreground">Allow customers to search via LINE</p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="lineEnabled"
+                    checked={lineEnabled}
+                    onCheckedChange={setLineEnabled}
+                  />
+                </div>
+
+                {lineEnabled && (
+                  <div className="space-y-3 pl-11">
+                    <div className="space-y-2">
+                      <Label htmlFor="lineChannelId">LINE Channel ID</Label>
+                      <Input
+                        id="lineChannelId"
+                        placeholder="Channel ID from LINE Developers"
+                        value={lineChannelId}
+                        onChange={(e) => setLineChannelId(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lineChannelSecret">LINE Channel Secret</Label>
+                      <Input
+                        id="lineChannelSecret"
+                        type="password"
+                        placeholder="Channel Secret from LINE Developers"
+                        value={lineChannelSecret}
+                        onChange={(e) => setLineChannelSecret(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Button

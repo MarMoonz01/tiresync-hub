@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MoreVertical, UserX, Shield } from "lucide-react";
+import { MoreVertical, UserX, Shield, Settings2, Eye, Plus, Edit, Trash2, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ interface StoreStaffCardProps {
   member: StoreMember;
   onChangeRole: () => void;
   onRemove: () => void;
+  onEditPermissions?: () => void;
+  showPermissions?: boolean;
 }
 
 const itemVariants = {
@@ -23,8 +25,16 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCardProps) {
+export function StoreStaffCard({ 
+  member, 
+  onChangeRole, 
+  onRemove, 
+  onEditPermissions,
+  showPermissions = false 
+}: StoreStaffCardProps) {
   const profile = member.profile;
+  const permissions = member.permissions;
+  
   const initials = profile?.full_name
     ? profile.full_name
         .split(" ")
@@ -32,6 +42,23 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
         .join("")
         .toUpperCase()
     : profile?.email?.[0]?.toUpperCase() || "?";
+
+  // Get permission badges
+  const getPermissionBadges = () => {
+    if (!permissions) return null;
+
+    const badges: { icon: React.ReactNode; label: string; active: boolean }[] = [
+      { icon: <Eye className="w-3 h-3" />, label: "View", active: permissions.web?.view ?? true },
+      { icon: <Plus className="w-3 h-3" />, label: "Add", active: permissions.web?.add ?? false },
+      { icon: <Edit className="w-3 h-3" />, label: "Edit", active: permissions.web?.edit ?? false },
+      { icon: <Trash2 className="w-3 h-3" />, label: "Delete", active: permissions.web?.delete ?? false },
+      { icon: <MessageCircle className="w-3 h-3" />, label: "LINE", active: permissions.line?.adjust ?? false },
+    ];
+
+    return badges.filter(b => b.active);
+  };
+
+  const activeBadges = getPermissionBadges();
 
   return (
     <motion.div
@@ -67,6 +94,12 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
               <Shield className="h-4 w-4 mr-2" />
               Change Role
             </DropdownMenuItem>
+            {onEditPermissions && (
+              <DropdownMenuItem onClick={onEditPermissions}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Edit Permissions
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onRemove} className="text-destructive">
               <UserX className="h-4 w-4 mr-2" />
@@ -76,11 +109,16 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
         </DropdownMenu>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className="text-[10px] capitalize">
           {member.role}
         </Badge>
-        {profile?.status && (
+        {!member.is_approved && (
+          <Badge variant="warning" className="text-[10px]">
+            Pending Approval
+          </Badge>
+        )}
+        {profile?.status && member.is_approved && (
           <Badge
             variant={
               profile.status === "approved"
@@ -95,6 +133,22 @@ export function StoreStaffCard({ member, onChangeRole, onRemove }: StoreStaffCar
           </Badge>
         )}
       </div>
+
+      {/* Permission badges */}
+      {showPermissions && activeBadges && activeBadges.length > 0 && (
+        <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+          {activeBadges.map((badge, index) => (
+            <Badge 
+              key={index} 
+              variant="secondary" 
+              className="text-[10px] px-1.5 py-0.5 flex items-center gap-1"
+            >
+              {badge.icon}
+              {badge.label}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {profile?.phone && (
         <p className="mt-2 text-xs text-muted-foreground">{profile.phone}</p>

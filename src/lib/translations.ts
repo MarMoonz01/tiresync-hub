@@ -101,6 +101,21 @@ export const translations = {
     cancel: "Cancel",
     loading: "Loading...",
     noResults: "No results found",
+    
+    // Staff Management
+    staffRequests: "Staff Requests",
+    pending: "Pending",
+    approved: "Approved",
+    rejected: "Rejected",
+    permissions: "Permissions",
+    editPermissions: "Edit Permissions",
+    
+    // LINE Integration
+    lineIntegration: "LINE Integration",
+    linkLine: "Link LINE Account",
+    unlinkLine: "Disconnect LINE",
+    lineLinked: "Connected",
+    lineNotLinked: "Not Connected",
   },
   th: {
     // Navigation
@@ -202,6 +217,21 @@ export const translations = {
     cancel: "ยกเลิก",
     loading: "กำลังโหลด...",
     noResults: "ไม่พบผลลัพธ์",
+    
+    // Staff Management
+    staffRequests: "คำขอเข้าร่วม",
+    pending: "รออนุมัติ",
+    approved: "อนุมัติแล้ว",
+    rejected: "ปฏิเสธ",
+    permissions: "สิทธิ์",
+    editPermissions: "แก้ไขสิทธิ์",
+    
+    // LINE Integration
+    lineIntegration: "เชื่อมต่อ LINE",
+    linkLine: "เชื่อมต่อบัญชี LINE",
+    unlinkLine: "ยกเลิกการเชื่อมต่อ",
+    lineLinked: "เชื่อมต่อแล้ว",
+    lineNotLinked: "ยังไม่เชื่อมต่อ",
   },
 } as const;
 
