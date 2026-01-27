@@ -134,9 +134,154 @@ function canViewStock(userPerms: UserPermissions | null): boolean {
   return userPerms.permissions?.line?.view ?? true;
 }
 
+// Generate success Flex Message after linking
+function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): object {
+  const isOwner = userPerms?.is_owner ?? false;
+  const canView = userPerms?.is_owner || userPerms?.permissions?.line?.view;
+  const canAdjust = userPerms?.is_owner || userPerms?.permissions?.line?.adjust;
+
+  const capabilities: object[] = [];
+  
+  if (canView) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "📦",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "ค้นหาและดูสต็อก",
+          size: "sm",
+          color: "#333333",
+          margin: "sm",
+          flex: 1
+        }
+      ]
+    });
+  }
+
+  if (canAdjust) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "➕",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "ปรับจำนวนสต็อก",
+          size: "sm",
+          color: "#333333",
+          margin: "sm",
+          flex: 1
+        }
+      ],
+      margin: "sm"
+    });
+  }
+
+  if (isOwner) {
+    capabilities.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: "👑",
+          size: "sm",
+          flex: 0
+        },
+        {
+          type: "text",
+          text: "สิทธิ์ผู้ดูแลร้านค้า",
+          size: "sm",
+          color: "#333333",
+          margin: "sm",
+          flex: 1
+        }
+      ],
+      margin: "sm"
+    });
+  }
+
+  return {
+    type: "flex",
+    altText: "เชื่อมต่อบัญชีสำเร็จ!",
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "✅ เชื่อมต่อบัญชีสำเร็จ!",
+            weight: "bold",
+            size: "lg",
+            color: "#FFFFFF"
+          }
+        ],
+        backgroundColor: "#22C55E",
+        paddingAll: "lg"
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "บัญชีเว็บของคุณเชื่อมต่อกับ LINE แล้ว",
+            size: "sm",
+            color: "#666666",
+            wrap: true
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "สิทธิ์ของคุณ:",
+            size: "sm",
+            color: "#888888",
+            margin: "lg"
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            contents: capabilities,
+            margin: "md"
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "💡 ลองค้นหา: \"265/65R17\"",
+            size: "sm",
+            color: "#2563EB",
+            margin: "lg"
+          }
+        ],
+        paddingAll: "lg"
+      }
+    }
+  };
+}
+
 // Handle LINE account linking
 // deno-lint-ignore no-explicit-any
-async function handleLinkCode(supabase: any, lineUserId: string, code: string): Promise<string> {
+async function handleLinkCode(supabase: any, lineUserId: string, code: string): Promise<object | string> {
   // Check if this is a link code
   const { data: linkCode, error } = await supabase
     .from("line_link_codes")
@@ -170,7 +315,10 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string): 
     .delete()
     .eq("code", code.toUpperCase());
 
-  return "✅ เชื่อมต่อบัญชีสำเร็จ!\n\nตอนนี้คุณสามารถค้นหาและจัดการสต็อกผ่าน LINE ได้แล้ว";
+  // Get user permissions for the success message
+  const userPerms = await getUserPermissions(supabase, lineUserId);
+  
+  return generateLinkSuccessFlexMessage(userPerms);
 }
 
 // Generate Flex Message for tire search results with optional adjust buttons
@@ -749,7 +897,11 @@ Deno.serve(async (req) => {
         // Check if this is a link code (6 uppercase alphanumeric characters)
         if (/^[A-Z0-9]{6}$/.test(messageText.toUpperCase())) {
           const linkResult = await handleLinkCode(supabase, lineUserId, messageText);
-          await sendReply(event.replyToken, [{ type: "text", text: linkResult }]);
+          // Handle both string and Flex Message responses
+          const replyMessage = typeof linkResult === "string" 
+            ? { type: "text", text: linkResult }
+            : linkResult;
+          await sendReply(event.replyToken, [replyMessage]);
           continue;
         }
 

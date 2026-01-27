@@ -116,6 +116,25 @@ export const translations = {
     unlinkLine: "Disconnect LINE",
     lineLinked: "Connected",
     lineNotLinked: "Not Connected",
+    
+    // LINE Webhook Setup
+    webhookUrl: "Webhook URL",
+    copyUrl: "Copy URL",
+    urlCopied: "URL Copied!",
+    lineSetupInstructions: "Setup Instructions",
+    lineSetupStep1: "Go to LINE Developers Console",
+    lineSetupStep2: "Select your Messaging API channel",
+    lineSetupStep3: "Paste the Webhook URL in settings",
+    lineSetupStep4: "Enable 'Use webhook'",
+    lineSetupStep5: "Disable 'Auto-reply messages'",
+    ownerVerification: "Owner Identity Verification",
+    verifyOwnerIdentity: "Verify My Owner Identity",
+    ownerVerified: "Verified",
+    ownerNotVerified: "Not Verified",
+    ownerVerificationDesc: "Link your LINE account to receive staff alerts and admin access.",
+    sendCodeToShop: "Send this code to our Shop's LINE Official Account to link your account",
+    viewStock: "View Stock",
+    adjustStock: "Adjust Stock",
   },
   th: {
     // Navigation
@@ -232,6 +251,25 @@ export const translations = {
     unlinkLine: "ยกเลิกการเชื่อมต่อ",
     lineLinked: "เชื่อมต่อแล้ว",
     lineNotLinked: "ยังไม่เชื่อมต่อ",
+    
+    // LINE Webhook Setup
+    webhookUrl: "Webhook URL",
+    copyUrl: "คัดลอก URL",
+    urlCopied: "คัดลอกแล้ว!",
+    lineSetupInstructions: "คู่มือการตั้งค่า",
+    lineSetupStep1: "ไปที่ LINE Developers Console",
+    lineSetupStep2: "เลือก Messaging API channel ของคุณ",
+    lineSetupStep3: "วาง Webhook URL ในการตั้งค่า",
+    lineSetupStep4: "เปิดใช้งาน 'Use webhook'",
+    lineSetupStep5: "ปิดใช้งาน 'Auto-reply messages'",
+    ownerVerification: "ยืนยันตัวตนเจ้าของร้าน",
+    verifyOwnerIdentity: "ยืนยันตัวตนเจ้าของร้าน",
+    ownerVerified: "ยืนยันแล้ว",
+    ownerNotVerified: "ยังไม่ยืนยัน",
+    ownerVerificationDesc: "เชื่อมต่อ LINE เพื่อรับแจ้งเตือนพนักงานและการเข้าถึงแบบผู้ดูแล",
+    sendCodeToShop: "ส่งรหัสนี้ไปยัง LINE Official Account ของร้านเพื่อเชื่อมต่อบัญชี",
+    viewStock: "ดูสต็อก",
+    adjustStock: "ปรับสต็อก",
   },
 } as const;
 

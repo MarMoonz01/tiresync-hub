@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Link2, Unlink, Copy, Check, Loader2 } from "lucide-react";
+import { MessageCircle, Link2, Unlink, Copy, Check, Loader2, Eye, Settings2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLineLink } from "@/hooks/useLineLink";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function LineIntegrationCard() {
+  const { t } = useLanguage();
   const {
     isLinked,
     lineUserId,
@@ -35,13 +37,13 @@ export function LineIntegrationCard() {
             <MessageCircle className="w-5 h-5 text-[#00B900]" />
           </div>
           <div className="flex-1">
-            <CardTitle className="text-base">LINE Integration</CardTitle>
+            <CardTitle className="text-base">{t("lineIntegration")}</CardTitle>
             <CardDescription>
               Connect your LINE account for chatbot access
             </CardDescription>
           </div>
           <Badge variant={isLinked ? "default" : "secondary"}>
-            {isLinked ? "Connected" : "Not Connected"}
+            {isLinked ? t("lineLinked") : t("lineNotLinked")}
           </Badge>
         </div>
       </CardHeader>
@@ -52,6 +54,19 @@ export function LineIntegrationCard() {
               <p className="text-sm text-muted-foreground">LINE User ID</p>
               <p className="font-mono text-sm truncate">{lineUserId}</p>
             </div>
+            
+            {/* Permission Badges */}
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="gap-1.5">
+                <Eye className="h-3 w-3" />
+                {t("viewStock") || "View Stock"}
+              </Badge>
+              <Badge variant="outline" className="gap-1.5">
+                <Settings2 className="h-3 w-3" />
+                {t("adjustStock") || "Adjust Stock"}
+              </Badge>
+            </div>
+            
             <Button
               variant="outline"
               className="w-full"
@@ -63,7 +78,7 @@ export function LineIntegrationCard() {
               ) : (
                 <Unlink className="mr-2 h-4 w-4" />
               )}
-              Disconnect LINE
+              {t("unlinkLine")}
             </Button>
           </div>
         ) : (
@@ -75,7 +90,7 @@ export function LineIntegrationCard() {
                 className="space-y-3"
               >
                 <p className="text-sm text-muted-foreground text-center">
-                  Send this code to the LINE chatbot:
+                  {t("sendCodeToShop")}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-3xl font-bold tracking-widest font-mono text-primary">
@@ -124,7 +139,7 @@ export function LineIntegrationCard() {
                   ) : (
                     <Link2 className="mr-2 h-4 w-4" />
                   )}
-                  Link LINE Account
+                  {t("linkLine")}
                 </Button>
               </div>
             )}
