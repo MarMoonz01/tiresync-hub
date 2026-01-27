@@ -25,9 +25,44 @@ export default function StoreSetup() {
   const [lineChannelSecret, setLineChannelSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<string | null>(null);
+  const [credentialsSaved, setCredentialsSaved] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, refetchStore } = useAuth();
+
+  // Handle saving LINE credentials separately
+  const handleSaveLineSettings = async () => {
+    if (!createdStoreId) return;
+    
+    setSavingCredentials(true);
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({
+          line_channel_id: lineChannelId,
+          line_channel_secret: lineChannelSecret,
+        })
+        .eq("id", createdStoreId);
+      
+      if (error) throw error;
+      
+      setCredentialsSaved(true);
+      toast({
+        title: "LINE credentials saved",
+        description: "Now paste the Webhook URL in LINE Developers Console.",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save credentials";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,13 +222,16 @@ export default function StoreSetup() {
                   />
                 </div>
 
-                {lineEnabled && (
+                {lineEnabled && createdStoreId && (
                   <WebhookSetupSection
-                    storeId={createdStoreId || undefined}
+                    storeId={createdStoreId}
                     lineChannelId={lineChannelId}
                     setLineChannelId={setLineChannelId}
                     lineChannelSecret={lineChannelSecret}
                     setLineChannelSecret={setLineChannelSecret}
+                    credentialsSaved={credentialsSaved}
+                    onSaveCredentials={handleSaveLineSettings}
+                    isSaving={savingCredentials}
                   />
                 )}
               </div>
