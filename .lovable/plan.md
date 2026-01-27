@@ -1,253 +1,246 @@
 
-# Design Overhaul: Beautiful, Polished, Professional & Minimal
+# LINE Chatbot Integration with Backend Functions
 
-A comprehensive redesign to transform TireVault into a premium, modern application with clean aesthetics and elegant visual identity.
+This plan outlines the implementation of a LINE Chatbot that connects directly to the tire inventory system, replacing the previous Google Apps Script/Google Sheets approach.
 
----
+## Overview
 
-## Design Philosophy
-
-**Core Principles:**
-- **Minimal**: Remove visual clutter, embrace whitespace, simplify UI elements
-- **Clean**: Consistent spacing, refined typography, subtle color palette
-- **Professional**: Premium feel with purposeful design decisions
-- **Beautiful**: Elegant transitions, harmonious colors, polished details
+The integration will enable:
+- Real-time inventory queries via LINE chat (search by tire size, brand, or model)
+- Stock adjustments directly from LINE with proper audit logging
+- Low stock alerts pushed to admins
+- Professional Flex Message cards matching the new BAANAKE design
 
 ---
 
-## 1. Color System Refinement
+## Architecture
 
-### Updated Color Palette
-- **Background**: Softer off-white (#FAFBFC) for less harsh contrast
-- **Primary**: Refined deep blue (#2563EB) with subtle gradient accents
-- **Accent**: Warm indigo (#6366F1) for secondary highlights
-- **Muted**: Soft gray (#64748B) for better readability
-- **Borders**: Ultra-subtle (#E2E8F0) for cleaner separation
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                         LINE Platform                           │
+│                                                                  │
+│   User Message → LINE Webhook → Edge Function → Database        │
+│                                    ↓                             │
+│                            Flex Message Reply                    │
+└─────────────────────────────────────────────────────────────────┘
 
-### Glassmorphism Enhancement
-- Reduce blur intensity for subtlety
-- Add very subtle shadow layers
-- Use more transparent backgrounds
-
----
-
-## 2. Typography Improvements
-
-### Font Hierarchy
-- **Display (h1)**: 2rem, font-semibold, tracking-tight
-- **Headings (h2)**: 1.5rem, font-medium
-- **Body**: 0.875rem, font-normal, leading-relaxed
-- **Captions**: 0.75rem, text-muted-foreground
-
-### Refinements
-- Tighten letter-spacing on headings
-- Increase line-height on body text
-- Use Inter font weights more intentionally
+Flow:
+1. User sends message (e.g., "265/65R17" or "michelin")
+2. LINE webhook POSTs to Edge Function
+3. Edge Function verifies signature, queries database
+4. Returns Flex Message with tire data + action buttons
+5. Stock changes are logged to stock_logs table
+```
 
 ---
 
-## 3. Layout & Spacing System
+## Required Secrets
 
-### Consistent Spacing Scale
-- Section gaps: 32px (2rem)
-- Card padding: 24px (1.5rem)
-- Element gaps: 16px (1rem)
-- Tight gaps: 8px (0.5rem)
+Before proceeding, you'll need to provide two LINE API credentials:
 
-### Grid Improvements
-- Maximum content width: 1200px
-- Centered content with generous margins
-- Responsive breakpoints refined
+| Secret Name | Description |
+|-------------|-------------|
+| `LINE_CHANNEL_ACCESS_TOKEN` | Long-lived access token from LINE Developers Console |
+| `LINE_CHANNEL_SECRET` | Channel secret for webhook signature verification |
+
+I'll prompt you to add these secrets using a secure input form.
 
 ---
 
-## 4. Component Redesigns
+## Components to Build
 
-### Cards (glass-card)
-- Lighter background: rgba(255, 255, 255, 0.8)
-- Softer border: 1px solid rgba(0, 0, 0, 0.04)
-- Refined shadow: 0 1px 3px rgba(0, 0, 0, 0.04)
-- Increased border-radius: 16px
+### 1. Main Webhook Edge Function
+**File**: `supabase/functions/line-webhook/index.ts`
 
-### Buttons
-- Remove gradient backgrounds (cleaner solid colors)
-- Subtle hover states with scale(1.01)
-- Refined focus rings
-- Consistent height: 40px (default), 36px (sm), 48px (lg)
+Handles all incoming LINE webhook events:
+- **Signature Verification**: HMAC-SHA256 validation using `X-Line-Signature` header
+- **Message Parsing**: Extract user messages and postback data
+- **Database Queries**: Search tires by size, brand, or model
+- **Reply Generation**: Create and send Flex Messages
 
-### Inputs
-- Cleaner border styling
-- Subtle focus ring (not heavy shadow)
-- Consistent 40px height
-- Placeholder color refinement
+### 2. Flex Message Generator
+**File**: `supabase/functions/line-webhook/flex-messages.ts`
 
-### Badges
-- Softer colors (pastel tones)
-- Smaller font size (11px)
-- More padding horizontally
-- Pill shape (full border-radius)
+Generates LINE Flex Message JSON for:
+- **Tire Search Results**: Display brand, model, size, DOT codes, and stock levels
+- **Stock Status Badges**: Green (In Stock), Yellow (Low Stock), Red (Out of Stock)
+- **Action Buttons**: "Check Other Branches", "Reserve Tire", "View Details"
 
-### Stats Cards
-- Larger, bolder numbers
-- Smaller, lighter labels
-- Icon in soft-colored circle
-- Remove aggressive background colors
+Design specs based on plan.md:
+- Primary color: `#2563EB` (brand blue)
+- Clean, minimal layout with proper spacing
+- Thai language support
 
----
+### 3. Stock Alert Push Notifications
+**File**: `supabase/functions/line-push-notification/index.ts`
 
-## 5. Page-Specific Improvements
+Triggered when stock falls below threshold (4 units):
+- Sends push message to admin LINE users
+- Includes tire details and current stock level
 
-### Landing Page
-- Cleaner hero with more whitespace
-- Refined navigation (thinner, more minimal)
-- Feature cards with icons only (no colored backgrounds)
-- Subtle section dividers
-- More elegant CTA buttons (outlined variants)
+### 4. LINE Interaction Audit Logging
 
-### Auth Page
-- Centered form with max-width: 400px
-- Remove heavy gradient background
-- Cleaner card with subtle shadow
-- Refined input styling
-- Toggle link as subtle underlined text
-
-### Dashboard
-- Section headers with smaller text
-- Stat cards in a cleaner grid
-- Chart with refined colors
-- Activity list with cleaner separators
-- Welcome message more subtle
-
-### Inventory Page
-- Cleaner search bar styling
-- Filter badges more subtle
-- Tire cards with refined spacing
-- Stock indicators as small dots/pills
-- Pagination simplified
-
-### Marketplace
-- Product cards with hover lift effect
-- Price displayed more prominently
-- Store badges refined
-- Favorites heart more subtle
-
-### Staff Page
-- Staff cards with cleaner layout
-- Role badges as outlined pills
-- Stats section simplified
-- Search integrated more cleanly
-
-### Settings Page
-- Menu items as clean list
-- Avatar smaller and subtle
-- Store info in subtle card
-- Logout as text link, not button
+All LINE chatbot interactions will be logged to the existing `stock_logs` table:
+- Action type: `line_search`, `line_add`, `line_remove`
+- Notes field will include LINE user ID for traceability
+- Uses the same logging pattern as the web app
 
 ---
 
-## 6. Navigation Improvements
+## Database Considerations
 
-### Desktop Sidebar
-- Lighter background (white or off-white)
-- Menu items with rounded hover states
-- Active indicator as subtle left border
-- Logo simplified
-- Collapse animation smoother
+### Current Schema Mapping (to reference document)
+Your existing tables already support the required data:
 
-### Mobile Bottom Nav
-- Thinner bar (64px instead of 72px)
-- Icons smaller (20px)
-- Labels only for active item
-- Subtle active indicator (dot)
+| PDF Reference | Your Schema |
+|---------------|-------------|
+| TIRE_SIZE, BRAND, MODEL | `tires.size`, `tires.brand`, `tires.model` |
+| DOT1-4, STOCK1-4, PROMO1-4 | `tire_dots` table (up to 4 per tire via `position`) |
+| LINE_log / Web_log | `stock_logs` table |
+| Price | `tires.price` |
 
-### Mobile Header
-- Cleaner logo treatment
-- Notification dot smaller
-- Avatar with subtle ring
+### No Schema Changes Required
+The existing `stock_logs` table can handle LINE interactions with the current fields:
+- `action`: Will use values like `"line_add"`, `"line_remove"`
+- `notes`: Will include LINE context (user display name, message ID)
+- `user_id`: Can be null for LINE users (they're not web-authenticated)
 
 ---
 
-## 7. Animation Refinements
+## Flex Message Design
 
-### Principles
-- Faster, snappier animations (200ms default)
-- Subtle entrance animations
-- No aggressive scale effects
-- Smooth page transitions
+Based on NEW_DEMO.pdf and plan.md styling:
 
-### Specific Changes
-- Reduce hover scale to 1.01 (from 1.02-1.05)
-- Entrance animations: fade only, no Y translation
-- Remove bounce effects
-- Stagger delays reduced (30ms instead of 50-100ms)
+```text
+┌─────────────────────────────────────────┐
+│  🏷️ MICHELIN                            │
+│  Primacy 4  •  265/65R17               │
+├─────────────────────────────────────────┤
+│  DOT      Stock    Status              │
+│  ─────────────────────────────────────  │
+│  2024    🟢 12     In Stock             │
+│  2023    🟡 3      Low Stock            │
+│  2022    🔴 0      Out of Stock         │
+├─────────────────────────────────────────┤
+│  💰 Price: ฿3,500                       │
+├─────────────────────────────────────────┤
+│ [Check Branches] [Reserve] [View]       │
+└─────────────────────────────────────────┘
+```
 
----
-
-## 8. Empty States
-
-### Design
-- Smaller icons (48px instead of 80px)
-- Lighter icon color
-- More concise messaging
-- Subtle CTA buttons (outlined)
-
----
-
-## 9. Dialogs & Modals
-
-### Refinements
-- Rounded corners: 16px
-- Lighter overlay (rgba(0,0,0,0.3))
-- Clean header with subtle border
-- Footer buttons right-aligned
-- Reduced padding
+Color scheme:
+- Header background: `#2563EB` (primary blue)
+- In Stock badge: `#22C55E` (green)
+- Low Stock badge: `#F59E0B` (amber)
+- Out of Stock badge: `#EF4444` (red)
 
 ---
 
-## Technical Implementation Files
+## Implementation Steps
 
-### CSS Updates
-- `src/index.css`: Updated color variables, glass-card styles, utility classes
+### Step 1: Add LINE API Secrets
+I'll use the secret input tool to securely collect:
+- `LINE_CHANNEL_ACCESS_TOKEN`
+- `LINE_CHANNEL_SECRET`
 
-### Tailwind Config
-- `tailwind.config.ts`: Refined shadow values, animation timing
+### Step 2: Create Main Webhook Edge Function
+- CORS headers for LINE platform
+- Signature verification using HMAC-SHA256
+- Event type routing (message, postback, follow)
+- Database queries using Supabase client
 
-### Component Updates
-- `src/components/ui/button.tsx`: Cleaner variants
-- `src/components/ui/card.tsx`: Refined styling
-- `src/components/ui/badge.tsx`: Softer colors
-- `src/components/ui/input.tsx`: Cleaner focus states
+### Step 3: Create Flex Message Generator
+- Tire search results card
+- Stock status with DOT breakdown
+- Action buttons with postback data
+- Thai/English language support
 
-### Layout Updates
-- `src/components/layout/DesktopSidebar.tsx`: Cleaner styling
-- `src/components/layout/MobileBottomNav.tsx`: Refined design
-- `src/components/layout/MobileHeader.tsx`: Simplified
+### Step 4: Create Push Notification Function
+- Triggered by stock threshold
+- Admin notification via LINE Push API
+- Configurable threshold (default: 4)
 
-### Page Updates
-- `src/pages/Landing.tsx`: Complete redesign
-- `src/pages/Auth.tsx`: Cleaner form
-- `src/pages/Dashboard.tsx`: Refined layout
-- `src/pages/Inventory.tsx`: Cleaner cards
-- `src/pages/Marketplace.tsx`: Polished grid
-- `src/pages/Staff.tsx`: Minimal layout
-- `src/pages/Settings.tsx`: Clean menu
-- `src/pages/Network.tsx`: Refined cards
-
-### Card Components
-- `src/components/dashboard/StatCard.tsx`: Cleaner design
-- `src/components/dashboard/QuickActionCard.tsx`: Simplified
-- `src/components/inventory/TireCard.tsx`: Refined
-- `src/components/marketplace/ProductCard.tsx`: Polished
-- `src/components/staff/StoreStaffCard.tsx`: Minimal
-- `src/components/network/StoreCard.tsx`: Clean
+### Step 5: Update Config
+- Add `verify_jwt = false` for webhook endpoint (LINE doesn't send JWT)
+- Configure function settings in `supabase/config.toml`
 
 ---
 
-## Expected Result
+## LINE Developers Console Setup (Your Action Required)
 
-A cohesive, premium application that feels:
-- Light and airy with generous whitespace
-- Professional and trustworthy
-- Modern with subtle animations
-- Consistent across all pages
-- Accessible and easy to navigate
+After I create the edge functions, you'll need to:
+
+1. **Get your Webhook URL**: 
+   `https://wqqaqafhpxytwbwykqbg.supabase.co/functions/v1/line-webhook`
+
+2. **Configure in LINE Developers Console**:
+   - Go to your Messaging API channel settings
+   - Set the Webhook URL
+   - Enable "Use webhook"
+   - Disable "Auto-reply messages"
+
+3. **Get Credentials**:
+   - Copy the Channel Secret (for signature verification)
+   - Issue a long-lived Channel Access Token
+
+---
+
+## Security Considerations
+
+| Security Measure | Implementation |
+|------------------|----------------|
+| Webhook Signature | HMAC-SHA256 verification of all requests |
+| No JWT (intentional) | LINE webhooks don't use JWT; signature is the auth method |
+| Rate Limiting | LINE platform handles rate limiting |
+| Input Validation | Sanitize search queries before database operations |
+| Audit Trail | All actions logged with LINE user context |
+
+---
+
+## Technical Details
+
+### Edge Function Structure
+```
+supabase/functions/
+├── line-webhook/
+│   ├── index.ts           # Main webhook handler
+│   └── deno.json          # Deno configuration
+└── line-push-notification/
+    ├── index.ts           # Push notification sender
+    └── deno.json          # Deno configuration
+```
+
+### Signature Verification (Critical)
+Using Deno's Web Crypto API:
+```typescript
+// Pseudocode for signature verification
+const signature = request.headers.get('x-line-signature');
+const body = await request.text();
+const key = await crypto.subtle.importKey(...channelSecret);
+const digest = await crypto.subtle.sign("HMAC", key, body);
+const expectedSignature = base64Encode(digest);
+const isValid = signature === expectedSignature;
+```
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/line-webhook/index.ts` | Main webhook handler with signature verification, message routing, and database queries |
+| `supabase/functions/line-push-notification/index.ts` | Push notification sender for low stock alerts |
+
+---
+
+## Summary
+
+This implementation will:
+- Replace the Google Apps Script/Sheets system entirely
+- Connect LINE directly to your Supabase database
+- Maintain the same user experience from your PDF demo
+- Apply the new BAANAKE minimal design to Flex Messages
+- Log all interactions for audit purposes
+- Send proactive low-stock alerts to admins
+
+Ready to proceed? Click **Approve** and I'll start by prompting you for the LINE API secrets, then create the edge functions.
