@@ -149,6 +149,9 @@ export const translations: Record<string, Record<string, string>> = {
     savingLineSettings: "Saving...",
     lineSettingsSaved: "✓ Saved",
     webhookUrlHidden: "Webhook URL will appear after saving credentials",
+    resetLineSettings: "Reset",
+    resettingLineSettings: "Resetting...",
+    lineSettingsReset: "LINE settings reset",
   },
   th: {
     // Navigation
@@ -298,6 +301,9 @@ export const translations: Record<string, Record<string, string>> = {
     savingLineSettings: "กำลังบันทึก...",
     lineSettingsSaved: "✓ บันทึกแล้ว",
     webhookUrlHidden: "URL Webhook จะปรากฏหลังจากบันทึกข้อมูล",
+    resetLineSettings: "รีเซ็ต",
+    resettingLineSettings: "กำลังรีเซ็ต...",
+    lineSettingsReset: "รีเซ็ตการตั้งค่า LINE แล้ว",
   },
 } as const;
 
