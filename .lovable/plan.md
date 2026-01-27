@@ -1,173 +1,238 @@
 
+# Sequential LINE Integration Flow for Store Setup
 
-# Finalizing LINE Integration: Webhook UI, Owner Verification & Staff Link-Code System
-
-This plan implements the final stage of LINE Chatbot integration with automated webhook display, owner identity verification, and enhanced staff account linking.
-
----
-
-## Overview
-
-The implementation adds three key capabilities:
-
-1. **Webhook URL Display** in Store Setup with copy functionality and setup instructions
-2. **Owner Identity Verification** using the same link-code flow as staff
-3. **Enhanced LINE webhook** with successful account linking confirmation and multi-store awareness
+This plan implements a three-phase LINE integration flow with strict sequential progression: Webhook Connectivity → Owner Identity Linking → Confirmation.
 
 ---
 
 ## Current State Analysis
 
 **Already implemented:**
-- `line_link_codes` table exists with `user_id`, `code`, `expires_at`
-- `profiles.line_user_id` column exists
-- `useLineLink` hook generates 6-character codes with 10-minute expiry
-- `LineIntegrationCard` displays link status and code generation UI
-- `line-webhook` already handles link code verification (lines 139-174)
-- `get_line_user_permissions` function returns user permissions
+- `WebhookSetupSection.tsx` displays webhook URL, copy button, and setup instructions
+- Owner identity verification section with link code generation
+- `line-webhook` edge function handles signature verification and link codes
+- `stores` table has `line_enabled`, `line_channel_id`, `line_channel_secret` columns
+- `useLineLink` hook manages link code generation
 
-**Needs enhancement:**
-- StoreSetup.tsx lacks webhook URL display and owner verification
-- line-webhook returns simple text on successful linking (should be Flex Message)
-- No multi-store discrimination based on channel identification
+**Missing functionality:**
+- No webhook connection test/validation mechanism
+- No per-store channel secret verification (currently uses global secret)
+- No sequential phase locking (all sections visible at once)
+- No "Webhook Connected" status indicator
+- No owner-specific Flex Message for confirmation
+
+---
+
+## Architecture Overview
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Sequential LINE Integration Flow                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Phase 1: Credentials & Webhook         Phase 2: Owner Linking              │
+│  ┌─────────────────────────┐            ┌─────────────────────────┐         │
+│  │ 1. Enter Channel ID     │            │ 1. Generate Link Code   │         │
+│  │ 2. Enter Channel Secret │  ─────▶    │ 2. Send to LINE OA      │  ─────▶ │
+│  │ 3. Copy Webhook URL     │            │ 3. Verify via Webhook   │         │
+│  │ 4. Wait for validation  │            └─────────────────────────┘         │
+│  │    🟢 Webhook Connected │                                                 │
+│  └─────────────────────────┘            Phase 3: Confirmation               │
+│                                          ┌─────────────────────────┐         │
+│                                          │ 👑 Owner Flex Message   │         │
+│                                          │ - Admin Rights Confirmed│         │
+│                                          │ - Quick Stock Check     │         │
+│                                          │ - Manage Store Button   │         │
+│                                          └─────────────────────────┘         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Database Schema Updates
+
+### Add Webhook Verification Column to Stores
+
+A new column to track webhook connectivity status:
+
+```sql
+ALTER TABLE public.stores 
+ADD COLUMN line_webhook_verified BOOLEAN DEFAULT false,
+ADD COLUMN line_webhook_verified_at TIMESTAMP WITH TIME ZONE;
+```
+
+This allows the UI to show "Webhook Connected" only after LINE has successfully sent a webhook event that was verified.
+
+---
+
+## Phase 1: Store Credentials & Webhook Connectivity
+
+### 1.1 Enhanced WebhookSetupSection Component
+
+Restructure the component to show phases sequentially:
+
+| Element | Behavior |
+|---------|----------|
+| **Channel ID Input** | Always visible when LINE enabled |
+| **Channel Secret Input** | Always visible when LINE enabled |
+| **Webhook URL Display** | Always visible with copy button |
+| **Connection Status** | Shows "⏳ Waiting for webhook..." or "🟢 Webhook Connected" |
+| **Owner Verification** | **Hidden until webhook verified** |
+
+### 1.2 Webhook Verification Flow
+
+```text
+1. Owner saves Channel ID + Secret to database
+2. Owner pastes Webhook URL in LINE Developers Console
+3. LINE sends a verification request to our webhook
+4. Webhook verifies signature using STORE'S channel secret (not global)
+5. If valid → updates stores.line_webhook_verified = true
+6. UI polls or uses realtime to detect change
+7. UI shows "🟢 Webhook Connected" badge
+8. Owner Verification section becomes visible
+```
+
+### 1.3 Multi-Store Channel Secret Lookup
+
+Update `line-webhook` to look up channel secrets per-store:
+
+```typescript
+// Current: Uses global LINE_CHANNEL_SECRET
+const channelSecret = Deno.env.get("LINE_CHANNEL_SECRET");
+
+// New: Try store-specific secret first, fall back to global
+async function getChannelSecretForRequest(supabase, body): Promise<string | null> {
+  // For webhook verification events, LINE sends specific format
+  // For normal events, we check if the destination matches a store
+  
+  // Fall back to global secret for shared LINE OA model
+  return Deno.env.get("LINE_CHANNEL_SECRET");
+}
+```
+
+**Note:** For the initial implementation, we'll support a "shared channel" model where all stores use the same LINE OA. The store's `line_channel_secret` is used for future per-store OA support, but verification currently uses the global secret.
+
+### 1.4 Webhook Verification Event Handler
+
+Add handler for LINE's webhook verification in `line-webhook`:
+
+```typescript
+// LINE sends events with empty array for webhook verification
+if (webhookBody.events.length === 0) {
+  console.log("Webhook verification request received");
+  // Mark webhook as verified for the store (if we can identify it)
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+}
+```
+
+---
+
+## Phase 2: Owner Identity Linking
+
+### 2.1 Conditional Visibility
+
+The Owner Identity Verification section only appears after `line_webhook_verified = true`:
+
+```tsx
+{webhookVerified && (
+  <OwnerVerificationSection ... />
+)}
+```
+
+### 2.2 Link Code Flow (Already Implemented)
+
+The existing flow works:
+1. Owner clicks "Verify My Owner Identity"
+2. 6-digit code generated and shown
+3. Owner sends code to LINE chatbot
+4. Webhook handles code → links `line_user_id`
+5. UI updates to show "👑 Verified Owner"
+
+---
+
+## Phase 3: Owner Confirmation Flex Message
+
+### 3.1 Owner-Specific Success Message
+
+Update `generateLinkSuccessFlexMessage` to detect owners and show enhanced message:
+
+```typescript
+function generateOwnerSuccessFlexMessage(storeName: string): object {
+  return {
+    type: "flex",
+    altText: "👑 ยืนยันตัวตนเจ้าของร้านสำเร็จ!",
+    contents: {
+      type: "bubble",
+      header: {
+        // Gold/amber gradient for owner status
+        backgroundColor: "#F59E0B",
+        contents: [{
+          type: "text",
+          text: "👑 เจ้าของร้านยืนยันแล้ว!",
+          color: "#FFFFFF"
+        }]
+      },
+      body: {
+        contents: [
+          { text: `ร้าน: ${storeName}` },
+          { text: "สิทธิ์ผู้ดูแลระบบ:" },
+          { text: "✅ จัดการสต็อกทั้งหมด" },
+          { text: "✅ อนุมัติ/ปฏิเสธพนักงาน" },
+          { text: "✅ รับแจ้งเตือนคำขอเข้าร่วม" },
+          { text: "✅ ดูรายงานและสถิติ" }
+        ]
+      },
+      footer: {
+        contents: [
+          {
+            type: "button",
+            action: { type: "message", label: "🔍 เช็คสต็อก", text: "สต็อก" },
+            style: "primary"
+          }
+        ]
+      }
+    }
+  };
+}
+```
 
 ---
 
 ## Implementation Details
 
-### 1. Enhanced Store Setup Page
-
-**File:** `src/pages/StoreSetup.tsx`
-
-Add these new elements when LINE is enabled:
-
-| Element | Description |
-|---------|-------------|
-| **Webhook URL Display** | Static URL: `https://wqqaqafhpxytwbwykqbg.supabase.co/functions/v1/line-webhook` |
-| **Copy Button** | One-click copy with visual feedback |
-| **Setup Instructions** | Step-by-step guide for LINE Developers Console |
-| **Owner Verification Button** | "Verify My Owner Identity" triggers link code generation |
-| **Verification Status** | Shows connected/not connected with owner's LINE ID |
-
-**UI Layout:**
-```text
-┌─────────────────────────────────────────────────┐
-│  🟢 Enable LINE Chatbot              [Toggle]   │
-├─────────────────────────────────────────────────┤
-│  Webhook URL                                     │
-│  ┌─────────────────────────────────────────────┐│
-│  │ https://...supabase.co/functions/v1/line... ││
-│  └─────────────────────────────────────────────┘│
-│                                         [Copy]   │
-│                                                  │
-│  📋 Setup Instructions                          │
-│  1. Go to LINE Developers Console               │
-│  2. Select your Messaging API channel           │
-│  3. Paste the Webhook URL above                 │
-│  4. Enable "Use webhook"                        │
-│  5. Disable "Auto-reply messages"               │
-│                                                  │
-│  LINE Channel ID                                │
-│  ┌─────────────────────────────────────────────┐│
-│  │ [Input field]                               ││
-│  └─────────────────────────────────────────────┘│
-│                                                  │
-│  LINE Channel Secret                            │
-│  ┌─────────────────────────────────────────────┐│
-│  │ [Password field]                            ││
-│  └─────────────────────────────────────────────┘│
-│                                                  │
-├─────────────────────────────────────────────────┤
-│  🔐 Owner Identity Verification                 │
-│                                                  │
-│  [Not Verified]                                 │
-│  Link your personal LINE account to receive    │
-│  staff approval alerts and admin access.       │
-│                                                  │
-│  [Verify My Owner Identity]                     │
-│                                                  │
-│  -- OR if code generated --                     │
-│                                                  │
-│  Send this code to the LINE chatbot:           │
-│           AB12CD                                │
-│  Code expires in 10 minutes                    │
-└─────────────────────────────────────────────────┘
-```
-
-### 2. Enhanced LINE Integration Card
-
-**File:** `src/components/profile/LineIntegrationCard.tsx`
-
-Minor improvements to existing component:
-- Add clearer instructions: "Send this code to our Shop's LINE Official Account"
-- Show permission summary when linked (View/Adjust capabilities)
-
-### 3. Enhanced Link Success Message in Webhook
-
-**File:** `supabase/functions/line-webhook/index.ts`
-
-Update the `handleLinkCode` function to return a rich Flex Message on success:
-
-**Success Flex Message Design:**
-```text
-┌─────────────────────────────────────┐
-│  ✅ Account Linked Successfully     │
-│                                      │
-│  Your web account is now connected  │
-│  to LINE. You can now:              │
-│                                      │
-│  📦 Check Stock   📊 View Inventory │
-│                                      │
-│  [If has adjust permission:]        │
-│  ➕ Adjust stock directly via chat  │
-│                                      │
-│  Try searching: "265/65R17"         │
-└─────────────────────────────────────┘
-```
-
-**Update handleLinkCode function:**
-```typescript
-async function handleLinkCode(supabase, lineUserId, code): Promise<object | string> {
-  // ... existing validation ...
-  
-  // On success, return Flex Message instead of plain text
-  // Include user's permissions in the success message
-  const userPerms = await getUserPermissions(supabase, lineUserId);
-  return generateLinkSuccessMessage(userPerms);
-}
-```
-
-### 4. Multi-Store Discrimination
-
-**Current Architecture:**
-The webhook currently uses a single global `LINE_CHANNEL_SECRET` from environment variables. For multi-store support where each store has its own LINE OA:
-
-**Approach A (Current - Shared Channel):**
-All stores share one LINE Official Account. The webhook identifies the user's store via `get_line_user_permissions` which returns `store_id`. This is already implemented.
-
-**Approach B (Future - Per-Store Channels):**
-Each store has its own LINE OA with unique credentials stored in `stores.line_channel_id` and `stores.line_channel_secret`. 
-
-For this plan, we'll document the architecture but keep the current shared-channel approach since:
-1. It's simpler for users (one LINE OA for the whole platform)
-2. It's already working
-3. Per-store channels require additional webhook routing logic
-
-**Documentation note:** If per-store channels are needed later, the webhook would:
-1. Extract channel ID from LINE webhook headers
-2. Look up the store by `line_channel_id`
-3. Use that store's `line_channel_secret` for signature verification
-
----
-
-## Files to Modify
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/StoreSetup.tsx` | Add webhook URL display, copy button, setup instructions, owner verification section |
-| `src/components/profile/LineIntegrationCard.tsx` | Improve instructions, add permission display |
-| `supabase/functions/line-webhook/index.ts` | Return Flex Message on successful link, include permission summary |
-| `src/lib/translations.ts` | Add new translation keys for webhook setup |
+| `src/components/store/WebhookSetupSection.tsx` | Sequential phase UI, webhook status polling |
+| `src/pages/StoreSetup.tsx` | Pass store data, handle webhook verification state |
+| `src/hooks/useLineLink.tsx` | Add webhook verification status query |
+| `supabase/functions/line-webhook/index.ts` | Multi-store secret lookup, owner Flex Message |
+| `src/lib/translations.ts` | New translation keys for phases |
+
+### New Hook: useWebhookStatus
+
+```typescript
+export function useWebhookStatus(storeId: string | undefined) {
+  // Query stores table for line_webhook_verified
+  // Poll every 3 seconds while waiting
+  // Return: { isVerified, isChecking, checkNow }
+}
+```
+
+### Updated WebhookSetupSection Props
+
+```typescript
+interface WebhookSetupSectionProps {
+  storeId?: string; // For existing stores
+  lineChannelId: string;
+  setLineChannelId: (value: string) => void;
+  lineChannelSecret: string;
+  setLineChannelSecret: (value: string) => void;
+  onCredentialsSaved?: () => void; // Trigger when credentials are saved
+}
+```
 
 ---
 
@@ -175,83 +240,141 @@ For this plan, we'll document the architecture but keep the current shared-chann
 
 ```typescript
 // English
-webhookUrl: "Webhook URL",
-copyUrl: "Copy URL",
-urlCopied: "URL Copied!",
-lineSetupInstructions: "Setup Instructions",
-lineSetupStep1: "Go to LINE Developers Console",
-lineSetupStep2: "Select your Messaging API channel",
-lineSetupStep3: "Paste the Webhook URL in settings",
-lineSetupStep4: "Enable 'Use webhook'",
-lineSetupStep5: "Disable 'Auto-reply messages'",
-ownerVerification: "Owner Identity Verification",
-verifyOwnerIdentity: "Verify My Owner Identity",
-ownerVerified: "Verified",
-ownerNotVerified: "Not Verified",
-ownerVerificationDesc: "Link your personal LINE account to receive staff approval alerts and admin access.",
-sendCodeToShop: "Send this code to our Shop's LINE Official Account to link your account",
+webhookStatus: "Connection Status",
+webhookWaiting: "Waiting for webhook verification...",
+webhookConnected: "Webhook Connected",
+webhookTestInstructions: "After entering your credentials, paste the Webhook URL in LINE Developers Console and save. We'll detect the connection automatically.",
+phase1Title: "Step 1: Connect LINE Channel",
+phase2Title: "Step 2: Verify Owner Identity",
+phase3Complete: "Setup Complete!",
 
 // Thai
-webhookUrl: "Webhook URL",
-copyUrl: "คัดลอก URL",
-urlCopied: "คัดลอกแล้ว!",
-lineSetupInstructions: "คู่มือการตั้งค่า",
-lineSetupStep1: "ไปที่ LINE Developers Console",
-lineSetupStep2: "เลือก Messaging API channel ของคุณ",
-lineSetupStep3: "วาง Webhook URL ในการตั้งค่า",
-lineSetupStep4: "เปิดใช้งาน 'Use webhook'",
-lineSetupStep5: "ปิดใช้งาน 'Auto-reply messages'",
-ownerVerification: "ยืนยันตัวตนเจ้าของร้าน",
-verifyOwnerIdentity: "ยืนยันตัวตนเจ้าของร้าน",
-ownerVerified: "ยืนยันแล้ว",
-ownerNotVerified: "ยังไม่ยืนยัน",
-ownerVerificationDesc: "เชื่อมต่อบัญชี LINE ส่วนตัวเพื่อรับการแจ้งเตือนคำขอพนักงานและการเข้าถึงแบบผู้ดูแล",
-sendCodeToShop: "ส่งรหัสนี้ไปยัง LINE Official Account ของร้านเพื่อเชื่อมต่อบัญชี",
+webhookStatus: "สถานะการเชื่อมต่อ",
+webhookWaiting: "รอการยืนยัน webhook...",
+webhookConnected: "เชื่อมต่อ Webhook แล้ว",
+webhookTestInstructions: "หลังจากกรอกข้อมูลแล้ว ให้วาง Webhook URL ใน LINE Developers Console และบันทึก ระบบจะตรวจจับการเชื่อมต่อโดยอัตโนมัติ",
+phase1Title: "ขั้นตอนที่ 1: เชื่อมต่อ LINE Channel",
+phase2Title: "ขั้นตอนที่ 2: ยืนยันตัวตนเจ้าของร้าน",
+phase3Complete: "ตั้งค่าเสร็จสมบูรณ์!",
+```
+
+---
+
+## UI Flow Mockup
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  🟢 Enable LINE Chatbot                                          [Toggle]   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│  📡 Step 1: Connect LINE Channel                                            │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│                                                                              │
+│  LINE Channel ID                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │ 1234567890                                                         │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  LINE Channel Secret                                                         │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │ ••••••••••••••••••••••••••••••••                                   │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  Webhook URL                                                                 │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │ https://wqqaqafhpxytwbwykqbg.supabase.co/functions/v1/line-webhook │ [📋]│
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  📋 Setup Instructions                                              [▼]     │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  Connection Status:                                                │     │
+│  │                                                                    │     │
+│  │  ⏳ Waiting for webhook verification...                            │     │
+│  │  ─────────────────────────────────────                             │     │
+│  │  After saving credentials in LINE Developers Console,              │     │
+│  │  the connection will be detected automatically.                    │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│  🔒 Step 2: Verify Owner Identity                          [LOCKED - ▼]    │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│                                                                              │
+│  Connect your LINE channel first to unlock this step.                        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+After Webhook Connected:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  Connection Status:                                                │     │
+│  │                                                                    │     │
+│  │  🟢 Webhook Connected                                    ✓         │     │
+│  │                                                                    │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│  👑 Step 2: Verify Owner Identity                                           │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│                                                                              │
+│  Link your personal LINE account to receive staff alerts and admin access.  │
+│                                                                              │
+│  [Not Verified]                                                             │
+│                                                                              │
+│                      [ Verify My Owner Identity ]                           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Update Store Setup Page
-1. Add webhook URL display with static URL
-2. Add copy-to-clipboard functionality
-3. Add collapsible setup instructions section
-4. Add owner verification section using `useLineLink` hook
-5. Show verification status based on `profile.line_user_id`
+### Step 1: Database Migration
+1. Add `line_webhook_verified` and `line_webhook_verified_at` columns to stores
 
-### Step 2: Enhance LINE Webhook
-1. Create `generateLinkSuccessFlexMessage` function
-2. Update `handleLinkCode` to return Flex Message
-3. Include user's permissions in the success message
-4. Show different capabilities based on owner vs staff role
+### Step 2: Update Edge Function
+1. Handle webhook verification events (empty events array)
+2. Add owner-specific success Flex Message
+3. Update webhook verified status in database on successful verification
 
-### Step 3: Update Profile Card
-1. Update instruction text to reference "Shop's LINE Official Account"
-2. Add permission badges when linked (View Stock / Adjust Stock)
+### Step 3: Create useWebhookStatus Hook
+1. Query webhook verification status
+2. Implement polling while waiting for verification
+3. Return verification state
 
-### Step 4: Add Translations
-1. Add all new translation keys to both English and Thai
+### Step 4: Refactor WebhookSetupSection
+1. Split into Phase 1 (Credentials + Status) and Phase 2 (Owner Verification)
+2. Add connection status indicator with animations
+3. Lock Phase 2 until webhook verified
+4. Add progress indicators between phases
+
+### Step 5: Update Translations
+1. Add all new translation keys for both languages
 
 ---
 
-## Security Notes
+## Security Considerations
 
-| Aspect | Implementation |
-|--------|----------------|
-| Code Expiry | 10 minutes (already implemented) |
-| Code Format | 6 alphanumeric characters, single-use |
-| Owner Detection | Uses `get_line_user_permissions` which checks `stores.owner_id` |
-| Permission Display | Only shows capabilities the user actually has |
+| Concern | Mitigation |
+|---------|------------|
+| Spoofed webhook verification | LINE's signature verification ensures authenticity |
+| Credential exposure | Channel secret stored securely, not exposed to client |
+| Unauthorized webhook marking | Only webhook endpoint can update `line_webhook_verified` |
+| Polling abuse | Limit polling frequency, stop after verification |
 
 ---
 
 ## Summary
 
-This implementation completes the LINE integration by:
+This implementation creates a guided, sequential LINE integration experience:
 
-1. **Making webhook setup self-service** - Owners see the URL and instructions right in the store setup form
-2. **Unifying owner and staff linking** - Both use the same link-code mechanism, identified by their role in the database
-3. **Improving user feedback** - Rich Flex Messages on successful linking with capability summary
-4. **Supporting future multi-store** - Architecture documented for per-store LINE OA channels if needed
+1. **Phase 1**: Owner enters credentials, copies webhook URL, and waits for LINE to verify the connection
+2. **Phase 2**: After webhook verification, owner links their personal LINE for admin access
+3. **Phase 3**: Owner receives a special Flex Message confirming their administrative rights
 
+The flow ensures proper setup order and provides clear visual feedback at each step.
