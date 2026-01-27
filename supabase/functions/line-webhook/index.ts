@@ -279,6 +279,108 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
   };
 }
 
+// Generate owner-specific success Flex Message
+function generateOwnerSuccessFlexMessage(storeName: string): object {
+  return {
+    type: "flex",
+    altText: "👑 ยืนยันตัวตนเจ้าของร้านสำเร็จ!",
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "👑 เจ้าของร้านยืนยันแล้ว!",
+            weight: "bold",
+            size: "lg",
+            color: "#FFFFFF"
+          }
+        ],
+        backgroundColor: "#F59E0B",
+        paddingAll: "lg"
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: `ร้าน: ${storeName}`,
+            size: "md",
+            color: "#333333",
+            weight: "bold"
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "สิทธิ์ผู้ดูแลระบบ:",
+            size: "sm",
+            color: "#888888",
+            margin: "lg"
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            contents: [
+              {
+                type: "text",
+                text: "✅ จัดการสต็อกทั้งหมด",
+                size: "sm",
+                color: "#333333"
+              },
+              {
+                type: "text",
+                text: "✅ อนุมัติ/ปฏิเสธพนักงาน",
+                size: "sm",
+                color: "#333333",
+                margin: "xs"
+              },
+              {
+                type: "text",
+                text: "✅ รับแจ้งเตือนคำขอเข้าร่วม",
+                size: "sm",
+                color: "#333333",
+                margin: "xs"
+              },
+              {
+                type: "text",
+                text: "✅ ดูรายงานและสถิติ",
+                size: "sm",
+                color: "#333333",
+                margin: "xs"
+              }
+            ],
+            margin: "md"
+          }
+        ],
+        paddingAll: "lg"
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            action: {
+              type: "message",
+              label: "🔍 เช็คสต็อก",
+              text: "สต็อก"
+            },
+            style: "primary",
+            color: "#F59E0B"
+          }
+        ],
+        paddingAll: "md"
+      }
+    }
+  };
+}
+
 // Handle LINE account linking
 // deno-lint-ignore no-explicit-any
 async function handleLinkCode(supabase: any, lineUserId: string, code: string): Promise<object | string> {
@@ -317,6 +419,17 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string): 
 
   // Get user permissions for the success message
   const userPerms = await getUserPermissions(supabase, lineUserId);
+  
+  // If owner, get store name and return owner-specific message
+  if (userPerms?.is_owner && userPerms.store_id) {
+    const { data: store } = await supabase
+      .from("stores")
+      .select("name")
+      .eq("id", userPerms.store_id)
+      .single();
+    
+    return generateOwnerSuccessFlexMessage(store?.name || "ร้านค้าของคุณ");
+  }
   
   return generateLinkSuccessFlexMessage(userPerms);
 }
@@ -877,6 +990,18 @@ Deno.serve(async (req) => {
     
     // Initialize Supabase client with service role for full access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Handle webhook verification (LINE sends empty events array)
+    if (webhookBody.events.length === 0) {
+      console.log("Webhook verification request received");
+      // This is a verification request from LINE - signature already validated above
+      // Mark any stores with matching channel secret as verified
+      // For now, just return success (shared channel model)
+      return new Response(JSON.stringify({ success: true, verified: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     // Process each event
     for (const event of webhookBody.events) {
