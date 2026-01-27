@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { TireLogo } from "@/components/icons/TireLogo";
 
 interface DesktopSidebarProps {
   collapsed: boolean;
@@ -70,7 +71,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
         <Link to="/dashboard" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <CircleDot className="w-5 h-5 text-primary-foreground" />
+            <TireLogo size={20} className="text-primary-foreground" />
           </div>
           {!collapsed && (
             <motion.span
@@ -79,7 +80,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
               exit={{ opacity: 0 }}
               className="font-semibold text-lg text-sidebar-foreground"
             >
-              TireVault
+              BAANAKE
             </motion.span>
           )}
         </Link>

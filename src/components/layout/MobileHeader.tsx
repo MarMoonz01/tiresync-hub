@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { CircleDot, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { TireLogo } from "@/components/icons/TireLogo";
 
 export function MobileHeader() {
   const { profile } = useAuth();
@@ -19,9 +20,9 @@ export function MobileHeader() {
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-            <CircleDot className="w-4 h-4 text-primary-foreground" />
+            <TireLogo size={16} className="text-primary-foreground" />
           </div>
-          <span className="font-semibold text-base">TireVault</span>
+          <span className="font-semibold text-base">BAANAKE</span>
         </Link>
 
         {/* Actions */}

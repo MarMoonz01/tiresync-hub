@@ -58,7 +58,7 @@ export default function Landing() {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img src={heroImage} alt="TireVault Warehouse" className="w-full h-full object-cover" />
+          <img src={heroImage} alt="BAANAKE Warehouse" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
         </div>
 
@@ -228,11 +228,11 @@ export default function Landing() {
               Ready to Transform Your Tire Business?
             </h2>
             <p className="text-muted-foreground mb-6 text-sm max-w-lg mx-auto">
-              Join the TireVault network today and connect with other tire businesses in your area.
+              Join the BAANAKE network today and connect with other tire businesses in your area.
             </p>
             <Button size="lg" asChild>
               <Link to="/auth?mode=signup">
-                Join TireVault
+                Join BAANAKE
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>
@@ -247,10 +247,10 @@ export default function Landing() {
             <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
               <TireLogo size={14} className="text-primary-foreground" />
             </div>
-            <span className="font-medium text-sm text-foreground">TireVault</span>
+            <span className="font-medium text-sm text-foreground">BAANAKE</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} TireVault. All rights reserved.
+            © {new Date().getFullYear()} BAANAKE. All rights reserved.
           </p>
         </div>
       </footer>

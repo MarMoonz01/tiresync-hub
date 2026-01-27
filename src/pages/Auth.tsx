@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { CircleDot, Mail, Lock, User, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { TireLogo } from "@/components/icons/TireLogo";
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -101,9 +102,9 @@ export default function Auth() {
             transition={{ duration: 0.2, delay: 0.1 }}
             className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mb-3 shadow-sm"
           >
-            <CircleDot className="w-6 h-6 text-primary-foreground" />
+            <TireLogo size={24} className="text-primary-foreground" />
           </motion.div>
-          <h1 className="text-xl font-semibold text-foreground">TireVault</h1>
+          <h1 className="text-xl font-semibold text-foreground">BAANAKE</h1>
           <p className="text-muted-foreground text-xs">Tire Business Network</p>
         </div>
 

@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clock, CircleDot, RefreshCw, LogOut } from "lucide-react";
+import { Clock, RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { TireLogo } from "@/components/icons/TireLogo";
 
 export default function Pending() {
   const { user, isApproved, loading, refetchProfile } = useAuth();
@@ -44,9 +45,9 @@ export default function Pending() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4 shadow-lg">
-            <CircleDot className="w-9 h-9 text-primary-foreground" />
+            <TireLogo size={36} className="text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">TireVault</h1>
+          <h1 className="text-2xl font-bold text-foreground">BAANAKE</h1>
         </div>
 
         <Card className="glass-card border-0 shadow-xl">
