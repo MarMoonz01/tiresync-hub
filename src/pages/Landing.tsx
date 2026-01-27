@@ -70,8 +70,7 @@ export default function Landing() {
         }} transition={{
           duration: 0.4
         }}>
-            <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">
-              <CircleDot className="w-3.5 h-3.5" />
+            <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">ระบบจัดการ STOCK<CircleDot className="w-3.5 h-3.5" />
               The Premier Tire Business Network
             </p>
           </motion.div>
@@ -86,8 +85,9 @@ export default function Landing() {
           duration: 0.4,
           delay: 0.1
         }} className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-4">
-            <span className="text-foreground">TIRE</span>
-            <span className="text-primary">VAULT</span>
+            <span className="text-foreground">BAAN
+          </span>
+            <span className="text-primary">AKE</span>
           </motion.h1>
 
           <motion.p initial={{
