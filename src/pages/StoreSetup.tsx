@@ -24,6 +24,7 @@ export default function StoreSetup() {
   const [lineChannelId, setLineChannelId] = useState("");
   const [lineChannelSecret, setLineChannelSecret] = useState("");
   const [loading, setLoading] = useState(false);
+  const [createdStoreId, setCreatedStoreId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, refetchStore } = useAuth();
@@ -34,7 +35,7 @@ export default function StoreSetup() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("stores").insert({
+      const { data, error } = await supabase.from("stores").insert({
         owner_id: user.id,
         name,
         description: description || null,
@@ -44,18 +45,28 @@ export default function StoreSetup() {
         line_enabled: lineEnabled,
         line_channel_id: lineEnabled ? lineChannelId || null : null,
         line_channel_secret: lineEnabled ? lineChannelSecret || null : null,
-      });
+      }).select("id").single();
 
       if (error) throw error;
+
+      // Store the created store ID for webhook status polling
+      if (data?.id) {
+        setCreatedStoreId(data.id);
+      }
 
       await refetchStore();
 
       toast({
         title: "Store created!",
-        description: "Your store profile has been set up successfully.",
+        description: lineEnabled 
+          ? "Your store is created. Complete LINE setup to finish."
+          : "Your store profile has been set up successfully.",
       });
 
-      navigate("/dashboard");
+      // If LINE is enabled, don't navigate immediately - let user complete setup
+      if (!lineEnabled) {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -178,6 +189,7 @@ export default function StoreSetup() {
 
                 {lineEnabled && (
                   <WebhookSetupSection
+                    storeId={createdStoreId || undefined}
                     lineChannelId={lineChannelId}
                     setLineChannelId={setLineChannelId}
                     lineChannelSecret={lineChannelSecret}
@@ -186,17 +198,35 @@ export default function StoreSetup() {
                 )}
               </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-                disabled={loading || !name.trim()}
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Create Store"
-                )}
-              </Button>
+              {createdStoreId ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-success/10 rounded-lg border border-success/30 text-center">
+                    <p className="text-sm text-success font-medium">✅ ร้านถูกสร้างเรียบร้อยแล้ว!</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {lineEnabled ? "ตั้งค่า LINE เสร็จแล้วก็ไปหน้าแดชบอร์ดได้เลย" : ""}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                    onClick={() => navigate("/dashboard")}
+                  >
+                    ไปที่แดชบอร์ด
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                  disabled={loading || !name.trim()}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Create Store"
+                  )}
+                </Button>
+              )}
             </form>
           </CardContent>
         </Card>

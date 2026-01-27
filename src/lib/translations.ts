@@ -135,6 +135,15 @@ export const translations = {
     sendCodeToShop: "Send this code to our Shop's LINE Official Account to link your account",
     viewStock: "View Stock",
     adjustStock: "Adjust Stock",
+    // Phase UI
+    webhookStatus: "Connection Status",
+    webhookWaiting: "Waiting for webhook verification...",
+    webhookConnected: "Webhook Connected",
+    webhookTestInstructions: "After saving in LINE Developers Console, we'll detect the connection automatically.",
+    phase1Title: "Step 1: Connect LINE Channel",
+    phase2Title: "Step 2: Verify Owner Identity",
+    phase2Locked: "Connect your LINE channel first to unlock this step.",
+    phase3Complete: "Setup Complete!",
   },
   th: {
     // Navigation
@@ -270,6 +279,15 @@ export const translations = {
     sendCodeToShop: "ส่งรหัสนี้ไปยัง LINE Official Account ของร้านเพื่อเชื่อมต่อบัญชี",
     viewStock: "ดูสต็อก",
     adjustStock: "ปรับสต็อก",
+    // Phase UI
+    webhookStatus: "สถานะการเชื่อมต่อ",
+    webhookWaiting: "รอการยืนยัน webhook...",
+    webhookConnected: "เชื่อมต่อ Webhook แล้ว",
+    webhookTestInstructions: "หลังจากบันทึกใน LINE Developers Console ระบบจะตรวจจับการเชื่อมต่อโดยอัตโนมัติ",
+    phase1Title: "ขั้นตอนที่ 1: เชื่อมต่อ LINE Channel",
+    phase2Title: "ขั้นตอนที่ 2: ยืนยันตัวตนเจ้าของร้าน",
+    phase2Locked: "เชื่อมต่อ LINE Channel ก่อนเพื่อปลดล็อกขั้นตอนนี้",
+    phase3Complete: "ตั้งค่าเสร็จสมบูรณ์!",
   },
 } as const;
 

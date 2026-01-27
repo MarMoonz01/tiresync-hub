@@ -342,6 +342,8 @@ export type Database = {
           line_channel_id: string | null
           line_channel_secret: string | null
           line_enabled: boolean | null
+          line_webhook_verified: boolean | null
+          line_webhook_verified_at: string | null
           logo_url: string | null
           name: string
           owner_id: string
@@ -358,6 +360,8 @@ export type Database = {
           line_channel_id?: string | null
           line_channel_secret?: string | null
           line_enabled?: boolean | null
+          line_webhook_verified?: boolean | null
+          line_webhook_verified_at?: string | null
           logo_url?: string | null
           name: string
           owner_id: string
@@ -374,6 +378,8 @@ export type Database = {
           line_channel_id?: string | null
           line_channel_secret?: string | null
           line_enabled?: boolean | null
+          line_webhook_verified?: boolean | null
+          line_webhook_verified_at?: string | null
           logo_url?: string | null
           name?: string
           owner_id?: string
