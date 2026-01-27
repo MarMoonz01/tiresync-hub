@@ -27,6 +27,7 @@ export default function StoreSetup() {
   const [createdStoreId, setCreatedStoreId] = useState<string | null>(null);
   const [credentialsSaved, setCredentialsSaved] = useState(false);
   const [savingCredentials, setSavingCredentials] = useState(false);
+  const [resettingCredentials, setResettingCredentials] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, refetchStore } = useAuth();
@@ -61,6 +62,45 @@ export default function StoreSetup() {
       });
     } finally {
       setSavingCredentials(false);
+    }
+  };
+
+  // Handle resetting LINE credentials
+  const handleResetLineSettings = async () => {
+    if (!createdStoreId) return;
+    
+    setResettingCredentials(true);
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({
+          line_channel_id: null,
+          line_channel_secret: null,
+          line_webhook_verified: false,
+          line_webhook_verified_at: null,
+        })
+        .eq("id", createdStoreId);
+      
+      if (error) throw error;
+      
+      // Reset local state
+      setLineChannelId("");
+      setLineChannelSecret("");
+      setCredentialsSaved(false);
+      
+      toast({
+        title: "LINE settings reset",
+        description: "You can now re-enter your credentials.",
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to reset credentials";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setResettingCredentials(false);
     }
   };
 
@@ -231,7 +271,9 @@ export default function StoreSetup() {
                     setLineChannelSecret={setLineChannelSecret}
                     credentialsSaved={credentialsSaved}
                     onSaveCredentials={handleSaveLineSettings}
+                    onResetCredentials={handleResetLineSettings}
                     isSaving={savingCredentials}
+                    isResetting={resettingCredentials}
                   />
                 )}
               </div>

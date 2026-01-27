@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Copy, Check, ChevronDown, ExternalLink, Lock, Unlock, Loader2, Save } from "lucide-react";
+import { Copy, Check, ChevronDown, ExternalLink, Lock, Unlock, Loader2, Save, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,9 @@ interface WebhookSetupSectionProps {
   setLineChannelSecret: (value: string) => void;
   credentialsSaved: boolean;
   onSaveCredentials: () => void;
+  onResetCredentials: () => void;
   isSaving: boolean;
+  isResetting?: boolean;
 }
 
 export function WebhookSetupSection({
@@ -31,7 +33,9 @@ export function WebhookSetupSection({
   setLineChannelSecret,
   credentialsSaved,
   onSaveCredentials,
+  onResetCredentials,
   isSaving,
+  isResetting = false,
 }: WebhookSetupSectionProps) {
   const { t } = useLanguage();
   const [urlCopied, setUrlCopied] = useState(false);
@@ -69,7 +73,24 @@ export function WebhookSetupSection({
           </div>
           <h4 className="font-medium text-sm">{t("phase1Title")}</h4>
           {credentialsSaved && (
-            <span className="text-xs text-success ml-auto">{t("lineSettingsSaved")}</span>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-success">{t("lineSettingsSaved")}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onResetCredentials}
+                disabled={isResetting}
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              >
+                {isResetting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                )}
+                {isResetting ? t("resettingLineSettings") : t("resetLineSettings")}
+              </Button>
+            </div>
           )}
         </div>
 
