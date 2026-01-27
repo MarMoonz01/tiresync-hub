@@ -63,15 +63,17 @@ export default function Landing() {
 
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto pt-14">
-          <motion.div initial={{
+        <motion.div initial={{
           opacity: 0
         }} animate={{
           opacity: 1
         }} transition={{
           duration: 0.4
         }}>
-            <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">ระบบจัดการ STOCK<CircleDot className="w-3.5 h-3.5" />
-              The Premier Tire Business Network
+            <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">
+              <span>ระบบจัดการ STOCK</span>
+              <CircleDot className="w-3.5 h-3.5" />
+              <span>The Premier Tire Business Network</span>
             </p>
           </motion.div>
 
