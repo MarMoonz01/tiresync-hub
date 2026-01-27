@@ -87,6 +87,24 @@ async function verifySignature(body: string, signature: string, secret: string):
   }
 }
 
+// Sanitize tire size input for fuzzy matching
+// Removes common separators: /, R, r, -, spaces
+function sanitizeSizeInput(input: string): string {
+  return input.replace(/[\/Rr\-\s]/g, '').toLowerCase();
+}
+
+// Build a flexible search pattern for tire sizes
+// Input "2656517" should match "265/65R17", "265-65-R17", etc.
+function buildFuzzyPattern(sanitized: string): string {
+  // Insert % between each character group to allow for separators
+  // e.g., "2656517" becomes "%265%65%17%"
+  let pattern = '%';
+  for (let i = 0; i < sanitized.length; i++) {
+    pattern += sanitized[i] + '%';
+  }
+  return pattern;
+}
+
 // Get user permissions from LINE user ID
 // deno-lint-ignore no-explicit-any
 async function getUserPermissions(supabase: any, lineUserId: string): Promise<UserPermissions | null> {
@@ -1091,6 +1109,10 @@ Deno.serve(async (req) => {
         // Check if user can view stock
         if (!canViewStock(userPerms)) {
           // Allow public search for shared items, but prompt registration
+          // Use fuzzy size matching
+          const sanitizedInput = sanitizeSizeInput(messageText);
+          const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
+          
           const { data: tires } = await supabase
             .from("tires")
             .select(`
@@ -1098,7 +1120,7 @@ Deno.serve(async (req) => {
               tire_dots (id, dot_code, quantity, position, promotion),
               stores (name)
             `)
-            .or(`size.ilike.%${messageText}%,brand.ilike.%${messageText}%,model.ilike.%${messageText}%`)
+            .or(`size.ilike.${fuzzyPattern},brand.ilike.%${messageText}%,model.ilike.%${messageText}%`)
             .eq("is_shared", true)
             .limit(5);
 
@@ -1117,7 +1139,14 @@ Deno.serve(async (req) => {
         // User is authenticated - search with full permissions
         const canAdjust = canAdjustStock(userPerms);
 
+        // Fuzzy size search: sanitize input and build flexible pattern
+        const sanitizedInput = sanitizeSizeInput(messageText);
+        const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
+        
+        console.log(`Fuzzy search: "${messageText}" -> sanitized: "${sanitizedInput}" -> pattern: "${fuzzyPattern}"`);
+
         // Build query - include user's store tires plus shared tires
+        // Use fuzzy pattern for size, regular ilike for brand/model
         let tiresQuery = supabase
           .from("tires")
           .select(`
@@ -1125,7 +1154,7 @@ Deno.serve(async (req) => {
             tire_dots (id, dot_code, quantity, position, promotion),
             stores (name)
           `)
-          .or(`size.ilike.%${messageText}%,brand.ilike.%${messageText}%,model.ilike.%${messageText}%`);
+          .or(`size.ilike.${fuzzyPattern},brand.ilike.%${messageText}%,model.ilike.%${messageText}%`);
 
         // Add store filter if user has a store
         if (userPerms?.store_id) {
@@ -1140,6 +1169,8 @@ Deno.serve(async (req) => {
           console.error("Database query error:", error);
           throw error;
         }
+
+        console.log(`Search results: ${tires?.length || 0} tires found`);
 
         // Send flex message with results (include adjust buttons if permitted)
         const flexMessage = generateTireFlexMessage(tires as TireWithDots[], canAdjust);
