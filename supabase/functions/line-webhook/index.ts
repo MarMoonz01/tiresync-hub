@@ -944,6 +944,50 @@ async function adjustStock(
   };
 }
 
+// Verify signature and find matching store from database
+async function verifyAndFindStore(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  body: string,
+  signature: string
+): Promise<{ storeId: string; valid: boolean } | null> {
+  // Get all stores with LINE enabled and credentials
+  const { data: stores, error } = await supabase
+    .from("stores")
+    .select("id, line_channel_secret")
+    .eq("line_enabled", true)
+    .not("line_channel_secret", "is", null);
+
+  if (error) {
+    console.error("Error fetching stores:", error);
+  }
+
+  // Try each store's secret until one validates
+  if (stores && stores.length > 0) {
+    for (const store of stores) {
+      if (store.line_channel_secret) {
+        const isValid = await verifySignature(body, signature, store.line_channel_secret);
+        if (isValid) {
+          console.log(`Signature verified for store: ${store.id}`);
+          return { storeId: store.id, valid: true };
+        }
+      }
+    }
+  }
+
+  // Fall back to global secret if no store matches
+  const globalSecret = Deno.env.get("LINE_CHANNEL_SECRET");
+  if (globalSecret) {
+    const isValid = await verifySignature(body, signature, globalSecret);
+    if (isValid) {
+      console.log("Signature verified using global secret");
+      return { storeId: "", valid: true };
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -951,11 +995,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const channelSecret = Deno.env.get("LINE_CHANNEL_SECRET");
-    if (!channelSecret) {
-      throw new Error("LINE_CHANNEL_SECRET is not configured");
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
@@ -975,10 +1014,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify signature
-    const isValid = await verifySignature(body, signature, channelSecret);
-    if (!isValid) {
-      console.error("Invalid signature");
+    // Initialize Supabase client with service role for full access
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Try to verify signature against store secrets (then fall back to global)
+    const matchedStore = await verifyAndFindStore(supabase, body, signature);
+    
+    if (!matchedStore) {
+      console.error("Invalid signature - no matching store found");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -987,16 +1030,28 @@ Deno.serve(async (req) => {
 
     // Parse webhook body
     const webhookBody: LineWebhookBody = JSON.parse(body);
-    
-    // Initialize Supabase client with service role for full access
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Handle webhook verification (LINE sends empty events array)
     if (webhookBody.events.length === 0) {
       console.log("Webhook verification request received");
-      // This is a verification request from LINE - signature already validated above
-      // Mark any stores with matching channel secret as verified
-      // For now, just return success (shared channel model)
+      
+      // Mark the matching store as verified
+      if (matchedStore.storeId) {
+        const { error: updateError } = await supabase
+          .from("stores")
+          .update({
+            line_webhook_verified: true,
+            line_webhook_verified_at: new Date().toISOString(),
+          })
+          .eq("id", matchedStore.storeId);
+        
+        if (updateError) {
+          console.error("Error updating webhook verification:", updateError);
+        } else {
+          console.log(`Store ${matchedStore.storeId} webhook verified successfully`);
+        }
+      }
+      
       return new Response(JSON.stringify({ success: true, verified: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

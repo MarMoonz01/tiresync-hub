@@ -1,6 +1,6 @@
 export type Language = "en" | "th";
 
-export const translations = {
+export const translations: Record<string, Record<string, string>> = {
   en: {
     // Navigation
     dashboard: "Dashboard",
@@ -144,6 +144,11 @@ export const translations = {
     phase2Title: "Step 2: Verify Owner Identity",
     phase2Locked: "Connect your LINE channel first to unlock this step.",
     phase3Complete: "Setup Complete!",
+    // Save credentials
+    saveLineSettings: "Save LINE Settings",
+    savingLineSettings: "Saving...",
+    lineSettingsSaved: "✓ Saved",
+    webhookUrlHidden: "Webhook URL will appear after saving credentials",
   },
   th: {
     // Navigation
@@ -288,6 +293,11 @@ export const translations = {
     phase2Title: "ขั้นตอนที่ 2: ยืนยันตัวตนเจ้าของร้าน",
     phase2Locked: "เชื่อมต่อ LINE Channel ก่อนเพื่อปลดล็อกขั้นตอนนี้",
     phase3Complete: "ตั้งค่าเสร็จสมบูรณ์!",
+    // Save credentials
+    saveLineSettings: "บันทึกการตั้งค่า LINE",
+    savingLineSettings: "กำลังบันทึก...",
+    lineSettingsSaved: "✓ บันทึกแล้ว",
+    webhookUrlHidden: "URL Webhook จะปรากฏหลังจากบันทึกข้อมูล",
   },
 } as const;
 
