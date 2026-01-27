@@ -9,10 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TireLogo } from "@/components/icons/TireLogo";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
+  const { t } = useLanguage();
   
   const [isLogin, setIsLogin] = useState(mode !== "signup");
   const [email, setEmail] = useState("");
@@ -79,13 +82,18 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Language Toggle */}
+      <div className="absolute top-4 right-4">
+        <LanguageToggle />
+      </div>
+
       {/* Back Button */}
       <Link
         to="/"
         className="absolute top-4 left-4 flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Back</span>
+        <span>{t("back")}</span>
       </Link>
 
       <motion.div
@@ -111,12 +119,10 @@ export default function Auth() {
         <Card className="border-0 shadow-soft-lg bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center pb-2 pt-6">
             <CardTitle className="text-lg font-semibold">
-              {isLogin ? "Welcome Back" : "Create Account"}
+              {isLogin ? t("welcomeBack") : t("createAccount")}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isLogin
-                ? "Sign in to access your tire inventory"
-                : "Join the tire business network"}
+              {isLogin ? t("signInToAccess") : t("joinNetwork")}
             </CardDescription>
           </CardHeader>
 
@@ -132,13 +138,13 @@ export default function Auth() {
                     transition={{ duration: 0.15 }}
                     className="space-y-1.5"
                   >
-                    <Label htmlFor="fullName" className="text-xs">Full Name</Label>
+                    <Label htmlFor="fullName" className="text-xs">{t("fullName")}</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="fullName"
                         type="text"
-                        placeholder="Enter your full name"
+                        placeholder={t("enterFullName")}
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         className="pl-10"
@@ -150,13 +156,13 @@ export default function Auth() {
               </AnimatePresence>
 
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs">Email</Label>
+                <Label htmlFor="email" className="text-xs">{t("email")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder={t("enterEmail")}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
@@ -166,13 +172,13 @@ export default function Auth() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs">Password</Label>
+                <Label htmlFor="password" className="text-xs">{t("password")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder={t("enterPassword")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -201,9 +207,9 @@ export default function Auth() {
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : isLogin ? (
-                  "Sign In"
+                  t("signIn")
                 ) : (
-                  "Create Account"
+                  t("createAccount")
                 )}
               </Button>
             </form>
@@ -214,16 +220,14 @@ export default function Auth() {
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
               >
-                {isLogin
-                  ? "Don't have an account? Sign up"
-                  : "Already have an account? Sign in"}
+                {isLogin ? t("noAccount") : t("hasAccount")}
               </button>
             </div>
           </CardContent>
         </Card>
 
         <p className="text-center text-[10px] text-muted-foreground mt-4">
-          By continuing, you agree to our Terms of Service and Privacy Policy
+          {t("termsAgreement")}
         </p>
       </motion.div>
     </div>

@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { TireLogo } from "@/components/icons/TireLogo";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Pending() {
   const { user, isApproved, loading, refetchProfile } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,27 +62,27 @@ export default function Pending() {
             >
               <Clock className="w-8 h-8 text-warning" />
             </motion.div>
-            <CardTitle className="text-xl">Account Pending Approval</CardTitle>
+            <CardTitle className="text-xl">{t("accountPending")}</CardTitle>
             <CardDescription className="text-base">
-              Your account is being reviewed by our team. You'll be notified once approved.
+              {t("pendingDescription")}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground mb-2">What happens next?</p>
+              <p className="font-medium text-foreground mb-2">{t("whatHappensNext")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
-                  Our moderators will review your application
+                  {t("moderatorsReview")}
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
-                  This usually takes 24-48 hours
+                  {t("usuallyTakes")}
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
-                  You'll receive access once approved
+                  {t("receiveAccess")}
                 </li>
               </ul>
             </div>
@@ -91,7 +93,7 @@ export default function Pending() {
               className="w-full"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Check Status
+              {t("checkStatus")}
             </Button>
 
             <Button
@@ -100,7 +102,7 @@ export default function Pending() {
               className="w-full text-muted-foreground hover:text-destructive"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              {t("signOut")}
             </Button>
           </CardContent>
         </Card>

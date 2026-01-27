@@ -3,8 +3,12 @@ import { motion } from "framer-motion";
 import { ChevronDown, Shield, Users, Package, TrendingUp, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TireLogo } from "@/components/icons/TireLogo";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 import heroImage from "@/assets/landing-hero.jpg";
 export default function Landing() {
+  const { t } = useLanguage();
+  
   const scrollToFeatures = () => {
     document.getElementById("features")?.scrollIntoView({
       behavior: "smooth"
@@ -26,26 +30,27 @@ export default function Landing() {
             {/* Nav Links - Desktop */}
             <div className="hidden md:flex items-center gap-6">
               <button onClick={scrollToFeatures} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Features
+                {t("features")}
               </button>
               <a href="#network" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Network
+                {t("network")}
               </a>
               <a href="#about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                About
+                {t("about")}
               </a>
+              <LanguageToggle variant="compact" />
             </div>
 
             {/* Auth Buttons */}
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
                 <Link to="/auth?mode=login">
-                  Member
+                  {t("member")}
                 </Link>
               </Button>
               <Button size="sm" asChild>
                 <Link to="/auth?mode=signup">
-                  Join
+                  {t("join")}
                   <ArrowRight className="w-3 h-3 ml-1" />
                 </Link>
               </Button>
@@ -72,9 +77,9 @@ export default function Landing() {
           duration: 0.4
         }}>
             <p className="inline-flex items-center gap-2 text-primary text-sm font-medium mb-6">
-              <span>ระบบจัดการ STOCK</span>
+              <span>{t("stockManagement")}</span>
               <TireLogo size={14} className="text-primary" />
-              <span>The Premier Tire Business Network</span>
+              <span>{t("tagline")}</span>
             </p>
           </motion.div>
 
@@ -103,7 +108,7 @@ export default function Landing() {
           duration: 0.4,
           delay: 0.15
         }} className="text-xl sm:text-2xl text-primary font-medium mb-4">
-            Business First, always.
+            {t("businessFirst")}
           </motion.p>
 
           <motion.p initial={{
@@ -116,8 +121,7 @@ export default function Landing() {
           duration: 0.4,
           delay: 0.2
         }} className="text-base text-muted-foreground mb-8 max-w-xl mx-auto leading-relaxed">
-            A comprehensive tire inventory management platform with network sharing, 
-            real-time stock tracking, and seamless B2B connections.
+            {t("heroDescription")}
           </motion.p>
 
           <motion.div initial={{
@@ -132,12 +136,12 @@ export default function Landing() {
         }} className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button size="lg" asChild>
               <Link to="/auth?mode=signup">
-                Get Started
+                {t("getStarted")}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" onClick={scrollToFeatures}>
-              Learn More
+              {t("learnMore")}
             </Button>
           </motion.div>
         </div>
@@ -167,30 +171,30 @@ export default function Landing() {
           once: true
         }} className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-              Everything You Need to Manage Your Tire Business
+              {t("inventoryManagement")}
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-              Streamline your operations with our comprehensive suite of tools designed specifically for tire businesses.
+              {t("inventoryDesc")}
             </p>
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[{
             icon: Package,
-            title: "Inventory Management",
-            description: "Track stock levels, DOT codes, and pricing in real-time."
+            title: t("inventoryManagement"),
+            description: t("inventoryDesc")
           }, {
             icon: Users,
-            title: "Network Sharing",
-            description: "Share inventory with partners and access their stock."
+            title: t("networkSharing"),
+            description: t("networkDesc")
           }, {
             icon: TrendingUp,
-            title: "Sales Analytics",
-            description: "Insights into best sellers and business performance."
+            title: t("salesAnalytics"),
+            description: t("analyticsDesc")
           }, {
             icon: Shield,
-            title: "Secure Platform",
-            description: "Enterprise-grade security with role-based access."
+            title: t("securePlatform"),
+            description: t("secureDesc")
           }].map((feature, index) => <motion.div key={feature.title} initial={{
             opacity: 0,
             y: 16
@@ -225,14 +229,14 @@ export default function Landing() {
           once: true
         }}>
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-              Ready to Transform Your Tire Business?
+              {t("readyToTransform")}
             </h2>
             <p className="text-muted-foreground mb-6 text-sm max-w-lg mx-auto">
-              Join the BAANAKE network today and connect with other tire businesses in your area.
+              {t("joinNetworkCTA")}
             </p>
             <Button size="lg" asChild>
               <Link to="/auth?mode=signup">
-                Join BAANAKE
+                {t("joinBaanake")}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>
@@ -250,7 +254,7 @@ export default function Landing() {
             <span className="font-medium text-sm text-foreground">BAANAKE</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} BAANAKE. All rights reserved.
+            © {new Date().getFullYear()} BAANAKE. {t("allRightsReserved")}
           </p>
         </div>
       </footer>
