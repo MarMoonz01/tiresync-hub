@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { WebhookSetupSection } from "@/components/store/WebhookSetupSection";
 
 export default function StoreSetup() {
   const [name, setName] = useState("");
@@ -176,27 +177,12 @@ export default function StoreSetup() {
                 </div>
 
                 {lineEnabled && (
-                  <div className="space-y-3 pl-11">
-                    <div className="space-y-2">
-                      <Label htmlFor="lineChannelId">LINE Channel ID</Label>
-                      <Input
-                        id="lineChannelId"
-                        placeholder="Channel ID from LINE Developers"
-                        value={lineChannelId}
-                        onChange={(e) => setLineChannelId(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lineChannelSecret">LINE Channel Secret</Label>
-                      <Input
-                        id="lineChannelSecret"
-                        type="password"
-                        placeholder="Channel Secret from LINE Developers"
-                        value={lineChannelSecret}
-                        onChange={(e) => setLineChannelSecret(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                  <WebhookSetupSection
+                    lineChannelId={lineChannelId}
+                    setLineChannelId={setLineChannelId}
+                    lineChannelSecret={lineChannelSecret}
+                    setLineChannelSecret={setLineChannelSecret}
+                  />
                 )}
               </div>
 
