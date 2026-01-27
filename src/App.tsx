@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 import Landing from "./pages/Landing";
@@ -27,58 +28,60 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/pending" element={<Pending />} />
-            
-            <Route path="/dashboard" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
-            } />
-            <Route path="/inventory" element={
-              <ProtectedRoute><Inventory /></ProtectedRoute>
-            } />
-            <Route path="/inventory/add" element={
-              <ProtectedRoute><AddTire /></ProtectedRoute>
-            } />
-            <Route path="/inventory/edit/:id" element={
-              <ProtectedRoute><EditTire /></ProtectedRoute>
-            } />
-            <Route path="/import" element={
-              <ProtectedRoute><Import /></ProtectedRoute>
-            } />
-            <Route path="/store" element={
-              <ProtectedRoute><MyStore /></ProtectedRoute>
-            } />
-            <Route path="/store/setup" element={
-              <ProtectedRoute requireApproval={false}><StoreSetup /></ProtectedRoute>
-            } />
-            <Route path="/marketplace" element={
-              <ProtectedRoute><Marketplace /></ProtectedRoute>
-            } />
-            <Route path="/network" element={
-              <ProtectedRoute><Network /></ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute><Settings /></ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute><Profile /></ProtectedRoute>
-            } />
-            <Route path="/staff" element={
-              <ProtectedRoute requireAdmin><Staff /></ProtectedRoute>
-            } />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LanguageProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/pending" element={<Pending />} />
+              
+              <Route path="/dashboard" element={
+                <ProtectedRoute><Dashboard /></ProtectedRoute>
+              } />
+              <Route path="/inventory" element={
+                <ProtectedRoute><Inventory /></ProtectedRoute>
+              } />
+              <Route path="/inventory/add" element={
+                <ProtectedRoute><AddTire /></ProtectedRoute>
+              } />
+              <Route path="/inventory/edit/:id" element={
+                <ProtectedRoute><EditTire /></ProtectedRoute>
+              } />
+              <Route path="/import" element={
+                <ProtectedRoute><Import /></ProtectedRoute>
+              } />
+              <Route path="/store" element={
+                <ProtectedRoute><MyStore /></ProtectedRoute>
+              } />
+              <Route path="/store/setup" element={
+                <ProtectedRoute requireApproval={false}><StoreSetup /></ProtectedRoute>
+              } />
+              <Route path="/marketplace" element={
+                <ProtectedRoute><Marketplace /></ProtectedRoute>
+              } />
+              <Route path="/network" element={
+                <ProtectedRoute><Network /></ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute><Settings /></ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute><Profile /></ProtectedRoute>
+              } />
+              <Route path="/staff" element={
+                <ProtectedRoute requireAdmin><Staff /></ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 

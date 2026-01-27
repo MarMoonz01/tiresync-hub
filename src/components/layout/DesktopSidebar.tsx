@@ -20,33 +20,36 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { TireLogo } from "@/components/icons/TireLogo";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { TranslationKey } from "@/lib/translations";
 
 interface DesktopSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
-const baseNavItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: CircleDot, label: "Tire Vault", path: "/inventory" },
-  { icon: Upload, label: "Import", path: "/import" },
-  { icon: Store, label: "My Store", path: "/store" },
-  { icon: Search, label: "Marketplace", path: "/marketplace" },
-  { icon: Users, label: "Network", path: "/network" },
+const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+  { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
+  { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
+  { icon: Upload, labelKey: "import", path: "/import" },
+  { icon: Store, labelKey: "myStore", path: "/store" },
+  { icon: Search, labelKey: "marketplace", path: "/marketplace" },
+  { icon: Users, labelKey: "network", path: "/network" },
 ];
 
-const adminNavItems = [
-  { icon: UserCog, label: "Staff", path: "/staff" },
+const adminNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+  { icon: UserCog, labelKey: "staff", path: "/staff" },
 ];
 
-const bottomNavItems = [
-  { icon: Settings, label: "Settings", path: "/settings" },
+const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+  { icon: Settings, labelKey: "settings", path: "/settings" },
 ];
 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { t } = useLanguage();
 
   // Build nav items based on role
   const navItems = [
@@ -91,6 +94,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
+          const label = t(item.labelKey);
 
           const linkContent = (
             <Link
@@ -117,7 +121,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
                   exit={{ opacity: 0 }}
                   className="text-sm"
                 >
-                  {item.label}
+                  {label}
                 </motion.span>
               )}
             </Link>
@@ -128,7 +132,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
               <Tooltip key={item.path} delayDuration={0}>
                 <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                 <TooltipContent side="right" className="font-medium">
-                  {item.label}
+                  {label}
                 </TooltipContent>
               </Tooltip>
             );
@@ -151,11 +155,11 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
               )}
             >
               <LogOut className="w-5 h-5" />
-              {!collapsed && <span className="text-sm">Logout</span>}
+              {!collapsed && <span className="text-sm">{t("logout")}</span>}
             </button>
           </TooltipTrigger>
           {collapsed && (
-            <TooltipContent side="right">Logout</TooltipContent>
+            <TooltipContent side="right">{t("logout")}</TooltipContent>
           )}
         </Tooltip>
 
