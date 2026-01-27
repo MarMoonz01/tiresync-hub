@@ -1,246 +1,349 @@
 
-# LINE Chatbot Integration with Backend Functions
 
-This plan outlines the implementation of a LINE Chatbot that connects directly to the tire inventory system, replacing the previous Google Apps Script/Google Sheets approach.
+# Comprehensive TireSync Hub with LINE Chatbot & Advanced Permissions
 
-## Overview
-
-The integration will enable:
-- Real-time inventory queries via LINE chat (search by tire size, brand, or model)
-- Stock adjustments directly from LINE with proper audit logging
-- Low stock alerts pushed to admins
-- Professional Flex Message cards matching the new BAANAKE design
+This plan implements a complete multi-tier authorization system with granular permissions and deep LINE Chatbot integration for the BAANAKE tire inventory platform.
 
 ---
 
-## Architecture
+## Architecture Overview
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         LINE Platform                           │
-│                                                                  │
-│   User Message → LINE Webhook → Edge Function → Database        │
-│                                    ↓                             │
-│                            Flex Message Reply                    │
-└─────────────────────────────────────────────────────────────────┘
-
-Flow:
-1. User sends message (e.g., "265/65R17" or "michelin")
-2. LINE webhook POSTs to Edge Function
-3. Edge Function verifies signature, queries database
-4. Returns Flex Message with tire data + action buttons
-5. Stock changes are logged to stock_logs table
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           BAANAKE Permission Architecture                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                   │
+│  │   Moderator   │    │ Store Owner  │    │    Staff     │                   │
+│  │   (System)    │    │   (Store)    │    │   (Store)    │                   │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘                   │
+│         │                   │                   │                            │
+│   Approve Owners       Approve Staff       Limited Access                    │
+│   Manage System        Set Permissions     Per Permission                    │
+│                        LINE Integration    Matrix                            │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                         LINE Integration Layer                               │
+│                                                                              │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
+│  │ line_user_id    │───▶│  Verify Access  │───▶│ Execute Action   │          │
+│  │ in profiles     │    │  Check Perms    │    │ Log to stock_logs│          │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Required Secrets
+## Phase 1: Database Schema Updates
 
-Before proceeding, you'll need to provide two LINE API credentials:
+### 1.1 Add LINE Integration Fields to Profiles
 
-| Secret Name | Description |
-|-------------|-------------|
-| `LINE_CHANNEL_ACCESS_TOKEN` | Long-lived access token from LINE Developers Console |
-| `LINE_CHANNEL_SECRET` | Channel secret for webhook signature verification |
+Add `line_user_id` column to track linked LINE accounts:
 
-I'll prompt you to add these secrets using a secure input form.
-
----
-
-## Components to Build
-
-### 1. Main Webhook Edge Function
-**File**: `supabase/functions/line-webhook/index.ts`
-
-Handles all incoming LINE webhook events:
-- **Signature Verification**: HMAC-SHA256 validation using `X-Line-Signature` header
-- **Message Parsing**: Extract user messages and postback data
-- **Database Queries**: Search tires by size, brand, or model
-- **Reply Generation**: Create and send Flex Messages
-
-### 2. Flex Message Generator
-**File**: `supabase/functions/line-webhook/flex-messages.ts`
-
-Generates LINE Flex Message JSON for:
-- **Tire Search Results**: Display brand, model, size, DOT codes, and stock levels
-- **Stock Status Badges**: Green (In Stock), Yellow (Low Stock), Red (Out of Stock)
-- **Action Buttons**: "Check Other Branches", "Reserve Tire", "View Details"
-
-Design specs based on plan.md:
-- Primary color: `#2563EB` (brand blue)
-- Clean, minimal layout with proper spacing
-- Thai language support
-
-### 3. Stock Alert Push Notifications
-**File**: `supabase/functions/line-push-notification/index.ts`
-
-Triggered when stock falls below threshold (4 units):
-- Sends push message to admin LINE users
-- Includes tire details and current stock level
-
-### 4. LINE Interaction Audit Logging
-
-All LINE chatbot interactions will be logged to the existing `stock_logs` table:
-- Action type: `line_search`, `line_add`, `line_remove`
-- Notes field will include LINE user ID for traceability
-- Uses the same logging pattern as the web app
-
----
-
-## Database Considerations
-
-### Current Schema Mapping (to reference document)
-Your existing tables already support the required data:
-
-| PDF Reference | Your Schema |
-|---------------|-------------|
-| TIRE_SIZE, BRAND, MODEL | `tires.size`, `tires.brand`, `tires.model` |
-| DOT1-4, STOCK1-4, PROMO1-4 | `tire_dots` table (up to 4 per tire via `position`) |
-| LINE_log / Web_log | `stock_logs` table |
-| Price | `tires.price` |
-
-### No Schema Changes Required
-The existing `stock_logs` table can handle LINE interactions with the current fields:
-- `action`: Will use values like `"line_add"`, `"line_remove"`
-- `notes`: Will include LINE context (user display name, message ID)
-- `user_id`: Can be null for LINE users (they're not web-authenticated)
-
----
-
-## Flex Message Design
-
-Based on NEW_DEMO.pdf and plan.md styling:
-
-```text
-┌─────────────────────────────────────────┐
-│  🏷️ MICHELIN                            │
-│  Primacy 4  •  265/65R17               │
-├─────────────────────────────────────────┤
-│  DOT      Stock    Status              │
-│  ─────────────────────────────────────  │
-│  2024    🟢 12     In Stock             │
-│  2023    🟡 3      Low Stock            │
-│  2022    🔴 0      Out of Stock         │
-├─────────────────────────────────────────┤
-│  💰 Price: ฿3,500                       │
-├─────────────────────────────────────────┤
-│ [Check Branches] [Reserve] [View]       │
-└─────────────────────────────────────────┘
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN line_user_id TEXT UNIQUE;
 ```
 
-Color scheme:
-- Header background: `#2563EB` (primary blue)
-- In Stock badge: `#22C55E` (green)
-- Low Stock badge: `#F59E0B` (amber)
-- Out of Stock badge: `#EF4444` (red)
+### 1.2 Add LINE Settings to Stores
+
+Track LINE OA credentials and settings per store:
+
+```sql
+ALTER TABLE public.stores 
+ADD COLUMN line_enabled BOOLEAN DEFAULT false,
+ADD COLUMN line_channel_id TEXT,
+ADD COLUMN line_channel_secret TEXT;
+```
+
+### 1.3 Enhance Store Members with Permissions
+
+Add granular permission controls using JSONB:
+
+```sql
+ALTER TABLE public.store_members 
+ADD COLUMN permissions JSONB DEFAULT '{
+  "web": {"view": true, "add": false, "edit": false, "delete": false},
+  "line": {"view": true, "adjust": false}
+}'::jsonb,
+ADD COLUMN is_approved BOOLEAN DEFAULT false;
+```
+
+### 1.4 Create Security Definer Functions
+
+Functions to check permissions without RLS recursion:
+
+```sql
+-- Check if user has specific web permission for a store
+CREATE OR REPLACE FUNCTION public.has_store_permission(
+  _user_id uuid, 
+  _store_id uuid, 
+  _permission_type text, 
+  _permission text
+) RETURNS boolean...
+
+-- Check if a LINE user can perform an action
+CREATE OR REPLACE FUNCTION public.get_line_user_permissions(
+  _line_user_id text
+) RETURNS TABLE(...)...
+```
 
 ---
 
-## Implementation Steps
+## Phase 2: Enhanced Sign-Up Flow
 
-### Step 1: Add LINE API Secrets
-I'll use the secret input tool to securely collect:
-- `LINE_CHANNEL_ACCESS_TOKEN`
-- `LINE_CHANNEL_SECRET`
+### 2.1 Update Auth Page
 
-### Step 2: Create Main Webhook Edge Function
-- CORS headers for LINE platform
-- Signature verification using HMAC-SHA256
-- Event type routing (message, postback, follow)
-- Database queries using Supabase client
+Add role selection during registration:
 
-### Step 3: Create Flex Message Generator
-- Tire search results card
-- Stock status with DOT breakdown
-- Action buttons with postback data
-- Thai/English language support
+| Selection | Flow |
+|-----------|------|
+| **Owner** | Sign up → Status: `pending` → Wait for Moderator approval → Create store |
+| **Staff** | Sign up → Select/enter store code → Status: `pending` → Wait for Store Owner approval |
 
-### Step 4: Create Push Notification Function
-- Triggered by stock threshold
-- Admin notification via LINE Push API
-- Configurable threshold (default: 4)
+**New UI Elements:**
+- Radio buttons: "I'm a Store Owner" / "I'm joining a Store"
+- Store code input field (for staff)
+- Store search/select dropdown (for staff)
 
-### Step 5: Update Config
-- Add `verify_jwt = false` for webhook endpoint (LINE doesn't send JWT)
-- Configure function settings in `supabase/config.toml`
+### 2.2 Create Staff Join Request Table
+
+Track pending staff join requests:
+
+```sql
+CREATE TABLE public.staff_join_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  store_id UUID NOT NULL REFERENCES stores(id),
+  status TEXT DEFAULT 'pending', -- pending, approved, rejected
+  requested_at TIMESTAMP DEFAULT now(),
+  responded_at TIMESTAMP,
+  responded_by UUID
+);
+```
 
 ---
 
-## LINE Developers Console Setup (Your Action Required)
+## Phase 3: Store Owner Dashboard Enhancements
 
-After I create the edge functions, you'll need to:
+### 3.1 Update Store Setup Page
 
-1. **Get your Webhook URL**: 
-   `https://wqqaqafhpxytwbwykqbg.supabase.co/functions/v1/line-webhook`
+Add LINE Chatbot configuration:
 
-2. **Configure in LINE Developers Console**:
-   - Go to your Messaging API channel settings
-   - Set the Webhook URL
-   - Enable "Use webhook"
-   - Disable "Auto-reply messages"
+- "Enable LINE Chatbot" toggle switch
+- LINE Channel ID input (shown when enabled)
+- "Connect My LINE" button that generates a link code
+- QR code or deep link to initiate LINE account linking
 
-3. **Get Credentials**:
-   - Copy the Channel Secret (for signature verification)
-   - Issue a long-lived Channel Access Token
+### 3.2 Create Pending Staff Requests View
+
+New section in Staff page showing:
+
+- List of pending join requests
+- Staff name, email, requested date
+- Approve / Reject buttons
+- When approved → trigger LINE push notification to owner
+
+### 3.3 Permission Matrix UI
+
+For each staff member, show checkboxes:
+
+| Permission | Description |
+|------------|-------------|
+| **Web: View** | Can view inventory (always on) |
+| **Web: Add** | Can add new tires |
+| **Web: Edit** | Can edit existing tires |
+| **Web: Delete** | Can delete tires |
+| **LINE: View** | Can search stock via LINE |
+| **LINE: Adjust** | Can use +/- buttons in Flex Messages |
+
+---
+
+## Phase 4: LINE Integration Enhancements
+
+### 4.1 Update line-webhook Edge Function
+
+Add authorization layer:
+
+```typescript
+// 1. Extract LINE user ID from event
+const lineUserId = event.source.userId;
+
+// 2. Check if linked to a profile
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("user_id, store_members(store_id, permissions, is_approved)")
+  .eq("line_user_id", lineUserId)
+  .single();
+
+// 3. If not linked → send registration message
+// 4. If linked but not approved → send "pending approval" message
+// 5. If linked and approved → check permission for action
+```
+
+### 4.2 Interactive Stock Adjustment Buttons
+
+Update Flex Message generator to conditionally show +/- buttons:
+
+```typescript
+// Only show if user has LINE adjust permission
+if (userPermissions.line.adjust) {
+  buttons.push({
+    type: "button",
+    action: { type: "postback", label: "+1", data: `action=add_stock&dot_id=${dot.id}` }
+  });
+  buttons.push({
+    type: "button",  
+    action: { type: "postback", label: "-1", data: `action=remove_stock&dot_id=${dot.id}` }
+  });
+}
+```
+
+### 4.3 Stock Adjustment via Postback
+
+Handle postback actions for stock changes:
+
+```typescript
+if (action === "add_stock" || action === "remove_stock") {
+  // Verify permission
+  // Update tire_dots quantity
+  // Log to stock_logs with LINE context
+  // Send confirmation message
+}
+```
+
+### 4.4 Push Notifications for Staff Requests
+
+Update line-push-notification to support:
+
+- New staff request alerts to store owner
+- Staff approval confirmations
+- Low stock alerts (existing)
+
+---
+
+## Phase 5: Profile Page LINE Integration
+
+### 5.1 Add LINE Integration Section
+
+New card in Profile page:
+
+- Current status: "Linked" with LINE display name, or "Not Linked"
+- "Link LINE Account" button → generates unique link code
+- "Unlink" button → removes `line_user_id`
+
+### 5.2 LINE Account Linking Flow
+
+```text
+1. User clicks "Link LINE Account" in web app
+2. System generates temporary link code (expires in 10 min)
+3. User sends code to LINE chatbot
+4. Chatbot verifies code and links accounts
+5. Web app updates to show "Linked" status
+```
+
+**Database for link codes:**
+
+```sql
+CREATE TABLE public.line_link_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE,
+  code TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT now()
+);
+```
+
+---
+
+## Files to Create/Modify
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/pages/StaffRequests.tsx` | View for owners to manage pending staff requests |
+| `src/components/profile/LineIntegrationCard.tsx` | LINE linking UI component |
+| `src/components/store/LineSettingsCard.tsx` | Store LINE configuration component |
+| `src/hooks/useStaffRequests.tsx` | Hook for staff request management |
+| `src/hooks/useLineLink.tsx` | Hook for LINE account linking |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `src/pages/Auth.tsx` | Add Owner/Staff role selection, store code input |
+| `src/pages/StoreSetup.tsx` | Add LINE enable toggle, channel inputs |
+| `src/pages/Profile.tsx` | Add LINE Integration section |
+| `src/pages/Staff.tsx` | Add permission matrix, pending requests tab |
+| `src/components/staff/StoreStaffCard.tsx` | Show permission badges, edit button |
+| `supabase/functions/line-webhook/index.ts` | Authorization checks, stock adjustment handling |
+| `supabase/functions/line-push-notification/index.ts` | Staff request notifications |
+| `src/lib/translations.ts` | Add Thai/English translations for new UI |
+
+### Database Migrations
+
+| Migration | Purpose |
+|-----------|---------|
+| `add_line_user_id_to_profiles.sql` | Add LINE integration to profiles |
+| `add_line_settings_to_stores.sql` | Add LINE config to stores |
+| `add_permissions_to_store_members.sql` | Add JSONB permissions column |
+| `create_staff_join_requests.sql` | Table for pending staff requests |
+| `create_line_link_codes.sql` | Table for LINE linking codes |
+| `create_permission_helper_functions.sql` | Security definer functions |
+
+---
+
+## Implementation Order
+
+### Step 1: Database Schema (30%)
+1. Create all migrations for new columns and tables
+2. Add security definer functions for permission checks
+3. Update RLS policies
+
+### Step 2: Auth Flow Enhancement (20%)
+1. Update Auth.tsx with role selection
+2. Create staff join request flow
+3. Add store code generation to Store setup
+
+### Step 3: Permission Management UI (20%)
+1. Create permission matrix component
+2. Update Staff page with requests tab
+3. Add permission editing dialog
+
+### Step 4: LINE Webhook Enhancements (20%)
+1. Add authorization layer to webhook
+2. Implement stock adjustment via postback
+3. Add conditional +/- buttons to Flex Messages
+
+### Step 5: Profile LINE Integration (10%)
+1. Create LINE linking UI
+2. Implement link code generation
+3. Add webhook handler for link verification
 
 ---
 
 ## Security Considerations
 
-| Security Measure | Implementation |
-|------------------|----------------|
-| Webhook Signature | HMAC-SHA256 verification of all requests |
-| No JWT (intentional) | LINE webhooks don't use JWT; signature is the auth method |
-| Rate Limiting | LINE platform handles rate limiting |
-| Input Validation | Sanitize search queries before database operations |
-| Audit Trail | All actions logged with LINE user context |
-
----
-
-## Technical Details
-
-### Edge Function Structure
-```
-supabase/functions/
-├── line-webhook/
-│   ├── index.ts           # Main webhook handler
-│   └── deno.json          # Deno configuration
-└── line-push-notification/
-    ├── index.ts           # Push notification sender
-    └── deno.json          # Deno configuration
-```
-
-### Signature Verification (Critical)
-Using Deno's Web Crypto API:
-```typescript
-// Pseudocode for signature verification
-const signature = request.headers.get('x-line-signature');
-const body = await request.text();
-const key = await crypto.subtle.importKey(...channelSecret);
-const digest = await crypto.subtle.sign("HMAC", key, body);
-const expectedSignature = base64Encode(digest);
-const isValid = signature === expectedSignature;
-```
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `supabase/functions/line-webhook/index.ts` | Main webhook handler with signature verification, message routing, and database queries |
-| `supabase/functions/line-push-notification/index.ts` | Push notification sender for low stock alerts |
+| Concern | Mitigation |
+|---------|------------|
+| Unauthorized LINE access | Verify `line_user_id` against database before any action |
+| Permission escalation | Use security definer functions, store permissions in JSONB |
+| Link code hijacking | Codes expire in 10 minutes, single-use, user-specific |
+| Stock manipulation | Log all changes with LINE user context to `stock_logs` |
 
 ---
 
 ## Summary
 
-This implementation will:
-- Replace the Google Apps Script/Sheets system entirely
-- Connect LINE directly to your Supabase database
-- Maintain the same user experience from your PDF demo
-- Apply the new BAANAKE minimal design to Flex Messages
-- Log all interactions for audit purposes
-- Send proactive low-stock alerts to admins
+This implementation transforms BAANAKE into a comprehensive multi-tier platform:
 
-Ready to proceed? Click **Approve** and I'll start by prompting you for the LINE API secrets, then create the edge functions.
+1. **Dual Sign-Up Paths**: Owners vs Staff with appropriate approval workflows
+2. **Granular Permissions**: 6-point permission matrix (4 web + 2 LINE)
+3. **LINE Authorization Bridge**: Every LINE action verified against database permissions
+4. **Interactive Stock Control**: +/- buttons in Flex Messages for authorized users
+5. **Complete Audit Trail**: All actions logged with user context
+
+The system maintains the existing BAANAKE Minimal Design (#2563EB) throughout all new UI components.
+
