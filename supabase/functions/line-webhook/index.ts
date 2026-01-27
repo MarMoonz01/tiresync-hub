@@ -45,6 +45,17 @@ interface TireWithDots {
   stores: Store | Store[] | null;
 }
 
+interface UserPermissions {
+  user_id: string;
+  store_id: string;
+  is_owner: boolean;
+  permissions: {
+    web: { view: boolean; add: boolean; edit: boolean; delete: boolean };
+    line: { view: boolean; adjust: boolean };
+  } | null;
+  is_approved: boolean;
+}
+
 // Helper to get store name from stores field (handles both single object and array)
 function getStoreName(stores: Store | Store[] | null | undefined): string {
   if (!stores) return "ร้านค้า";
@@ -76,8 +87,94 @@ async function verifySignature(body: string, signature: string, secret: string):
   }
 }
 
-// Generate Flex Message for tire search results
-function generateTireFlexMessage(tires: TireWithDots[]): object {
+// Get user permissions from LINE user ID
+// deno-lint-ignore no-explicit-any
+async function getUserPermissions(supabase: any, lineUserId: string): Promise<UserPermissions | null> {
+  try {
+    const { data, error } = await supabase
+      .rpc("get_line_user_permissions", { _line_user_id: lineUserId });
+
+    if (error) {
+      console.error("Error getting user permissions:", error);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    // Return the first matching record (usually owner takes precedence)
+    const record = data[0];
+    return {
+      user_id: record.user_id,
+      store_id: record.store_id,
+      is_owner: record.is_owner,
+      permissions: record.permissions,
+      is_approved: record.is_approved,
+    };
+  } catch (err) {
+    console.error("Failed to get user permissions:", err);
+    return null;
+  }
+}
+
+// Check if user can adjust stock
+function canAdjustStock(userPerms: UserPermissions | null): boolean {
+  if (!userPerms) return false;
+  if (!userPerms.is_approved) return false;
+  if (userPerms.is_owner) return true;
+  return userPerms.permissions?.line?.adjust ?? false;
+}
+
+// Check if user can view stock
+function canViewStock(userPerms: UserPermissions | null): boolean {
+  if (!userPerms) return false;
+  if (!userPerms.is_approved) return false;
+  if (userPerms.is_owner) return true;
+  return userPerms.permissions?.line?.view ?? true;
+}
+
+// Handle LINE account linking
+// deno-lint-ignore no-explicit-any
+async function handleLinkCode(supabase: any, lineUserId: string, code: string): Promise<string> {
+  // Check if this is a link code
+  const { data: linkCode, error } = await supabase
+    .from("line_link_codes")
+    .select("user_id, expires_at")
+    .eq("code", code.toUpperCase())
+    .single();
+
+  if (error || !linkCode) {
+    return "❌ รหัสไม่ถูกต้อง\n\nกรุณาตรวจสอบรหัสและลองใหม่อีกครั้ง หรือสร้างรหัสใหม่ในเว็บแอพ";
+  }
+
+  // Check expiration
+  if (new Date(linkCode.expires_at) < new Date()) {
+    return "⏰ รหัสหมดอายุแล้ว\n\nกรุณาสร้างรหัสใหม่ในเว็บแอพ";
+  }
+
+  // Link the LINE user ID to the profile
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ line_user_id: lineUserId })
+    .eq("user_id", linkCode.user_id);
+
+  if (updateError) {
+    console.error("Error linking LINE account:", updateError);
+    return "❌ เกิดข้อผิดพลาด\n\nไม่สามารถเชื่อมต่อบัญชีได้ กรุณาลองใหม่อีกครั้ง";
+  }
+
+  // Delete the used code
+  await supabase
+    .from("line_link_codes")
+    .delete()
+    .eq("code", code.toUpperCase());
+
+  return "✅ เชื่อมต่อบัญชีสำเร็จ!\n\nตอนนี้คุณสามารถค้นหาและจัดการสต็อกผ่าน LINE ได้แล้ว";
+}
+
+// Generate Flex Message for tire search results with optional adjust buttons
+function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = false): object {
   if (tires.length === 0) {
     return {
       type: "flex",
@@ -110,9 +207,7 @@ function generateTireFlexMessage(tires: TireWithDots[]): object {
   }
 
   const bubbles = tires.slice(0, 10).map((tire) => {
-    const totalStock = tire.tire_dots.reduce((sum, dot) => sum + dot.quantity, 0);
-    
-    // Generate DOT rows
+    // Generate DOT rows with optional +/- buttons
     const dotRows = tire.tire_dots.map((dot) => {
       let statusColor = "#22C55E"; // Green - In Stock
       let statusText = "มีสินค้า";
@@ -125,43 +220,81 @@ function generateTireFlexMessage(tires: TireWithDots[]): object {
         statusText = "เหลือน้อย";
       }
 
+      const rowContents: object[] = [
+        {
+          type: "text",
+          text: dot.dot_code || "-",
+          size: "sm",
+          color: "#555555",
+          flex: 2
+        },
+        {
+          type: "text",
+          text: `${dot.quantity}`,
+          size: "sm",
+          color: "#111111",
+          align: "center",
+          flex: 1
+        }
+      ];
+
+      // Add +/- buttons if user can adjust stock
+      if (canAdjust) {
+        rowContents.push({
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            {
+              type: "button",
+              action: {
+                type: "postback",
+                label: "-",
+                data: `action=remove_stock&dot_id=${dot.id}`
+              },
+              style: "secondary",
+              height: "sm",
+              flex: 1
+            },
+            {
+              type: "button",
+              action: {
+                type: "postback",
+                label: "+",
+                data: `action=add_stock&dot_id=${dot.id}`
+              },
+              style: "primary",
+              height: "sm",
+              flex: 1,
+              color: "#2563EB"
+            }
+          ],
+          spacing: "xs",
+          flex: 2
+        });
+      } else {
+        rowContents.push({
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: statusText,
+              size: "xs",
+              color: "#FFFFFF",
+              align: "center"
+            }
+          ],
+          backgroundColor: statusColor,
+          cornerRadius: "sm",
+          paddingAll: "xs",
+          flex: 2
+        });
+      }
+
       return {
         type: "box",
         layout: "horizontal",
-        contents: [
-          {
-            type: "text",
-            text: dot.dot_code || "-",
-            size: "sm",
-            color: "#555555",
-            flex: 2
-          },
-          {
-            type: "text",
-            text: `${dot.quantity}`,
-            size: "sm",
-            color: "#111111",
-            align: "center",
-            flex: 1
-          },
-          {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "text",
-                text: statusText,
-                size: "xs",
-                color: "#FFFFFF",
-                align: "center"
-              }
-            ],
-            backgroundColor: statusColor,
-            cornerRadius: "sm",
-            paddingAll: "xs",
-            flex: 2
-          }
-        ],
+        contents: rowContents,
         margin: "sm"
       };
     });
@@ -200,7 +333,7 @@ function generateTireFlexMessage(tires: TireWithDots[]): object {
             contents: [
               { type: "text", text: "DOT", size: "xs", color: "#888888", weight: "bold", flex: 2 },
               { type: "text", text: "จำนวน", size: "xs", color: "#888888", weight: "bold", align: "center", flex: 1 },
-              { type: "text", text: "สถานะ", size: "xs", color: "#888888", weight: "bold", align: "center", flex: 2 }
+              { type: "text", text: canAdjust ? "ปรับ" : "สถานะ", size: "xs", color: "#888888", weight: "bold", align: "center", flex: 2 }
             ]
           },
           {
@@ -342,11 +475,103 @@ function generateWelcomeMessage(): object {
             size: "sm",
             color: "#2563EB",
             margin: "xs"
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "💡 เชื่อมต่อบัญชี: พิมพ์รหัส 6 หลักจากเว็บแอพ",
+            size: "xs",
+            color: "#888888",
+            margin: "lg",
+            wrap: true
           }
         ],
         paddingAll: "lg"
       }
     }
+  };
+}
+
+// Generate registration required message
+function generateRegistrationMessage(): object {
+  return {
+    type: "flex",
+    altText: "กรุณาเชื่อมต่อบัญชี",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "🔐 กรุณาเชื่อมต่อบัญชี",
+            weight: "bold",
+            size: "lg",
+            color: "#2563EB"
+          },
+          {
+            type: "text",
+            text: "เพื่อใช้งานฟีเจอร์เต็มรูปแบบ กรุณาเชื่อมต่อบัญชี LINE กับบัญชีในระบบ",
+            size: "sm",
+            color: "#666666",
+            margin: "lg",
+            wrap: true
+          },
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "ขั้นตอน:",
+            size: "sm",
+            color: "#888888",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: "1. เข้าสู่ระบบที่เว็บแอพ",
+            size: "sm",
+            color: "#333333",
+            margin: "sm"
+          },
+          {
+            type: "text",
+            text: "2. ไปที่ Profile > LINE Integration",
+            size: "sm",
+            color: "#333333",
+            margin: "xs"
+          },
+          {
+            type: "text",
+            text: "3. กด 'Link LINE Account'",
+            size: "sm",
+            color: "#333333",
+            margin: "xs"
+          },
+          {
+            type: "text",
+            text: "4. ส่งรหัส 6 หลักมาที่นี่",
+            size: "sm",
+            color: "#333333",
+            margin: "xs"
+          }
+        ],
+        paddingAll: "lg"
+      }
+    }
+  };
+}
+
+// Generate access denied message
+function generateAccessDeniedMessage(): object {
+  return {
+    type: "text",
+    text: "⚠️ คุณไม่มีสิทธิ์ดำเนินการนี้\n\nกรุณาติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม"
   };
 }
 
@@ -377,20 +602,17 @@ async function sendReply(replyToken: string, messages: object[]): Promise<void> 
   }
 }
 
-// Log LINE interaction to stock_logs (for search actions)
+// Log LINE interaction to stock_logs
 // deno-lint-ignore no-explicit-any
 async function logLineInteraction(
   supabase: any,
   action: string,
   notes: string,
-  tireDotId?: string
+  tireDotId: string,
+  quantityBefore: number,
+  quantityAfter: number,
+  quantityChange: number
 ): Promise<void> {
-  // Only log if we have a tire_dot_id (required by the schema)
-  if (!tireDotId) {
-    console.log("Skipping log - no tire_dot_id provided");
-    return;
-  }
-
   try {
     const { error } = await supabase
       .from("stock_logs")
@@ -398,9 +620,9 @@ async function logLineInteraction(
         action,
         notes,
         tire_dot_id: tireDotId,
-        quantity_before: 0,
-        quantity_after: 0,
-        quantity_change: 0,
+        quantity_before: quantityBefore,
+        quantity_after: quantityAfter,
+        quantity_change: quantityChange,
         user_id: null // LINE users are not authenticated in web
       });
 
@@ -410,6 +632,55 @@ async function logLineInteraction(
   } catch (err) {
     console.error("Failed to log LINE interaction:", err);
   }
+}
+
+// Adjust stock quantity
+// deno-lint-ignore no-explicit-any
+async function adjustStock(
+  supabase: any,
+  dotId: string,
+  change: number,
+  lineUserId: string
+): Promise<{ success: boolean; newQuantity: number; message: string }> {
+  // Get current quantity
+  const { data: dot, error: fetchError } = await supabase
+    .from("tire_dots")
+    .select("quantity, dot_code")
+    .eq("id", dotId)
+    .single();
+
+  if (fetchError || !dot) {
+    return { success: false, newQuantity: 0, message: "ไม่พบรายการนี้" };
+  }
+
+  const newQuantity = Math.max(0, dot.quantity + change);
+
+  // Update quantity
+  const { error: updateError } = await supabase
+    .from("tire_dots")
+    .update({ quantity: newQuantity })
+    .eq("id", dotId);
+
+  if (updateError) {
+    return { success: false, newQuantity: dot.quantity, message: "เกิดข้อผิดพลาดในการอัปเดต" };
+  }
+
+  // Log the change
+  await logLineInteraction(
+    supabase,
+    change > 0 ? "line_add" : "line_remove",
+    `LINE stock adjustment by user ${lineUserId}`,
+    dotId,
+    dot.quantity,
+    newQuantity,
+    change
+  );
+
+  return {
+    success: true,
+    newQuantity,
+    message: `✅ DOT: ${dot.dot_code}\n${change > 0 ? "เพิ่ม" : "ลด"} 1 → สต็อกใหม่: ${newQuantity}`
+  };
 }
 
 Deno.serve(async (req) => {
@@ -462,6 +733,7 @@ Deno.serve(async (req) => {
     // Process each event
     for (const event of webhookBody.events) {
       console.log("Processing event:", event.type);
+      const lineUserId = event.source.userId;
 
       if (event.type === "follow") {
         // New user followed the bot
@@ -470,56 +742,75 @@ Deno.serve(async (req) => {
       }
 
       if (event.type === "message" && event.message?.type === "text") {
-        const searchQuery = event.message.text.trim();
-        const userId = event.source.userId;
+        const messageText = event.message.text.trim();
 
-        console.log(`Search query from ${userId}: ${searchQuery}`);
+        console.log(`Message from ${lineUserId}: ${messageText}`);
 
-        // Search tires by size, brand, or model
-        const { data: tires, error } = await supabase
+        // Check if this is a link code (6 uppercase alphanumeric characters)
+        if (/^[A-Z0-9]{6}$/.test(messageText.toUpperCase())) {
+          const linkResult = await handleLinkCode(supabase, lineUserId, messageText);
+          await sendReply(event.replyToken, [{ type: "text", text: linkResult }]);
+          continue;
+        }
+
+        // Get user permissions
+        const userPerms = await getUserPermissions(supabase, lineUserId);
+
+        // Check if user can view stock
+        if (!canViewStock(userPerms)) {
+          // Allow public search for shared items, but prompt registration
+          const { data: tires } = await supabase
+            .from("tires")
+            .select(`
+              id, brand, model, size, price, store_id,
+              tire_dots (id, dot_code, quantity, position, promotion),
+              stores (name)
+            `)
+            .or(`size.ilike.%${messageText}%,brand.ilike.%${messageText}%,model.ilike.%${messageText}%`)
+            .eq("is_shared", true)
+            .limit(5);
+
+          if (tires && tires.length > 0) {
+            const flexMessage = generateTireFlexMessage(tires as TireWithDots[], false);
+            await sendReply(event.replyToken, [
+              flexMessage,
+              generateRegistrationMessage()
+            ]);
+          } else {
+            await sendReply(event.replyToken, [generateRegistrationMessage()]);
+          }
+          continue;
+        }
+
+        // User is authenticated - search with full permissions
+        const canAdjust = canAdjustStock(userPerms);
+
+        // Build query - include user's store tires plus shared tires
+        let tiresQuery = supabase
           .from("tires")
           .select(`
-            id,
-            brand,
-            model,
-            size,
-            price,
-            store_id,
-            tire_dots (
-              id,
-              dot_code,
-              quantity,
-              position,
-              promotion
-            ),
-            stores (
-              name
-            )
+            id, brand, model, size, price, store_id,
+            tire_dots (id, dot_code, quantity, position, promotion),
+            stores (name)
           `)
-          .or(`size.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`)
-          .eq("is_shared", true)
-          .limit(10);
+          .or(`size.ilike.%${messageText}%,brand.ilike.%${messageText}%,model.ilike.%${messageText}%`);
+
+        // Add store filter if user has a store
+        if (userPerms?.store_id) {
+          tiresQuery = tiresQuery.or(`store_id.eq.${userPerms.store_id},is_shared.eq.true`);
+        } else {
+          tiresQuery = tiresQuery.eq("is_shared", true);
+        }
+
+        const { data: tires, error } = await tiresQuery.limit(10);
 
         if (error) {
           console.error("Database query error:", error);
           throw error;
         }
 
-        // Log the search interaction (using first tire's first DOT if available)
-        if (tires && tires.length > 0) {
-          const firstTire = tires[0] as TireWithDots;
-          if (firstTire.tire_dots && firstTire.tire_dots.length > 0) {
-            await logLineInteraction(
-              supabase,
-              "line_search",
-              `LINE search: "${searchQuery}" by user ${userId}`,
-              firstTire.tire_dots[0].id
-            );
-          }
-        }
-
-        // Send flex message with results
-        const flexMessage = generateTireFlexMessage(tires as TireWithDots[]);
+        // Send flex message with results (include adjust buttons if permitted)
+        const flexMessage = generateTireFlexMessage(tires as TireWithDots[], canAdjust);
         await sendReply(event.replyToken, [flexMessage]);
       }
 
@@ -527,8 +818,32 @@ Deno.serve(async (req) => {
         const params = new URLSearchParams(event.postback.data);
         const action = params.get("action");
         const tireId = params.get("tire_id");
+        const dotId = params.get("dot_id");
 
-        console.log(`Postback action: ${action}, tireId: ${tireId}`);
+        console.log(`Postback action: ${action}, tireId: ${tireId}, dotId: ${dotId}`);
+
+        // Get user permissions for postback actions
+        const userPerms = await getUserPermissions(supabase, lineUserId);
+
+        if (action === "add_stock" && dotId) {
+          if (!canAdjustStock(userPerms)) {
+            await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
+            continue;
+          }
+
+          const result = await adjustStock(supabase, dotId, 1, lineUserId);
+          await sendReply(event.replyToken, [{ type: "text", text: result.message }]);
+        }
+
+        if (action === "remove_stock" && dotId) {
+          if (!canAdjustStock(userPerms)) {
+            await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
+            continue;
+          }
+
+          const result = await adjustStock(supabase, dotId, -1, lineUserId);
+          await sendReply(event.replyToken, [{ type: "text", text: result.message }]);
+        }
 
         if (action === "check_branches" && tireId) {
           // Find same tire in other stores
@@ -552,12 +867,10 @@ Deno.serve(async (req) => {
               .neq("id", tireId)
               .limit(5);
 
+            const canAdjust = canAdjustStock(userPerms);
             const message = otherTires && otherTires.length > 0
-              ? generateTireFlexMessage(otherTires as TireWithDots[])
-              : {
-                  type: "text",
-                  text: "ไม่พบยางรุ่นนี้ในสาขาอื่น"
-                };
+              ? generateTireFlexMessage(otherTires as TireWithDots[], canAdjust)
+              : { type: "text", text: "ไม่พบยางรุ่นนี้ในสาขาอื่น" };
 
             await sendReply(event.replyToken, [message]);
           }

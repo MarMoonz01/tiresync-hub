@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { LineIntegrationCard } from "@/components/profile/LineIntegrationCard";
 
 export default function Profile() {
   const { profile, roles, isAdmin, isModerator, refetchProfile } = useAuth();
@@ -188,6 +189,9 @@ export default function Profile() {
               </form>
             </CardContent>
           </Card>
+
+          {/* LINE Integration */}
+          <LineIntegrationCard />
         </motion.div>
       </div>
     </AppLayout>

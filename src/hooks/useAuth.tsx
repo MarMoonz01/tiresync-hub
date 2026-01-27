@@ -10,6 +10,7 @@ interface Profile {
   phone: string | null;
   avatar_url: string | null;
   status: "pending" | "approved" | "rejected" | "suspended";
+  line_user_id: string | null;
   created_at: string;
   updated_at: string;
 }

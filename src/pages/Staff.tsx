@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Users, Store } from "lucide-react";
+import { Search, Users, Store, Clock, Settings2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { StoreStaffCard } from "@/components/staff/StoreStaffCard";
 import { AddStaffDialog } from "@/components/staff/AddStaffDialog";
 import { ChangeStoreRoleDialog } from "@/components/staff/ChangeStoreRoleDialog";
+import { PermissionMatrixDialog, Permissions } from "@/components/staff/PermissionMatrixDialog";
+import { StaffRequestCard } from "@/components/staff/StaffRequestCard";
 import { useStoreStaff, StoreMember } from "@/hooks/useStoreStaff";
+import { useStaffRequests } from "@/hooks/useStaffRequests";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +40,7 @@ const containerVariants = {
 
 export default function Staff() {
   const { store } = useAuth();
+  const { toast } = useToast();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput, 300);
 
@@ -46,13 +54,29 @@ export default function Staff() {
     isUpdatingRole,
   } = useStoreStaff(debouncedSearch);
 
+  const {
+    requests,
+    isLoading: requestsLoading,
+    approveRequest,
+    rejectRequest,
+    isApproving,
+    isRejecting,
+  } = useStaffRequests();
+
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<StoreMember | null>(null);
+  const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
 
   const handleChangeRole = (member: StoreMember) => {
     setSelectedMember(member);
     setRoleDialogOpen(true);
+  };
+
+  const handleEditPermissions = (member: StoreMember) => {
+    setSelectedMember(member);
+    setPermissionsDialogOpen(true);
   };
 
   const handleRemove = (member: StoreMember) => {
@@ -65,6 +89,31 @@ export default function Staff() {
       removeMember({ memberId: selectedMember.id });
       setRemoveDialogOpen(false);
       setSelectedMember(null);
+    }
+  };
+
+  const handleUpdatePermissions = async (memberId: string, permissions: Permissions) => {
+    setIsUpdatingPermissions(true);
+    try {
+      const { error } = await supabase
+        .from("store_members")
+        .update({ permissions: permissions as unknown as null })
+        .eq("id", memberId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Permissions updated",
+        description: "Staff member permissions have been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingPermissions(false);
     }
   };
 
@@ -134,43 +183,100 @@ export default function Staff() {
               <p className="text-sm text-muted-foreground">Managers</p>
             </div>
             <div className="glass-card p-4 rounded-xl">
-              <p className="text-2xl font-bold text-accent">
-                {storeMembers.filter((m) => m.role === "sales").length}
+              <p className="text-2xl font-bold text-warning">
+                {requests.length}
               </p>
-              <p className="text-sm text-muted-foreground">Sales</p>
+              <p className="text-sm text-muted-foreground">Pending Requests</p>
             </div>
           </div>
 
-          {/* Staff Grid */}
-          {isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-40 rounded-xl" />
-              ))}
-            </div>
-          ) : storeMembers.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">No staff members yet</p>
-              <AddStaffDialog onAddMember={addMember} isLoading={isAddingMember} />
-            </div>
-          ) : (
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {storeMembers.map((member) => (
-                <StoreStaffCard
-                  key={member.id}
-                  member={member}
-                  onChangeRole={() => handleChangeRole(member)}
-                  onRemove={() => handleRemove(member)}
-                />
-              ))}
-            </motion.div>
-          )}
+          {/* Tabs */}
+          <Tabs defaultValue="staff" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="staff" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Staff
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Requests
+                {requests.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
+                    {requests.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Staff Tab */}
+            <TabsContent value="staff" className="mt-6">
+              {isLoading ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} className="h-40 rounded-xl" />
+                  ))}
+                </div>
+              ) : storeMembers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">No staff members yet</p>
+                  <AddStaffDialog onAddMember={addMember} isLoading={isAddingMember} />
+                </div>
+              ) : (
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                  {storeMembers.map((member) => (
+                    <StoreStaffCard
+                      key={member.id}
+                      member={member}
+                      onChangeRole={() => handleChangeRole(member)}
+                      onRemove={() => handleRemove(member)}
+                      onEditPermissions={() => handleEditPermissions(member)}
+                      showPermissions
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </TabsContent>
+
+            {/* Requests Tab */}
+            <TabsContent value="requests" className="mt-6">
+              {requestsLoading ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-40 rounded-xl" />
+                  ))}
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No pending requests</p>
+                </div>
+              ) : (
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                  {requests.map((request) => (
+                    <StaffRequestCard
+                      key={request.id}
+                      request={request}
+                      onApprove={() => approveRequest({ requestId: request.id })}
+                      onReject={() => rejectRequest({ requestId: request.id })}
+                      isApproving={isApproving}
+                      isRejecting={isRejecting}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </div>
 
@@ -181,6 +287,15 @@ export default function Staff() {
         onOpenChange={setRoleDialogOpen}
         onUpdateRole={updateMemberRole}
         isLoading={isUpdatingRole}
+      />
+
+      {/* Permissions Dialog */}
+      <PermissionMatrixDialog
+        member={selectedMember}
+        open={permissionsDialogOpen}
+        onOpenChange={setPermissionsDialogOpen}
+        onUpdatePermissions={handleUpdatePermissions}
+        isLoading={isUpdatingPermissions}
       />
 
       {/* Remove Confirmation Dialog */}

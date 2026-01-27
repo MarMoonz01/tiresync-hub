@@ -43,6 +43,30 @@ export type Database = {
           },
         ]
       }
+      line_link_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           buyer_store_id: string
@@ -135,6 +159,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          line_user_id: string | null
           phone: string | null
           status: Database["public"]["Enums"]["user_status"]
           updated_at: string
@@ -146,6 +171,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          line_user_id?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
@@ -157,12 +183,61 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          line_user_id?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      staff_join_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          requested_at: string | null
+          responded_at: string | null
+          responded_by: string | null
+          status: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          requested_at?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          requested_at?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_join_requests_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_join_requests_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_logs: {
         Row: {
@@ -212,6 +287,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_approved: boolean | null
+          permissions: Json | null
           role: string
           store_id: string
           updated_at: string
@@ -220,6 +297,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_approved?: boolean | null
+          permissions?: Json | null
           role?: string
           store_id: string
           updated_at?: string
@@ -228,6 +307,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_approved?: boolean | null
+          permissions?: Json | null
           role?: string
           store_id?: string
           updated_at?: string
@@ -258,6 +339,9 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          line_channel_id: string | null
+          line_channel_secret: string | null
+          line_enabled: boolean | null
           logo_url: string | null
           name: string
           owner_id: string
@@ -271,6 +355,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          line_channel_id?: string | null
+          line_channel_secret?: string | null
+          line_enabled?: boolean | null
           logo_url?: string | null
           name: string
           owner_id: string
@@ -284,6 +371,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          line_channel_id?: string | null
+          line_channel_secret?: string | null
+          line_enabled?: boolean | null
           logo_url?: string | null
           name?: string
           owner_id?: string
@@ -448,6 +538,16 @@ export type Database = {
       }
     }
     Functions: {
+      get_line_user_permissions: {
+        Args: { _line_user_id: string }
+        Returns: {
+          is_approved: boolean
+          is_owner: boolean
+          permissions: Json
+          store_id: string
+          user_id: string
+        }[]
+      }
       get_user_store_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -456,7 +556,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_store_permission: {
+        Args: {
+          _permission: string
+          _permission_type: string
+          _store_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_store_owner: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "store_member" | "pending"

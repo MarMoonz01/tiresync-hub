@@ -3,11 +3,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
+interface StorePermissions {
+  web: {
+    view: boolean;
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  line: {
+    view: boolean;
+    adjust: boolean;
+  };
+}
+
 interface StoreMember {
   id: string;
   store_id: string;
   user_id: string;
   role: string;
+  permissions: StorePermissions | null;
+  is_approved: boolean;
   created_at: string;
   updated_at: string;
   profile: {
@@ -54,6 +69,8 @@ export function useStoreStaff(searchQuery: string = "") {
       // Combine members with profiles
       let result: StoreMember[] = members.map((member) => ({
         ...member,
+        permissions: member.permissions as unknown as StorePermissions | null,
+        is_approved: member.is_approved ?? false,
         profile: profiles?.find((p) => p.user_id === member.user_id) || null,
       }));
 
