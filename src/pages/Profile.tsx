@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LineIntegrationCard } from "@/components/profile/LineIntegrationCard";
+import { StoreAssociationsCard } from "@/components/profile/StoreAssociationsCard";
 
 export default function Profile() {
   const { profile, roles, isAdmin, isModerator, refetchProfile } = useAuth();
@@ -189,6 +190,9 @@ export default function Profile() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Store Associations */}
+          <StoreAssociationsCard />
 
           {/* LINE Integration */}
           <LineIntegrationCard />

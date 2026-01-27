@@ -544,14 +544,36 @@ export type Database = {
       }
     }
     Functions: {
-      get_line_user_permissions: {
-        Args: { _line_user_id: string }
+      get_line_user_permissions:
+        | {
+            Args: { _line_user_id: string }
+            Returns: {
+              is_approved: boolean
+              is_owner: boolean
+              permissions: Json
+              store_id: string
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { _line_user_id: string; _store_id?: string }
+            Returns: {
+              is_approved: boolean
+              is_owner: boolean
+              permissions: Json
+              store_id: string
+              user_id: string
+            }[]
+          }
+      get_user_store_associations: {
+        Args: { _user_id: string }
         Returns: {
           is_approved: boolean
           is_owner: boolean
           permissions: Json
+          role: string
           store_id: string
-          user_id: string
+          store_name: string
         }[]
       }
       get_user_store_id: { Args: { _user_id: string }; Returns: string }

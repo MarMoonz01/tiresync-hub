@@ -82,7 +82,7 @@ async function verifySignature(body: string, signature: string, secret: string):
     
     return signature === expectedSignature;
   } catch (error) {
-    console.error("Signature verification error:", error);
+    console.error("[VERIFY] Signature verification error:", error);
     return false;
   }
 }
@@ -105,24 +105,35 @@ function buildFuzzyPattern(sanitized: string): string {
   return pattern;
 }
 
-// Get user permissions from LINE user ID
+// Get user permissions from LINE user ID - now with store_id filter for multi-store support
 // deno-lint-ignore no-explicit-any
-async function getUserPermissions(supabase: any, lineUserId: string): Promise<UserPermissions | null> {
+async function getUserPermissions(supabase: any, lineUserId: string, storeId?: string): Promise<UserPermissions | null> {
   try {
+    console.log(`[AUTH] Getting permissions for LINE user: ${lineUserId}, store filter: ${storeId || 'none'}`);
+    
     const { data, error } = await supabase
-      .rpc("get_line_user_permissions", { _line_user_id: lineUserId });
+      .rpc("get_line_user_permissions", { 
+        _line_user_id: lineUserId,
+        _store_id: storeId || null
+      });
 
     if (error) {
-      console.error("Error getting user permissions:", error);
+      console.error("[AUTH] Error getting user permissions:", error);
       return null;
     }
 
     if (!data || data.length === 0) {
+      console.log("[AUTH] No permissions found for LINE user");
       return null;
     }
 
-    // Return the first matching record (usually owner takes precedence)
+    console.log(`[AUTH] Found ${data.length} permission record(s) for LINE user`);
+
+    // If store_id was provided, return the matching record
+    // Otherwise, return the first record (owner takes precedence from SQL UNION order)
     const record = data[0];
+    console.log(`[AUTH] Using permission: store_id=${record.store_id}, is_owner=${record.is_owner}, is_approved=${record.is_approved}`);
+    
     return {
       user_id: record.user_id,
       store_id: record.store_id,
@@ -131,8 +142,45 @@ async function getUserPermissions(supabase: any, lineUserId: string): Promise<Us
       is_approved: record.is_approved,
     };
   } catch (err) {
-    console.error("Failed to get user permissions:", err);
+    console.error("[AUTH] Failed to get user permissions:", err);
     return null;
+  }
+}
+
+// Get all store permissions for a LINE user (for multi-store scenarios)
+// deno-lint-ignore no-explicit-any
+async function getAllUserStorePermissions(supabase: any, lineUserId: string): Promise<UserPermissions[]> {
+  try {
+    console.log(`[AUTH] Getting ALL store permissions for LINE user: ${lineUserId}`);
+    
+    const { data, error } = await supabase
+      .rpc("get_line_user_permissions", { 
+        _line_user_id: lineUserId,
+        _store_id: null
+      });
+
+    if (error) {
+      console.error("[AUTH] Error getting all user permissions:", error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.log("[AUTH] No permissions found");
+      return [];
+    }
+
+    console.log(`[AUTH] Found ${data.length} store permission(s) for LINE user`);
+    
+    return data.map((record: any) => ({
+      user_id: record.user_id,
+      store_id: record.store_id,
+      is_owner: record.is_owner,
+      permissions: record.permissions,
+      is_approved: record.is_approved,
+    }));
+  } catch (err) {
+    console.error("[AUTH] Failed to get all user permissions:", err);
+    return [];
   }
 }
 
@@ -401,20 +449,29 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
 
 // Handle LINE account linking
 // deno-lint-ignore no-explicit-any
-async function handleLinkCode(supabase: any, lineUserId: string, code: string): Promise<object | string> {
+async function handleLinkCode(supabase: any, lineUserId: string, code: string, storeId?: string): Promise<object | string> {
+  console.log(`[LINK] Attempting to link code: ${code} for LINE user: ${lineUserId}`);
+  
   // Check if this is a link code
   const { data: linkCode, error } = await supabase
     .from("line_link_codes")
     .select("user_id, expires_at")
     .eq("code", code.toUpperCase())
-    .single();
+    .maybeSingle();
 
-  if (error || !linkCode) {
+  if (error) {
+    console.error("[LINK] Error fetching link code:", error);
+    return "❌ เกิดข้อผิดพลาดในการค้นหารหัส\n\nกรุณาลองใหม่อีกครั้ง";
+  }
+
+  if (!linkCode) {
+    console.log("[LINK] Link code not found");
     return "❌ รหัสไม่ถูกต้อง\n\nกรุณาตรวจสอบรหัสและลองใหม่อีกครั้ง หรือสร้างรหัสใหม่ในเว็บแอพ";
   }
 
   // Check expiration
   if (new Date(linkCode.expires_at) < new Date()) {
+    console.log("[LINK] Link code expired");
     return "⏰ รหัสหมดอายุแล้ว\n\nกรุณาสร้างรหัสใหม่ในเว็บแอพ";
   }
 
@@ -425,7 +482,7 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string): 
     .eq("user_id", linkCode.user_id);
 
   if (updateError) {
-    console.error("Error linking LINE account:", updateError);
+    console.error("[LINK] Error linking LINE account:", updateError);
     return "❌ เกิดข้อผิดพลาด\n\nไม่สามารถเชื่อมต่อบัญชีได้ กรุณาลองใหม่อีกครั้ง";
   }
 
@@ -435,8 +492,10 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string): 
     .delete()
     .eq("code", code.toUpperCase());
 
-  // Get user permissions for the success message
-  const userPerms = await getUserPermissions(supabase, lineUserId);
+  console.log("[LINK] Successfully linked LINE account");
+
+  // Get user permissions for the success message (filter by store if provided)
+  const userPerms = await getUserPermissions(supabase, lineUserId, storeId);
   
   // If owner, get store name and return owner-specific message
   if (userPerms?.is_owner && userPerms.store_id) {
@@ -444,8 +503,9 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string): 
       .from("stores")
       .select("name")
       .eq("id", userPerms.store_id)
-      .single();
+      .maybeSingle();
     
+    console.log(`[LINK] User is owner of store: ${store?.name}`);
     return generateOwnerSuccessFlexMessage(store?.name || "ร้านค้าของคุณ");
   }
   
@@ -862,6 +922,8 @@ async function sendReply(replyToken: string, messages: object[]): Promise<void> 
     throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not configured");
   }
 
+  console.log(`[REPLY] Sending ${messages.length} message(s) to LINE`);
+
   const response = await fetch(LINE_API_URL, {
     method: "POST",
     headers: {
@@ -876,9 +938,11 @@ async function sendReply(replyToken: string, messages: object[]): Promise<void> 
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("LINE API error:", errorText);
+    console.error("[REPLY] LINE API error:", errorText);
     throw new Error(`LINE API error: ${response.status}`);
   }
+  
+  console.log("[REPLY] Message sent successfully");
 }
 
 // Log LINE interaction to stock_logs
@@ -906,10 +970,33 @@ async function logLineInteraction(
       });
 
     if (error) {
-      console.error("Error logging LINE interaction:", error);
+      console.error("[LOG] Error logging LINE interaction:", error);
+    } else {
+      console.log(`[LOG] Logged interaction: ${action}`);
     }
   } catch (err) {
-    console.error("Failed to log LINE interaction:", err);
+    console.error("[LOG] Failed to log LINE interaction:", err);
+  }
+}
+
+// Log LINE search event
+// deno-lint-ignore no-explicit-any
+async function logLineSearch(
+  supabase: any,
+  lineUserId: string,
+  searchQuery: string,
+  resultsCount: number,
+  storeId?: string
+): Promise<void> {
+  try {
+    // We need a tire_dot_id for stock_logs, so we'll create a synthetic log
+    // For search events, we can use a special approach or skip if no dot_id
+    console.log(`[LOG] LINE search by ${lineUserId}: "${searchQuery}" -> ${resultsCount} results (store: ${storeId || 'public'})`);
+    
+    // Note: Since stock_logs requires tire_dot_id, we just log to console for searches
+    // A separate search_logs table could be created for detailed search analytics
+  } catch (err) {
+    console.error("[LOG] Failed to log LINE search:", err);
   }
 }
 
@@ -921,14 +1008,17 @@ async function adjustStock(
   change: number,
   lineUserId: string
 ): Promise<{ success: boolean; newQuantity: number; message: string }> {
+  console.log(`[STOCK] Adjusting stock for dot ${dotId} by ${change} (LINE user: ${lineUserId})`);
+  
   // Get current quantity
   const { data: dot, error: fetchError } = await supabase
     .from("tire_dots")
     .select("quantity, dot_code")
     .eq("id", dotId)
-    .single();
+    .maybeSingle();
 
   if (fetchError || !dot) {
+    console.error("[STOCK] Error fetching dot:", fetchError);
     return { success: false, newQuantity: 0, message: "ไม่พบรายการนี้" };
   }
 
@@ -941,6 +1031,7 @@ async function adjustStock(
     .eq("id", dotId);
 
   if (updateError) {
+    console.error("[STOCK] Error updating quantity:", updateError);
     return { success: false, newQuantity: dot.quantity, message: "เกิดข้อผิดพลาดในการอัปเดต" };
   }
 
@@ -954,6 +1045,8 @@ async function adjustStock(
     newQuantity,
     change
   );
+
+  console.log(`[STOCK] Updated: ${dot.dot_code} from ${dot.quantity} to ${newQuantity}`);
 
   return {
     success: true,
@@ -969,24 +1062,29 @@ async function verifyAndFindStore(
   body: string,
   signature: string
 ): Promise<{ storeId: string; valid: boolean } | null> {
+  console.log("[VERIFY] Starting signature verification...");
+  
   // Get all stores with LINE enabled and credentials
   const { data: stores, error } = await supabase
     .from("stores")
-    .select("id, line_channel_secret")
+    .select("id, name, line_channel_secret")
     .eq("line_enabled", true)
     .not("line_channel_secret", "is", null);
 
   if (error) {
-    console.error("Error fetching stores:", error);
+    console.error("[VERIFY] Error fetching stores:", error);
   }
+
+  console.log(`[VERIFY] Found ${stores?.length || 0} LINE-enabled store(s)`);
 
   // Try each store's secret until one validates
   if (stores && stores.length > 0) {
     for (const store of stores) {
       if (store.line_channel_secret) {
+        console.log(`[VERIFY] Trying store: ${store.name} (${store.id})`);
         const isValid = await verifySignature(body, signature, store.line_channel_secret);
         if (isValid) {
-          console.log(`Signature verified for store: ${store.id}`);
+          console.log(`[VERIFY] ✅ Signature verified for store: ${store.name} (${store.id})`);
           return { storeId: store.id, valid: true };
         }
       }
@@ -996,13 +1094,15 @@ async function verifyAndFindStore(
   // Fall back to global secret if no store matches
   const globalSecret = Deno.env.get("LINE_CHANNEL_SECRET");
   if (globalSecret) {
+    console.log("[VERIFY] Trying global LINE_CHANNEL_SECRET...");
     const isValid = await verifySignature(body, signature, globalSecret);
     if (isValid) {
-      console.log("Signature verified using global secret");
+      console.log("[VERIFY] ✅ Signature verified using global secret");
       return { storeId: "", valid: true };
     }
   }
 
+  console.log("[VERIFY] ❌ No valid signature found");
   return null;
 }
 
@@ -1024,8 +1124,11 @@ Deno.serve(async (req) => {
     const body = await req.text();
     const signature = req.headers.get("x-line-signature");
 
+    console.log("[WEBHOOK] Received request");
+    console.log(`[WEBHOOK] Signature present: ${!!signature}`);
+
     if (!signature) {
-      console.error("Missing X-Line-Signature header");
+      console.error("[WEBHOOK] Missing X-Line-Signature header");
       return new Response(JSON.stringify({ error: "Missing signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -1039,34 +1142,37 @@ Deno.serve(async (req) => {
     const matchedStore = await verifyAndFindStore(supabase, body, signature);
     
     if (!matchedStore) {
-      console.error("Invalid signature - no matching store found");
+      console.error("[WEBHOOK] Invalid signature - no matching store found");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
+    const identifiedStoreId = matchedStore.storeId;
+    console.log(`[WEBHOOK] Identified store ID: ${identifiedStoreId || 'global/unknown'}`);
+
     // Parse webhook body
     const webhookBody: LineWebhookBody = JSON.parse(body);
 
     // Handle webhook verification (LINE sends empty events array)
     if (webhookBody.events.length === 0) {
-      console.log("Webhook verification request received");
+      console.log("[WEBHOOK] Verification request received (empty events)");
       
       // Mark the matching store as verified
-      if (matchedStore.storeId) {
+      if (identifiedStoreId) {
         const { error: updateError } = await supabase
           .from("stores")
           .update({
             line_webhook_verified: true,
             line_webhook_verified_at: new Date().toISOString(),
           })
-          .eq("id", matchedStore.storeId);
+          .eq("id", identifiedStoreId);
         
         if (updateError) {
-          console.error("Error updating webhook verification:", updateError);
+          console.error("[WEBHOOK] Error updating webhook verification:", updateError);
         } else {
-          console.log(`Store ${matchedStore.storeId} webhook verified successfully`);
+          console.log(`[WEBHOOK] ✅ Store ${identifiedStoreId} webhook verified`);
         }
       }
       
@@ -1078,23 +1184,24 @@ Deno.serve(async (req) => {
 
     // Process each event
     for (const event of webhookBody.events) {
-      console.log("Processing event:", event.type);
+      console.log(`[EVENT] Processing: ${event.type}`);
       const lineUserId = event.source.userId;
+      console.log(`[EVENT] LINE User ID: ${lineUserId}`);
 
       if (event.type === "follow") {
-        // New user followed the bot
+        console.log("[EVENT] New follower");
         await sendReply(event.replyToken, [generateWelcomeMessage()]);
         continue;
       }
 
       if (event.type === "message" && event.message?.type === "text") {
         const messageText = event.message.text.trim();
-
-        console.log(`Message from ${lineUserId}: ${messageText}`);
+        console.log(`[EVENT] Message: "${messageText}"`);
 
         // Check if this is a link code (6 uppercase alphanumeric characters)
         if (/^[A-Z0-9]{6}$/.test(messageText.toUpperCase())) {
-          const linkResult = await handleLinkCode(supabase, lineUserId, messageText);
+          console.log("[EVENT] Detected link code");
+          const linkResult = await handleLinkCode(supabase, lineUserId, messageText, identifiedStoreId);
           // Handle both string and Flex Message responses
           const replyMessage = typeof linkResult === "string" 
             ? { type: "text", text: linkResult }
@@ -1103,15 +1210,19 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Get user permissions
-        const userPerms = await getUserPermissions(supabase, lineUserId);
+        // Get user permissions - filtered by identified store if available
+        const userPerms = await getUserPermissions(supabase, lineUserId, identifiedStoreId || undefined);
 
         // Check if user can view stock
         if (!canViewStock(userPerms)) {
+          console.log("[EVENT] User cannot view stock, showing public results + registration prompt");
+          
           // Allow public search for shared items, but prompt registration
           // Use fuzzy size matching
           const sanitizedInput = sanitizeSizeInput(messageText);
           const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
+          
+          console.log(`[SEARCH] Public search: "${messageText}" -> pattern: "${fuzzyPattern}"`);
           
           const { data: tires } = await supabase
             .from("tires")
@@ -1124,13 +1235,18 @@ Deno.serve(async (req) => {
             .eq("is_shared", true)
             .limit(5);
 
+          // Log the search
+          await logLineSearch(supabase, lineUserId, messageText, tires?.length || 0);
+
           if (tires && tires.length > 0) {
+            console.log(`[SEARCH] Found ${tires.length} public tire(s)`);
             const flexMessage = generateTireFlexMessage(tires as TireWithDots[], false);
             await sendReply(event.replyToken, [
               flexMessage,
               generateRegistrationMessage()
             ]);
           } else {
+            console.log("[SEARCH] No public tires found");
             await sendReply(event.replyToken, [generateRegistrationMessage()]);
           }
           continue;
@@ -1138,12 +1254,13 @@ Deno.serve(async (req) => {
 
         // User is authenticated - search with full permissions
         const canAdjust = canAdjustStock(userPerms);
+        console.log(`[EVENT] User authenticated: can_adjust=${canAdjust}, store_id=${userPerms?.store_id}`);
 
         // Fuzzy size search: sanitize input and build flexible pattern
         const sanitizedInput = sanitizeSizeInput(messageText);
         const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
         
-        console.log(`Fuzzy search: "${messageText}" -> sanitized: "${sanitizedInput}" -> pattern: "${fuzzyPattern}"`);
+        console.log(`[SEARCH] Fuzzy search: "${messageText}" -> sanitized: "${sanitizedInput}" -> pattern: "${fuzzyPattern}"`);
 
         // Build query - include user's store tires plus shared tires
         // Use fuzzy pattern for size, regular ilike for brand/model
@@ -1166,11 +1283,14 @@ Deno.serve(async (req) => {
         const { data: tires, error } = await tiresQuery.limit(10);
 
         if (error) {
-          console.error("Database query error:", error);
+          console.error("[SEARCH] Database query error:", error);
           throw error;
         }
 
-        console.log(`Search results: ${tires?.length || 0} tires found`);
+        console.log(`[SEARCH] Found ${tires?.length || 0} tire(s)`);
+
+        // Log the search
+        await logLineSearch(supabase, lineUserId, messageText, tires?.length || 0, userPerms?.store_id);
 
         // Send flex message with results (include adjust buttons if permitted)
         const flexMessage = generateTireFlexMessage(tires as TireWithDots[], canAdjust);
@@ -1183,13 +1303,14 @@ Deno.serve(async (req) => {
         const tireId = params.get("tire_id");
         const dotId = params.get("dot_id");
 
-        console.log(`Postback action: ${action}, tireId: ${tireId}, dotId: ${dotId}`);
+        console.log(`[POSTBACK] Action: ${action}, tire_id: ${tireId}, dot_id: ${dotId}`);
 
-        // Get user permissions for postback actions
-        const userPerms = await getUserPermissions(supabase, lineUserId);
+        // Get user permissions for postback actions - filtered by identified store
+        const userPerms = await getUserPermissions(supabase, lineUserId, identifiedStoreId || undefined);
 
         if (action === "add_stock" && dotId) {
           if (!canAdjustStock(userPerms)) {
+            console.log("[POSTBACK] Access denied for add_stock");
             await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
             continue;
           }
@@ -1200,6 +1321,7 @@ Deno.serve(async (req) => {
 
         if (action === "remove_stock" && dotId) {
           if (!canAdjustStock(userPerms)) {
+            console.log("[POSTBACK] Access denied for remove_stock");
             await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
             continue;
           }
@@ -1209,12 +1331,14 @@ Deno.serve(async (req) => {
         }
 
         if (action === "check_branches" && tireId) {
+          console.log("[POSTBACK] Checking other branches");
+          
           // Find same tire in other stores
           const { data: tire } = await supabase
             .from("tires")
             .select("brand, model, size")
             .eq("id", tireId)
-            .single();
+            .maybeSingle();
 
           if (tire) {
             const { data: otherTires } = await supabase
@@ -1240,6 +1364,7 @@ Deno.serve(async (req) => {
         }
 
         if (action === "reserve" && tireId) {
+          console.log("[POSTBACK] Reservation request");
           // Send reservation confirmation
           await sendReply(event.replyToken, [
             {
@@ -1251,13 +1376,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log("[WEBHOOK] Processing complete");
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[WEBHOOK] Error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
