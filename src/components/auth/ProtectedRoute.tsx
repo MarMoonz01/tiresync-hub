@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
   requireApproval?: boolean;
   requireAdmin?: boolean;
   requireStore?: boolean;
+  ownerOnly?: boolean;
 }
 
 export function ProtectedRoute({ 
@@ -15,8 +16,9 @@ export function ProtectedRoute({
   requireApproval = true,
   requireAdmin = false,
   requireStore = false,
+  ownerOnly = false,
 }: ProtectedRouteProps) {
-  const { user, loading, isApproved, isAdmin, hasStore, profile } = useAuth();
+  const { user, loading, isApproved, isAdmin, hasStore, isOwner, isStaff, storeMembership } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -44,9 +46,21 @@ export function ProtectedRoute({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If store is required but user doesn't have one
-  if (requireStore && !hasStore) {
-    return <Navigate to="/store/setup" replace />;
+  // If this route is for owners only (e.g., /store/setup)
+  if (ownerOnly && isStaff) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // If store is required
+  if (requireStore) {
+    // Owner without store → go to setup
+    if (!hasStore && !isStaff) {
+      return <Navigate to="/store/setup" replace />;
+    }
+    // Staff without approved membership → go to pending
+    if (isStaff && !storeMembership?.is_approved) {
+      return <Navigate to="/pending" replace />;
+    }
   }
 
   return <>{children}</>;

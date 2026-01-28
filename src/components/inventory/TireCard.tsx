@@ -41,9 +41,19 @@ interface TireCardProps {
   onDelete: (tireId: string) => void;
   onQuantityChange: (dotId: string, change: number) => void;
   onToggleShare: (tireId: string, isShared: boolean) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleShare }: TireCardProps) {
+export function TireCard({ 
+  tire, 
+  onEdit, 
+  onDelete, 
+  onQuantityChange, 
+  onToggleShare,
+  canEdit = true,
+  canDelete = true,
+}: TireCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
@@ -146,69 +156,80 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
               </Button>
 
               <div className="flex items-center gap-2">
-                {/* Share Toggle */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5">
-                      {shareLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Share2 className={cn(
-                          "w-3.5 h-3.5 transition-colors",
-                          tire.is_shared ? "text-primary" : "text-muted-foreground"
-                        )} />
-                      )}
-                      <Switch
-                        checked={tire.is_shared}
-                        onCheckedChange={handleToggleShare}
-                        disabled={shareLoading}
-                        className="scale-75 data-[state=checked]:bg-primary"
-                      />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="text-xs">
-                    {tire.is_shared ? "Shared" : "Share to Network"}
-                  </TooltipContent>
-                </Tooltip>
+                {/* Share Toggle - only show if user can edit */}
+                {canEdit && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5">
+                          {shareLoading ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Share2 className={cn(
+                              "w-3.5 h-3.5 transition-colors",
+                              tire.is_shared ? "text-primary" : "text-muted-foreground"
+                            )} />
+                          )}
+                          <Switch
+                            checked={tire.is_shared}
+                            onCheckedChange={handleToggleShare}
+                            disabled={shareLoading}
+                            className="scale-75 data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">
+                        {tire.is_shared ? "Shared" : "Share to Network"}
+                      </TooltipContent>
+                    </Tooltip>
 
-                <div className="w-px h-4 bg-border/50" />
+                    <div className="w-px h-4 bg-border/50" />
+                  </>
+                )}
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onEdit(tire)}
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Tire</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete {tire.brand} {tire.model} ({tire.size})?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDelete(tire.id)}
-                        className="bg-destructive hover:bg-destructive/90"
+                {/* Edit button - only show if user can edit */}
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onEdit(tire)}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+
+                {/* Delete button - only show if user can delete */}
+                {canDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
                       >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Tire</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {tire.brand} {tire.model} ({tire.size})?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onDelete(tire.id)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           </div>
@@ -228,6 +249,7 @@ export function TireCard({ tire, onEdit, onDelete, onQuantityChange, onToggleSha
                     dot={dot}
                     loading={loading === dot.id}
                     onQuantityChange={handleQuantityChange}
+                    canEdit={canEdit}
                   />
                 ))}
               </div>
@@ -243,9 +265,10 @@ interface DotRowProps {
   dot: TireDot;
   loading: boolean;
   onQuantityChange: (dotId: string, change: number) => void;
+  canEdit?: boolean;
 }
 
-function DotRow({ dot, loading, onQuantityChange }: DotRowProps) {
+function DotRow({ dot, loading, onQuantityChange, canEdit = true }: DotRowProps) {
   const isLow = dot.quantity > 0 && dot.quantity <= 2;
   const isOut = dot.quantity === 0;
 
@@ -263,33 +286,45 @@ function DotRow({ dot, loading, onQuantityChange }: DotRowProps) {
       </div>
 
       <div className="flex items-center gap-1.5">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          disabled={loading || dot.quantity === 0}
-          onClick={() => dot.id && onQuantityChange(dot.id, -1)}
-        >
-          <Minus className="w-3 h-3" />
-        </Button>
+        {canEdit ? (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={loading || dot.quantity === 0}
+              onClick={() => dot.id && onQuantityChange(dot.id, -1)}
+            >
+              <Minus className="w-3 h-3" />
+            </Button>
 
-        <span className={cn(
-          "w-8 text-center text-sm font-medium",
-          isOut && "text-destructive",
-          isLow && "text-warning"
-        )}>
-          {dot.quantity}
-        </span>
+            <span className={cn(
+              "w-8 text-center text-sm font-medium",
+              isOut && "text-destructive",
+              isLow && "text-warning"
+            )}>
+              {dot.quantity}
+            </span>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          disabled={loading}
-          onClick={() => dot.id && onQuantityChange(dot.id, 1)}
-        >
-          <Plus className="w-3 h-3" />
-        </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={loading}
+              onClick={() => dot.id && onQuantityChange(dot.id, 1)}
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+          </>
+        ) : (
+          <span className={cn(
+            "px-3 text-sm font-medium",
+            isOut && "text-destructive",
+            isLow && "text-warning"
+          )}>
+            {dot.quantity} pcs
+          </span>
+        )}
       </div>
     </div>
   );

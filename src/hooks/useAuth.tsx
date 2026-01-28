@@ -36,17 +36,52 @@ interface Store {
   updated_at: string;
 }
 
+interface StoreMembership {
+  id: string;
+  store_id: string;
+  user_id: string;
+  role: string;
+  permissions: Permissions | null;
+  is_approved: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Permissions {
+  web: {
+    view: boolean;
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  line: {
+    view: boolean;
+    adjust: boolean;
+  };
+}
+
+// Full permissions for store owners
+const OWNER_PERMISSIONS: Permissions = {
+  web: { view: true, add: true, edit: true, delete: true },
+  line: { view: true, adjust: true },
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   roles: UserRole[];
   store: Store | null;
+  storeMembership: StoreMembership | null;
   loading: boolean;
   isApproved: boolean;
   isAdmin: boolean;
   isModerator: boolean;
   hasStore: boolean;
+  activeRole: 'owner' | 'staff' | null;
+  permissions: Permissions | null;
+  isOwner: boolean;
+  isStaff: boolean;
   refetchProfile: () => Promise<void>;
   refetchStore: () => Promise<void>;
 }
@@ -59,6 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [store, setStore] = useState<Store | null>(null);
+  const [storeMembership, setStoreMembership] = useState<StoreMembership | null>(null);
+  const [activeRole, setActiveRole] = useState<'owner' | 'staff' | null>(null);
+  const [permissions, setPermissions] = useState<Permissions | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -85,15 +123,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchStore = async (userId: string) => {
-    const { data } = await supabase
+    // First, check if user is a store OWNER
+    const { data: ownedStore } = await supabase
       .from("stores")
       .select("*")
       .eq("owner_id", userId)
       .maybeSingle();
     
-    if (data) {
-      setStore(data as Store);
+    if (ownedStore) {
+      setStore(ownedStore as Store);
+      setActiveRole('owner');
+      setPermissions(OWNER_PERMISSIONS);
+      setStoreMembership(null);
+      return;
     }
+
+    // If not an owner, check if user is an approved store STAFF member
+    const { data: membership } = await supabase
+      .from("store_members")
+      .select(`
+        *,
+        stores (*)
+      `)
+      .eq("user_id", userId)
+      .eq("is_approved", true)
+      .maybeSingle();
+
+    if (membership && membership.stores) {
+      // User is an approved staff member
+      setStore(membership.stores as Store);
+      setStoreMembership({
+        id: membership.id,
+        store_id: membership.store_id,
+        user_id: membership.user_id,
+        role: membership.role,
+        permissions: membership.permissions as unknown as Permissions | null,
+        is_approved: membership.is_approved,
+        created_at: membership.created_at,
+        updated_at: membership.updated_at,
+      });
+      setActiveRole('staff');
+      setPermissions(membership.permissions as unknown as Permissions | null);
+      return;
+    }
+
+    // User has no store association
+    setStore(null);
+    setStoreMembership(null);
+    setActiveRole(null);
+    setPermissions(null);
   };
 
   const refetchProfile = async () => {
@@ -129,6 +207,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setRoles([]);
           setStore(null);
+          setStoreMembership(null);
+          setActiveRole(null);
+          setPermissions(null);
           setLoading(false);
         }
       }
@@ -150,6 +231,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = roles.some((r) => r.role === "admin");
   const isModerator = roles.some((r) => r.role === "moderator");
   const hasStore = !!store;
+  const isOwner = activeRole === 'owner';
+  const isStaff = activeRole === 'staff';
 
   return (
     <AuthContext.Provider
@@ -159,11 +242,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         roles,
         store,
+        storeMembership,
         loading,
         isApproved,
         isAdmin,
         isModerator,
         hasStore,
+        activeRole,
+        permissions,
+        isOwner,
+        isStaff,
         refetchProfile,
         refetchStore,
       }}

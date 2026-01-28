@@ -1,7 +1,6 @@
 import { ReactNode, useState } from "react";
 import { motion } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/hooks/useAuth"; // นำเข้า useAuth
 import { DesktopSidebar } from "./DesktopSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileHeader } from "./MobileHeader";
@@ -12,7 +11,6 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
-  const { role } = useAuth(); // ดึง role ออกมา (admin หรือ staff)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
@@ -21,7 +19,6 @@ export function AppLayout({ children }: AppLayoutProps) {
         <DesktopSidebar 
           collapsed={sidebarCollapsed} 
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
-          userRole={role} // ส่ง role ไปที่ DesktopSidebar
         />
       )}
 
@@ -37,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </motion.main>
 
-        {isMobile && <MobileBottomNav userRole={role} />} {/* ส่ง role ไปที่ Mobile Nav */}
+        {isMobile && <MobileBottomNav />}
       </div>
     </div>
   );

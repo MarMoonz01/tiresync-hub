@@ -60,7 +60,7 @@ const App = () => (
                 <ProtectedRoute><MyStore /></ProtectedRoute>
               } />
               <Route path="/store/setup" element={
-                <ProtectedRoute requireApproval={false}><StoreSetup /></ProtectedRoute>
+                <ProtectedRoute requireApproval={false} ownerOnly><StoreSetup /></ProtectedRoute>
               } />
               <Route path="/marketplace" element={
                 <ProtectedRoute><Marketplace /></ProtectedRoute>
