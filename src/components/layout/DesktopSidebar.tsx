@@ -30,6 +30,7 @@ interface DesktopSidebarProps {
   onToggle: () => void;
 }
 
+// เมนูพื้นฐานที่ทุกคน (Admin & Staff) เห็นเหมือนกัน
 const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
@@ -39,13 +40,10 @@ const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: Users, labelKey: "network", path: "/network" },
 ];
 
-// Owner-only nav items (requires store)
-const ownerNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+// เมนูที่จำกัดเฉพาะ Admin (เจ้าของร้าน) เท่านั้น
+const adminOnlyNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: BarChart3, labelKey: "salesReport", path: "/sales-report" },
   { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },
-];
-
-const adminNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: UserCog, labelKey: "staff", path: "/staff" },
 ];
 
@@ -56,14 +54,14 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin, hasStore } = useAuth();
+  const { isAdmin, hasStore } = useAuth(); // isAdmin จะเป็น true เมื่อ user มีบทบาทเป็น admin
   const { t } = useLanguage();
 
-  // Build nav items based on role and store ownership
+  // สร้างรายการเมนูตามสิทธิ์การใช้งาน
   const navItems = [
     ...baseNavItems,
-    ...(hasStore ? ownerNavItems : []),
-    ...(isAdmin ? adminNavItems : []),
+    // ถ้าเป็น Admin และมีร้านค้า ถึงจะแสดงเมนูรายงานและ Audit Log
+    ...(isAdmin && hasStore ? adminOnlyNavItems : []),
     ...bottomNavItems,
   ];
 
@@ -79,7 +77,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0"
     >
-      {/* Logo */}
+      {/* Logo Section */}
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
         <Link to="/dashboard" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
@@ -90,7 +88,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="font-semibold text-lg text-sidebar-foreground"
+              className="font-semibold text-lg text-sidebar-foreground uppercase tracking-wider"
             >
               BAANAKE
             </motion.span>
@@ -98,8 +96,8 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      {/* Navigation Section */}
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -109,7 +107,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
             <Link
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative group",
                 isActive
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -122,13 +120,13 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
-              <Icon className="w-5 h-5 flex-shrink-0" />
+              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-primary" : "group-hover:scale-110 transition-transform")} />
               {!collapsed && (
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="text-sm"
+                  className="text-sm truncate"
                 >
                   {label}
                 </motion.span>
@@ -151,9 +149,8 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer Section */}
       <div className="p-3 border-t border-sidebar-border/50 space-y-1">
-        {/* Logout Button */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <button
@@ -164,21 +161,20 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
               )}
             >
               <LogOut className="w-5 h-5" />
-              {!collapsed && <span className="text-sm">{t("logout")}</span>}
+              {!collapsed && <span className="text-sm font-medium">{t("logout")}</span>}
             </button>
           </TooltipTrigger>
           {collapsed && (
-            <TooltipContent side="right">{t("logout")}</TooltipContent>
+            <TooltipContent side="right" className="bg-destructive text-destructive-foreground">{t("logout")}</TooltipContent>
           )}
         </Tooltip>
 
-        {/* Collapse Toggle */}
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggle}
           className={cn(
-            "w-full text-sidebar-foreground/40 hover:text-sidebar-foreground rounded-xl",
+            "w-full text-sidebar-foreground/40 hover:text-sidebar-foreground rounded-xl mt-2",
             collapsed ? "justify-center" : "justify-end"
           )}
         >

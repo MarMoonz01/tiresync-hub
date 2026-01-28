@@ -15,8 +15,6 @@ export function useWebhookStatus(storeId: string | undefined): WebhookStatusResu
 
   const checkStatus = useCallback(async () => {
     if (!storeId) return;
-
-    setIsChecking(true);
     try {
       const { data, error } = await supabase
         .from("stores")
@@ -24,43 +22,42 @@ export function useWebhookStatus(storeId: string | undefined): WebhookStatusResu
         .eq("id", storeId)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error checking webhook status:", error);
-        return;
-      }
-
       if (data) {
         setIsVerified(data.line_webhook_verified ?? false);
         setVerifiedAt(data.line_webhook_verified_at ?? null);
       }
     } catch (err) {
       console.error("Failed to check webhook status:", err);
-    } finally {
-      setIsChecking(false);
     }
   }, [storeId]);
 
-  // Initial check and polling while not verified
   useEffect(() => {
     if (!storeId) return;
 
-    // Check immediately
     checkStatus();
 
-    // Poll every 3 seconds while not verified
+    // ระบบ Real-time: รับรู้ทันทีที่ Webhook อัปเดตฐานข้อมูล
+    const channel = supabase
+      .channel(`public:stores:id=eq.${storeId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'stores', filter: `id=eq.${storeId}` },
+        (payload) => {
+          setIsVerified(payload.new.line_webhook_verified);
+          setVerifiedAt(payload.new.line_webhook_verified_at);
+        }
+      )
+      .subscribe();
+
     const intervalId = setInterval(() => {
-      if (!isVerified) {
-        checkStatus();
-      }
+      if (!isVerified) checkStatus();
     }, 3000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(intervalId);
+    };
   }, [storeId, isVerified, checkStatus]);
 
-  return {
-    isVerified,
-    verifiedAt,
-    isChecking,
-    checkNow: checkStatus,
-  };
+  return { isVerified, verifiedAt, isChecking, checkNow: checkStatus };
 }

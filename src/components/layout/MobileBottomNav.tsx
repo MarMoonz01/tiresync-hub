@@ -4,19 +4,29 @@ import {
   LayoutDashboard, 
   CircleDot, 
   Search, 
-  Menu 
+  Menu,
+  Settings 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth"; // ดึง useAuth มาใช้เช็คสิทธิ์
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
-  { icon: CircleDot, label: "Tires", path: "/inventory" },
-  { icon: Search, label: "Market", path: "/marketplace" },
-  { icon: Menu, label: "More", path: "/settings" },
-];
+// กำหนด Interface เพื่อรับค่าจาก AppLayout
+interface MobileBottomNavProps {
+  userRole?: string | null;
+}
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const location = useLocation();
+  const { isAdmin } = useAuth(); // เช็คว่าเป็น Admin หรือไม่
+
+  // กรองรายการเมนูตามบทบาทผู้ใช้
+  const navItems = [
+    { icon: LayoutDashboard, label: "Home", path: "/dashboard", show: true },
+    { icon: CircleDot, label: "Tires", path: "/inventory", show: true },
+    { icon: Search, label: "Market", path: "/marketplace", show: true },
+    // แสดงเมนู More/Settings เฉพาะ Admin เท่านั้น
+    { icon: Settings, label: "Admin", path: "/settings", show: isAdmin },
+  ].filter(item => item.show); // กรองเอาเฉพาะรายการที่อนุญาตให้เห็น
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 pb-safe">

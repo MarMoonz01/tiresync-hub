@@ -88,16 +88,12 @@ async function verifySignature(body: string, signature: string, secret: string):
 }
 
 // Sanitize tire size input for fuzzy matching
-// Removes common separators: /, R, r, -, spaces
 function sanitizeSizeInput(input: string): string {
   return input.replace(/[\/Rr\-\s]/g, '').toLowerCase();
 }
 
 // Build a flexible search pattern for tire sizes
-// Input "2656517" should match "265/65R17", "265-65-R17", etc.
 function buildFuzzyPattern(sanitized: string): string {
-  // Insert % between each character group to allow for separators
-  // e.g., "2656517" becomes "%265%65%17%"
   let pattern = '%';
   for (let i = 0; i < sanitized.length; i++) {
     pattern += sanitized[i] + '%';
@@ -105,7 +101,7 @@ function buildFuzzyPattern(sanitized: string): string {
   return pattern;
 }
 
-// Get user permissions from LINE user ID - now with store_id filter for multi-store support
+// Get user permissions from LINE user ID
 // deno-lint-ignore no-explicit-any
 async function getUserPermissions(supabase: any, lineUserId: string, storeId?: string): Promise<UserPermissions | null> {
   try {
@@ -127,13 +123,8 @@ async function getUserPermissions(supabase: any, lineUserId: string, storeId?: s
       return null;
     }
 
-    console.log(`[AUTH] Found ${data.length} permission record(s) for LINE user`);
-
-    // If store_id was provided, return the matching record
-    // Otherwise, return the first record (owner takes precedence from SQL UNION order)
+    // Return the matching record
     const record = data[0];
-    console.log(`[AUTH] Using permission: store_id=${record.store_id}, is_owner=${record.is_owner}, is_approved=${record.is_approved}`);
-    
     return {
       user_id: record.user_id,
       store_id: record.store_id,
@@ -144,43 +135,6 @@ async function getUserPermissions(supabase: any, lineUserId: string, storeId?: s
   } catch (err) {
     console.error("[AUTH] Failed to get user permissions:", err);
     return null;
-  }
-}
-
-// Get all store permissions for a LINE user (for multi-store scenarios)
-// deno-lint-ignore no-explicit-any
-async function getAllUserStorePermissions(supabase: any, lineUserId: string): Promise<UserPermissions[]> {
-  try {
-    console.log(`[AUTH] Getting ALL store permissions for LINE user: ${lineUserId}`);
-    
-    const { data, error } = await supabase
-      .rpc("get_line_user_permissions", { 
-        _line_user_id: lineUserId,
-        _store_id: null
-      });
-
-    if (error) {
-      console.error("[AUTH] Error getting all user permissions:", error);
-      return [];
-    }
-
-    if (!data || data.length === 0) {
-      console.log("[AUTH] No permissions found");
-      return [];
-    }
-
-    console.log(`[AUTH] Found ${data.length} store permission(s) for LINE user`);
-    
-    return data.map((record: any) => ({
-      user_id: record.user_id,
-      store_id: record.store_id,
-      is_owner: record.is_owner,
-      permissions: record.permissions,
-      is_approved: record.is_approved,
-    }));
-  } catch (err) {
-    console.error("[AUTH] Failed to get all user permissions:", err);
-    return [];
   }
 }
 
@@ -213,20 +167,8 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "📦",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "ค้นหาและดูสต็อก",
-          size: "sm",
-          color: "#333333",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "📦", size: "sm", flex: 0 },
+        { type: "text", text: "ค้นหาและดูสต็อก", size: "sm", color: "#333333", margin: "sm", flex: 1 }
       ]
     });
   }
@@ -236,20 +178,8 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "➕",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "ปรับจำนวนสต็อก",
-          size: "sm",
-          color: "#333333",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "➕", size: "sm", flex: 0 },
+        { type: "text", text: "ปรับจำนวนสต็อก", size: "sm", color: "#333333", margin: "sm", flex: 1 }
       ],
       margin: "sm"
     });
@@ -260,20 +190,8 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "👑",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "สิทธิ์ผู้ดูแลร้านค้า",
-          size: "sm",
-          color: "#333333",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "👑", size: "sm", flex: 0 },
+        { type: "text", text: "สิทธิ์ผู้ดูแลร้านค้า", size: "sm", color: "#333333", margin: "sm", flex: 1 }
       ],
       margin: "sm"
     });
@@ -288,13 +206,7 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "✅ เชื่อมต่อบัญชีสำเร็จ!",
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          }
+          { type: "text", text: "✅ เชื่อมต่อบัญชีสำเร็จ!", weight: "bold", size: "lg", color: "#FFFFFF" }
         ],
         backgroundColor: "#22C55E",
         paddingAll: "lg"
@@ -303,41 +215,12 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "บัญชีเว็บของคุณเชื่อมต่อกับ LINE แล้ว",
-            size: "sm",
-            color: "#666666",
-            wrap: true
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "สิทธิ์ของคุณ:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
-          {
-            type: "box",
-            layout: "vertical",
-            contents: capabilities,
-            margin: "md"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "💡 ลองค้นหา: \"265/65R17\"",
-            size: "sm",
-            color: "#2563EB",
-            margin: "lg"
-          }
+          { type: "text", text: "บัญชีเว็บของคุณเชื่อมต่อกับ LINE แล้ว", size: "sm", color: "#666666", wrap: true },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: "สิทธิ์ของคุณ:", size: "sm", color: "#888888", margin: "lg" },
+          { type: "box", layout: "vertical", contents: capabilities, margin: "md" },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: "💡 ลองค้นหา: \"265/65R17\"", size: "sm", color: "#2563EB", margin: "lg" }
         ],
         paddingAll: "lg"
       }
@@ -345,7 +228,7 @@ function generateLinkSuccessFlexMessage(userPerms: UserPermissions | null): obje
   };
 }
 
-// Generate staff-specific success Flex Message (Blue/Indigo theme)
+// Generate staff-specific success Flex Message
 function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, storeId?: string): object {
   const canView = userPerms?.permissions?.line?.view ?? true;
   const canAdjust = userPerms?.permissions?.line?.adjust ?? false;
@@ -358,21 +241,8 @@ function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, stor
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "⏳",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "รอการอนุมัติจากเจ้าของร้าน",
-          size: "sm",
-          color: "#F59E0B",
-          margin: "sm",
-          flex: 1,
-          weight: "bold"
-        }
+        { type: "text", text: "⏳", size: "sm", flex: 0 },
+        { type: "text", text: "รอการอนุมัติจากเจ้าของร้าน", size: "sm", color: "#F59E0B", margin: "sm", flex: 1, weight: "bold" }
       ]
     });
   }
@@ -382,20 +252,8 @@ function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, stor
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "📦",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "ค้นหาและดูสต็อก",
-          size: "sm",
-          color: "#333333",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "📦", size: "sm", flex: 0 },
+        { type: "text", text: "ค้นหาและดูสต็อก", size: "sm", color: "#333333", margin: "sm", flex: 1 }
       ],
       margin: capabilities.length > 0 ? "sm" : "none"
     });
@@ -406,20 +264,8 @@ function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, stor
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "➕",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "ปรับจำนวนสต็อก",
-          size: "sm",
-          color: "#333333",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "➕", size: "sm", flex: 0 },
+        { type: "text", text: "ปรับจำนวนสต็อก", size: "sm", color: "#333333", margin: "sm", flex: 1 }
       ],
       margin: "sm"
     });
@@ -428,20 +274,8 @@ function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, stor
       type: "box",
       layout: "horizontal",
       contents: [
-        {
-          type: "text",
-          text: "👀",
-          size: "sm",
-          flex: 0
-        },
-        {
-          type: "text",
-          text: "ดูสต็อกเท่านั้น (ไม่สามารถปรับได้)",
-          size: "sm",
-          color: "#888888",
-          margin: "sm",
-          flex: 1
-        }
+        { type: "text", text: "👀", size: "sm", flex: 0 },
+        { type: "text", text: "ดูสต็อกเท่านั้น (ไม่สามารถปรับได้)", size: "sm", color: "#888888", margin: "sm", flex: 1 }
       ],
       margin: "sm"
     });
@@ -456,61 +290,21 @@ function generateStaffSuccessFlexMessage(userPerms: UserPermissions | null, stor
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "👤 เชื่อมต่อบัญชีพนักงานสำเร็จ!",
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          }
+          { type: "text", text: "👤 เชื่อมต่อบัญชีพนักงานสำเร็จ!", weight: "bold", size: "lg", color: "#FFFFFF" }
         ],
-        backgroundColor: "#4F46E5", // Indigo for staff
+        backgroundColor: "#4F46E5",
         paddingAll: "lg"
       },
       body: {
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: isApproved 
-              ? "บัญชีของคุณเชื่อมต่อและพร้อมใช้งานแล้ว" 
-              : "บัญชีของคุณเชื่อมต่อแล้ว รอการอนุมัติ",
-            size: "sm",
-            color: "#666666",
-            wrap: true
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "สิทธิ์ของคุณ:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
-          {
-            type: "box",
-            layout: "vertical",
-            contents: capabilities,
-            margin: "md"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: isApproved 
-              ? "💡 ลองค้นหา: \"265/65R17\"" 
-              : "💡 ติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม",
-            size: "sm",
-            color: isApproved ? "#4F46E5" : "#888888",
-            margin: "lg",
-            wrap: true
-          }
+          { type: "text", text: isApproved ? "บัญชีของคุณเชื่อมต่อและพร้อมใช้งานแล้ว" : "บัญชีของคุณเชื่อมต่อแล้ว รอการอนุมัติ", size: "sm", color: "#666666", wrap: true },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: "สิทธิ์ของคุณ:", size: "sm", color: "#888888", margin: "lg" },
+          { type: "box", layout: "vertical", contents: capabilities, margin: "md" },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: isApproved ? "💡 ลองค้นหา: \"265/65R17\"" : "💡 ติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม", size: "sm", color: isApproved ? "#4F46E5" : "#888888", margin: "lg", wrap: true }
         ],
         paddingAll: "lg"
       }
@@ -529,13 +323,7 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "👑 เจ้าของร้านยืนยันแล้ว!",
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          }
+          { type: "text", text: "👑 เจ้าของร้านยืนยันแล้ว!", weight: "bold", size: "lg", color: "#FFFFFF" }
         ],
         backgroundColor: "#F59E0B",
         paddingAll: "lg"
@@ -544,55 +332,17 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: `ร้าน: ${storeName}`,
-            size: "md",
-            color: "#333333",
-            weight: "bold"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "สิทธิ์ผู้ดูแลระบบ:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
+          { type: "text", text: `ร้าน: ${storeName}`, size: "md", color: "#333333", weight: "bold" },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: "สิทธิ์ผู้ดูแลระบบ:", size: "sm", color: "#888888", margin: "lg" },
           {
             type: "box",
             layout: "vertical",
             contents: [
-              {
-                type: "text",
-                text: "✅ จัดการสต็อกทั้งหมด",
-                size: "sm",
-                color: "#333333"
-              },
-              {
-                type: "text",
-                text: "✅ อนุมัติ/ปฏิเสธพนักงาน",
-                size: "sm",
-                color: "#333333",
-                margin: "xs"
-              },
-              {
-                type: "text",
-                text: "✅ รับแจ้งเตือนคำขอเข้าร่วม",
-                size: "sm",
-                color: "#333333",
-                margin: "xs"
-              },
-              {
-                type: "text",
-                text: "✅ ดูรายงานและสถิติ",
-                size: "sm",
-                color: "#333333",
-                margin: "xs"
-              }
+              { type: "text", text: "✅ จัดการสต็อกทั้งหมด", size: "sm", color: "#333333" },
+              { type: "text", text: "✅ อนุมัติ/ปฏิเสธพนักงาน", size: "sm", color: "#333333", margin: "xs" },
+              { type: "text", text: "✅ รับแจ้งเตือนคำขอเข้าร่วม", size: "sm", color: "#333333", margin: "xs" },
+              { type: "text", text: "✅ ดูรายงานและสถิติ", size: "sm", color: "#333333", margin: "xs" }
             ],
             margin: "md"
           }
@@ -605,11 +355,7 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
         contents: [
           {
             type: "button",
-            action: {
-              type: "message",
-              label: "🔍 เช็คสต็อก",
-              text: "สต็อก"
-            },
+            action: { type: "message", label: "🔍 เช็คสต็อก", text: "สต็อก" },
             style: "primary",
             color: "#F59E0B"
           }
@@ -620,7 +366,7 @@ function generateOwnerSuccessFlexMessage(storeName: string): object {
   };
 }
 
-// Handle LINE account linking (Multi-store aware)
+// Handle LINE account linking with Store Context
 // deno-lint-ignore no-explicit-any
 async function handleLinkCode(supabase: any, lineUserId: string, code: string, storeId?: string): Promise<object | string> {
   console.log(`[LINK] ==========================================`);
@@ -628,103 +374,97 @@ async function handleLinkCode(supabase: any, lineUserId: string, code: string, s
   console.log(`[LINK] LINE User ID: ${lineUserId}`);
   console.log(`[LINK] Store context: ${storeId || 'none'}`);
   
-  // Check if this is a link code
+  // 1. ค้นหารหัส (อ่านอย่างเดียวห้ามลบก่อน)
   const { data: linkCode, error } = await supabase
     .from("line_link_codes")
     .select("user_id, expires_at")
     .eq("code", code.toUpperCase())
     .maybeSingle();
 
-  if (error) {
-    console.error("[LINK] Error fetching link code:", error);
-    return "❌ เกิดข้อผิดพลาดในการค้นหารหัส\n\nกรุณาลองใหม่อีกครั้ง";
+  if (error || !linkCode) {
+    console.error("[LINK] Error or Not Found:", error);
+    return "❌ รหัสไม่ถูกต้อง\n\nกรุณาตรวจสอบรหัสและลองใหม่อีกครั้ง";
   }
 
-  if (!linkCode) {
-    console.log("[LINK] Link code not found");
-    return "❌ รหัสไม่ถูกต้อง\n\nกรุณาตรวจสอบรหัสและลองใหม่อีกครั้ง หรือสร้างรหัสใหม่ในเว็บแอพ";
-  }
-
-  // Check expiration
   if (new Date(linkCode.expires_at) < new Date()) {
-    console.log("[LINK] Link code expired");
+    console.log("[LINK] Code expired");
     return "⏰ รหัสหมดอายุแล้ว\n\nกรุณาสร้างรหัสใหม่ในเว็บแอพ";
   }
 
-  console.log(`[LINK] Valid code found for user_id: ${linkCode.user_id}`);
+  // 2. ตรวจสอบความเป็นเจ้าของร้านก่อน (Verified Owner Logic)
+  let isOwnerVerified = false;
+  let storeName = "";
 
-  // Link the LINE user ID to the profile
+  if (storeId) {
+    const { data: store, error: storeCheckError } = await supabase
+      .from("stores")
+      .select("id, name, owner_id")
+      .eq("id", storeId)
+      .eq("owner_id", linkCode.user_id)
+      .maybeSingle();
+
+    if (storeCheckError) {
+        console.error("[LINK] Error checking store ownership:", storeCheckError);
+    }
+
+    if (store) {
+      console.log(`[LINK] ✅ User is OWNER of store: ${store.name}`);
+      
+      // ยืนยันสิทธิ์ในร้านค้านี้
+      const { error: verifyError } = await supabase
+        .from("stores")
+        .update({
+          line_webhook_verified: true,
+          line_webhook_verified_at: new Date().toISOString(),
+          line_enabled: true 
+        })
+        .eq("id", storeId);
+
+      if (verifyError) {
+        console.error(`[LINK] Error verifying store ${storeId}:`, verifyError);
+      } else {
+        console.log(`[LINK] Store ${store.name} status updated to VERIFIED`);
+        storeName = store.name;
+        isOwnerVerified = true;
+      }
+    } else {
+        console.log(`[LINK] User is NOT owner of store ${storeId} (or store not found)`);
+    }
+  }
+
+  // 3. ผูก LINE ID เข้ากับ Profile (ทำหลังจากยืนยันร้านค้าผ่านแล้ว)
   const { error: updateError } = await supabase
     .from("profiles")
     .update({ line_user_id: lineUserId })
     .eq("user_id", linkCode.user_id);
 
   if (updateError) {
-    console.error("[LINK] Error linking LINE account:", updateError);
-    return "❌ เกิดข้อผิดพลาด\n\nไม่สามารถเชื่อมต่อบัญชีได้ กรุณาลองใหม่อีกครั้ง";
+    console.warn("[LINK] Profile link warning (possibly duplicate):", updateError.message);
   }
 
-  // Delete the used code
-  await supabase
-    .from("line_link_codes")
-    .delete()
-    .eq("code", code.toUpperCase());
+  // 4. *** ขั้นตอนสุดท้ายค่อยลบรหัสทิ้ง ***
+  // เพื่อป้องกันปัญหาหน้าเว็บสั่ง Refresh แล้วรหัสหายระหว่างที่ Webhook กำลังประมวลผล
+  await supabase.from("line_link_codes").delete().eq("code", code.toUpperCase());
 
-  console.log("[LINK] ✅ Successfully linked LINE account");
-
-  // Check if this user is a store owner - if so, verify webhook for their store
-  const { data: ownedStores, error: storeError } = await supabase
-    .from("stores")
-    .select("id, name")
-    .eq("owner_id", linkCode.user_id);
-
-  if (storeError) {
-    console.error("[LINK] Error checking store ownership:", storeError);
+  if (isOwnerVerified) {
+    // ส่ง Text ธรรมดาเพื่อความรวดเร็ว
+    return `✅ ยืนยันเจ้าของร้าน ${storeName} สำเร็จ! \n\nกรุณากลับไปที่หน้าเว็บเพื่อตั้งค่าให้เสร็จสิ้นครับ`;
   }
 
-  if (ownedStores && ownedStores.length > 0) {
-    console.log(`[LINK] User owns ${ownedStores.length} store(s)`);
-    
-    // If we have a specific store context, verify that store
-    // Otherwise, verify all owned stores
-    const storesToVerify = storeId 
-      ? ownedStores.filter((s: { id: string }) => s.id === storeId)
-      : ownedStores;
-
-    for (const store of storesToVerify) {
-      console.log(`[LINK] Marking store verified: ${store.name} (${store.id})`);
-      const { error: verifyError } = await supabase
-        .from("stores")
-        .update({
-          line_webhook_verified: true,
-          line_webhook_verified_at: new Date().toISOString()
-        })
-        .eq("id", store.id);
-
-      if (verifyError) {
-        console.error(`[LINK] Error verifying store ${store.id}:`, verifyError);
-      } else {
-        console.log(`[LINK] ✅ Store ${store.name} webhook verified via owner linking`);
-      }
-    }
-
-    // Return owner-specific success message
-    const ownerStore = storeId 
-      ? ownedStores.find((s: { id: string }) => s.id === storeId)
-      : ownedStores[0];
-    
-    return generateOwnerSuccessFlexMessage(ownerStore?.name || "ร้านค้าของคุณ");
-  }
-
-  // Not an owner - get staff permissions
+  // 5. If not owner of this specific store (or verified already), return Staff/General permissions
   const userPerms = await getUserPermissions(supabase, lineUserId, storeId);
-  console.log(`[LINK] User permissions: is_owner=${userPerms?.is_owner}, is_approved=${userPerms?.is_approved}`);
+  console.log(`[LINK] Returning permission view: Owner=${userPerms?.is_owner}`);
   
-  // Return staff success Flex Message with their specific permissions
+  if (userPerms?.is_owner) {
+     // Fallback for generic owner view
+     const { data: ownedStore } = await supabase.from("stores").select("name").eq("owner_id", linkCode.user_id).limit(1).maybeSingle();
+     return generateOwnerSuccessFlexMessage(ownedStore?.name || "ร้านค้าของคุณ");
+  }
+  
   return generateStaffSuccessFlexMessage(userPerms, storeId);
 }
 
-// Generate Flex Message for tire search results with optional adjust buttons
+// Generate Flex Message for tire search results
 function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = false): object {
   if (tires.length === 0) {
     return {
@@ -736,21 +476,8 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
           type: "box",
           layout: "vertical",
           contents: [
-            {
-              type: "text",
-              text: "🔍 ไม่พบยางที่ค้นหา",
-              weight: "bold",
-              size: "lg",
-              color: "#2563EB"
-            },
-            {
-              type: "text",
-              text: "กรุณาลองค้นหาด้วยคำอื่น เช่น ขนาดยาง หรือ ยี่ห้อ",
-              size: "sm",
-              color: "#666666",
-              margin: "md",
-              wrap: true
-            }
+            { type: "text", text: "🔍 ไม่พบยางที่ค้นหา", weight: "bold", size: "lg", color: "#2563EB" },
+            { type: "text", text: "กรุณาลองค้นหาด้วยคำอื่น เช่น ขนาดยาง หรือ ยี่ห้อ", size: "sm", color: "#666666", margin: "md", wrap: true }
           ]
         }
       }
@@ -758,66 +485,33 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
   }
 
   const bubbles = tires.slice(0, 10).map((tire) => {
-    // Generate DOT rows with optional +/- buttons
-    const dotRows = tire.tire_dots.map((dot) => {
-      let statusColor = "#22C55E"; // Green - In Stock
+    // Limit dots to avoid Flex Message size error (max 5)
+    const sortedDots = [...tire.tire_dots].sort((a, b) => b.quantity - a.quantity);
+    const displayDots = sortedDots.slice(0, 5);
+    const remainingDots = sortedDots.length - displayDots.length;
+
+    const dotRows = displayDots.map((dot) => {
+      let statusColor = "#22C55E"; 
       let statusText = "มีสินค้า";
       
       if (dot.quantity === 0) {
-        statusColor = "#EF4444"; // Red - Out of Stock
-        statusText = "หมด";
+        statusColor = "#EF4444"; statusText = "หมด";
       } else if (dot.quantity <= LOW_STOCK_THRESHOLD) {
-        statusColor = "#F59E0B"; // Amber - Low Stock
-        statusText = "เหลือน้อย";
+        statusColor = "#F59E0B"; statusText = "เหลือน้อย";
       }
 
       const rowContents: object[] = [
-        {
-          type: "text",
-          text: dot.dot_code || "-",
-          size: "sm",
-          color: "#555555",
-          flex: 2
-        },
-        {
-          type: "text",
-          text: `${dot.quantity}`,
-          size: "sm",
-          color: "#111111",
-          align: "center",
-          flex: 1
-        }
+        { type: "text", text: dot.dot_code || "-", size: "sm", color: "#555555", flex: 2 },
+        { type: "text", text: `${dot.quantity}`, size: "sm", color: "#111111", align: "center", flex: 1 }
       ];
 
-      // Add +/- buttons if user can adjust stock
       if (canAdjust) {
         rowContents.push({
           type: "box",
           layout: "horizontal",
           contents: [
-            {
-              type: "button",
-              action: {
-                type: "postback",
-                label: "-",
-                data: `action=remove_stock&dot_id=${dot.id}`
-              },
-              style: "secondary",
-              height: "sm",
-              flex: 1
-            },
-            {
-              type: "button",
-              action: {
-                type: "postback",
-                label: "+",
-                data: `action=add_stock&dot_id=${dot.id}`
-              },
-              style: "primary",
-              height: "sm",
-              flex: 1,
-              color: "#2563EB"
-            }
+            { type: "button", action: { type: "postback", label: "-", data: `action=remove_stock&dot_id=${dot.id}` }, style: "secondary", height: "sm", flex: 1 },
+            { type: "button", action: { type: "postback", label: "+", data: `action=add_stock&dot_id=${dot.id}` }, style: "primary", height: "sm", flex: 1, color: "#2563EB" }
           ],
           spacing: "xs",
           flex: 2
@@ -827,13 +521,7 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
           type: "box",
           layout: "vertical",
           contents: [
-            {
-              type: "text",
-              text: statusText,
-              size: "xs",
-              color: "#FFFFFF",
-              align: "center"
-            }
+            { type: "text", text: statusText, size: "xs", color: "#FFFFFF", align: "center" }
           ],
           backgroundColor: statusColor,
           cornerRadius: "sm",
@@ -842,13 +530,19 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
         });
       }
 
-      return {
+      return { type: "box", layout: "horizontal", contents: rowContents, margin: "sm" };
+    });
+
+    if (remainingDots > 0) {
+      dotRows.push({
         type: "box",
         layout: "horizontal",
-        contents: rowContents,
+        contents: [
+          { type: "text", text: `...และอีก ${remainingDots} รายการ`, size: "xs", color: "#888888", align: "center", style: "italic" }
+        ],
         margin: "sm"
-      };
-    });
+      });
+    }
 
     return {
       type: "bubble",
@@ -856,20 +550,8 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: `🏷️ ${tire.brand.toUpperCase()}`,
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          },
-          {
-            type: "text",
-            text: `${tire.model || ""} • ${tire.size}`,
-            size: "sm",
-            color: "#E0E7FF",
-            margin: "xs"
-          }
+          { type: "text", text: `🏷️ ${tire.brand.toUpperCase()}`, weight: "bold", size: "lg", color: "#FFFFFF" },
+          { type: "text", text: `${tire.model || ""} • ${tire.size}`, size: "sm", color: "#E0E7FF", margin: "xs" }
         ],
         backgroundColor: "#2563EB",
         paddingAll: "lg"
@@ -887,44 +569,19 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
               { type: "text", text: canAdjust ? "ปรับ" : "สถานะ", size: "xs", color: "#888888", weight: "bold", align: "center", flex: 2 }
             ]
           },
-          {
-            type: "separator",
-            margin: "sm"
-          },
+          { type: "separator", margin: "sm" },
           ...dotRows,
-          {
-            type: "separator",
-            margin: "lg"
-          },
+          { type: "separator", margin: "lg" },
           {
             type: "box",
             layout: "horizontal",
             contents: [
-              {
-                type: "text",
-                text: "💰 ราคา:",
-                size: "md",
-                color: "#111111",
-                weight: "bold"
-              },
-              {
-                type: "text",
-                text: tire.price ? `฿${tire.price.toLocaleString()}` : "สอบถาม",
-                size: "md",
-                color: "#2563EB",
-                weight: "bold",
-                align: "end"
-              }
+              { type: "text", text: "💰 ราคา:", size: "md", color: "#111111", weight: "bold" },
+              { type: "text", text: tire.price ? `฿${tire.price.toLocaleString()}` : "สอบถาม", size: "md", color: "#2563EB", weight: "bold", align: "end" }
             ],
             margin: "lg"
           },
-          {
-            type: "text",
-            text: `📍 ${getStoreName(tire.stores)}`,
-            size: "xs",
-            color: "#888888",
-            margin: "md"
-          }
+          { type: "text", text: `📍 ${getStoreName(tire.stores)}`, size: "xs", color: "#888888", margin: "md" }
         ],
         paddingAll: "lg"
       },
@@ -932,29 +589,8 @@ function generateTireFlexMessage(tires: TireWithDots[], canAdjust: boolean = fal
         type: "box",
         layout: "horizontal",
         contents: [
-          {
-            type: "button",
-            action: {
-              type: "postback",
-              label: "สาขาอื่น",
-              data: `action=check_branches&tire_id=${tire.id}`
-            },
-            style: "secondary",
-            height: "sm",
-            flex: 1
-          },
-          {
-            type: "button",
-            action: {
-              type: "postback",
-              label: "จอง",
-              data: `action=reserve&tire_id=${tire.id}`
-            },
-            style: "primary",
-            height: "sm",
-            flex: 1,
-            color: "#2563EB"
-          }
+          { type: "button", action: { type: "postback", label: "สาขาอื่น", data: `action=check_branches&tire_id=${tire.id}` }, style: "secondary", height: "sm", flex: 1 },
+          { type: "button", action: { type: "postback", label: "จอง", data: `action=reserve&tire_id=${tire.id}` }, style: "primary", height: "sm", flex: 1, color: "#2563EB" }
         ],
         spacing: "sm",
         paddingAll: "md"
@@ -980,65 +616,10 @@ function generateWelcomeMessage(): object {
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "🛞 BAANAKE Tire",
-            weight: "bold",
-            size: "xl",
-            color: "#2563EB"
-          },
-          {
-            type: "text",
-            text: "ยินดีต้อนรับ! พิมพ์ขนาดยางหรือยี่ห้อเพื่อค้นหา",
-            size: "sm",
-            color: "#666666",
-            margin: "lg",
-            wrap: true
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "ตัวอย่างการค้นหา:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "• 265/65R17",
-            size: "sm",
-            color: "#2563EB",
-            margin: "sm"
-          },
-          {
-            type: "text",
-            text: "• Michelin",
-            size: "sm",
-            color: "#2563EB",
-            margin: "xs"
-          },
-          {
-            type: "text",
-            text: "• Bridgestone 215/55R17",
-            size: "sm",
-            color: "#2563EB",
-            margin: "xs"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "💡 เชื่อมต่อบัญชี: พิมพ์รหัส 6 หลักจากเว็บแอพ",
-            size: "xs",
-            color: "#888888",
-            margin: "lg",
-            wrap: true
-          }
+          { type: "text", text: "🛞 BAANAKE Tire", weight: "bold", size: "xl", color: "#2563EB" },
+          { type: "text", text: "ยินดีต้อนรับ! พิมพ์ขนาดยางหรือยี่ห้อเพื่อค้นหา", size: "sm", color: "#666666", margin: "lg", wrap: true },
+          { type: "separator", margin: "lg" },
+          { type: "text", text: "💡 เชื่อมต่อบัญชี: พิมพ์รหัส 6 หลักจากเว็บแอพ", size: "xs", color: "#888888", margin: "lg", wrap: true }
         ],
         paddingAll: "lg"
       }
@@ -1057,60 +638,9 @@ function generateRegistrationMessage(): object {
         type: "box",
         layout: "vertical",
         contents: [
-          {
-            type: "text",
-            text: "🔐 กรุณาเชื่อมต่อบัญชี",
-            weight: "bold",
-            size: "lg",
-            color: "#2563EB"
-          },
-          {
-            type: "text",
-            text: "เพื่อใช้งานฟีเจอร์เต็มรูปแบบ กรุณาเชื่อมต่อบัญชี LINE กับบัญชีในระบบ",
-            size: "sm",
-            color: "#666666",
-            margin: "lg",
-            wrap: true
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "ขั้นตอน:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "1. เข้าสู่ระบบที่เว็บแอพ",
-            size: "sm",
-            color: "#333333",
-            margin: "sm"
-          },
-          {
-            type: "text",
-            text: "2. ไปที่ Profile > LINE Integration",
-            size: "sm",
-            color: "#333333",
-            margin: "xs"
-          },
-          {
-            type: "text",
-            text: "3. กด 'Link LINE Account'",
-            size: "sm",
-            color: "#333333",
-            margin: "xs"
-          },
-          {
-            type: "text",
-            text: "4. ส่งรหัส 6 หลักมาที่นี่",
-            size: "sm",
-            color: "#333333",
-            margin: "xs"
-          }
+          { type: "text", text: "🔐 กรุณาเชื่อมต่อบัญชี", weight: "bold", size: "lg", color: "#2563EB" },
+          { type: "text", text: "เพื่อใช้งานฟีเจอร์เต็มรูปแบบ กรุณาเชื่อมต่อบัญชี LINE กับบัญชีในระบบ", size: "sm", color: "#666666", margin: "lg", wrap: true },
+          { type: "text", text: "ส่งรหัส 6 หลักมาที่นี่", size: "sm", color: "#333333", margin: "xs" }
         ],
         paddingAll: "lg"
       }
@@ -1120,18 +650,14 @@ function generateRegistrationMessage(): object {
 
 // Generate access denied message
 function generateAccessDeniedMessage(): object {
-  return {
-    type: "text",
-    text: "⚠️ คุณไม่มีสิทธิ์ดำเนินการนี้\n\nกรุณาติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม"
-  };
+  return { type: "text", text: "⚠️ คุณไม่มีสิทธิ์ดำเนินการนี้\n\nกรุณาติดต่อเจ้าของร้านเพื่อขอสิทธิ์เพิ่มเติม" };
 }
 
-// Send reply to LINE
-async function sendReply(replyToken: string, messages: object[]): Promise<void> {
-  const channelAccessToken = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
-  
-  if (!channelAccessToken) {
-    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not configured");
+// Send reply to LINE - UPDATED: Accepts accessToken explicitly
+async function sendReply(accessToken: string, replyToken: string, messages: object[]): Promise<void> {
+  if (!accessToken) {
+    console.error("[REPLY] No Access Token provided");
+    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is missing");
   }
 
   console.log(`[REPLY] Sending ${messages.length} message(s) to LINE`);
@@ -1140,12 +666,9 @@ async function sendReply(replyToken: string, messages: object[]): Promise<void> 
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${channelAccessToken}`
+      "Authorization": `Bearer ${accessToken}`
     },
-    body: JSON.stringify({
-      replyToken,
-      messages
-    })
+    body: JSON.stringify({ replyToken, messages })
   });
 
   if (!response.ok) {
@@ -1157,160 +680,105 @@ async function sendReply(replyToken: string, messages: object[]): Promise<void> 
   console.log("[REPLY] Message sent successfully");
 }
 
-// Log LINE interaction to stock_logs
+// Log LINE interaction
 // deno-lint-ignore no-explicit-any
-async function logLineInteraction(
-  supabase: any,
-  action: string,
-  notes: string,
-  tireDotId: string,
-  quantityBefore: number,
-  quantityAfter: number,
-  quantityChange: number
-): Promise<void> {
+async function logLineInteraction(supabase: any, action: string, notes: string, tireDotId: string, quantityBefore: number, quantityAfter: number, quantityChange: number): Promise<void> {
   try {
     const { error } = await supabase
       .from("stock_logs")
       .insert({
-        action,
-        notes,
-        tire_dot_id: tireDotId,
-        quantity_before: quantityBefore,
-        quantity_after: quantityAfter,
-        quantity_change: quantityChange,
-        user_id: null // LINE users are not authenticated in web
+        action, notes, tire_dot_id: tireDotId,
+        quantity_before: quantityBefore, quantity_after: quantityAfter, quantity_change: quantityChange,
+        user_id: null
       });
 
-    if (error) {
-      console.error("[LOG] Error logging LINE interaction:", error);
-    } else {
-      console.log(`[LOG] Logged interaction: ${action}`);
-    }
+    if (error) console.error("[LOG] Error:", error);
   } catch (err) {
-    console.error("[LOG] Failed to log LINE interaction:", err);
+    console.error("[LOG] Failed to log:", err);
   }
 }
 
-// Log LINE search event
+// Log LINE search
 // deno-lint-ignore no-explicit-any
-async function logLineSearch(
-  supabase: any,
-  lineUserId: string,
-  searchQuery: string,
-  resultsCount: number,
-  storeId?: string
-): Promise<void> {
+async function logLineSearch(supabase: any, lineUserId: string, searchQuery: string, resultsCount: number, storeId?: string): Promise<void> {
   try {
-    // We need a tire_dot_id for stock_logs, so we'll create a synthetic log
-    // For search events, we can use a special approach or skip if no dot_id
     console.log(`[LOG] LINE search by ${lineUserId}: "${searchQuery}" -> ${resultsCount} results (store: ${storeId || 'public'})`);
-    
-    // Note: Since stock_logs requires tire_dot_id, we just log to console for searches
-    // A separate search_logs table could be created for detailed search analytics
   } catch (err) {
-    console.error("[LOG] Failed to log LINE search:", err);
+    console.error("[LOG] Failed to log search:", err);
   }
 }
 
 // Adjust stock quantity
 // deno-lint-ignore no-explicit-any
-async function adjustStock(
-  supabase: any,
-  dotId: string,
-  change: number,
-  lineUserId: string
-): Promise<{ success: boolean; newQuantity: number; message: string }> {
-  console.log(`[STOCK] Adjusting stock for dot ${dotId} by ${change} (LINE user: ${lineUserId})`);
+async function adjustStock(supabase: any, dotId: string, change: number, lineUserId: string): Promise<{ success: boolean; newQuantity: number; message: string }> {
+  console.log(`[STOCK] Adjusting stock for dot ${dotId} by ${change}`);
   
-  // Get current quantity
   const { data: dot, error: fetchError } = await supabase
     .from("tire_dots")
     .select("quantity, dot_code")
     .eq("id", dotId)
     .maybeSingle();
 
-  if (fetchError || !dot) {
-    console.error("[STOCK] Error fetching dot:", fetchError);
-    return { success: false, newQuantity: 0, message: "ไม่พบรายการนี้" };
-  }
+  if (fetchError || !dot) return { success: false, newQuantity: 0, message: "ไม่พบรายการนี้" };
 
   const newQuantity = Math.max(0, dot.quantity + change);
-
-  // Update quantity
   const { error: updateError } = await supabase
     .from("tire_dots")
     .update({ quantity: newQuantity })
     .eq("id", dotId);
 
-  if (updateError) {
-    console.error("[STOCK] Error updating quantity:", updateError);
-    return { success: false, newQuantity: dot.quantity, message: "เกิดข้อผิดพลาดในการอัปเดต" };
-  }
+  if (updateError) return { success: false, newQuantity: dot.quantity, message: "เกิดข้อผิดพลาดในการอัปเดต" };
 
-  // Log the change
-  await logLineInteraction(
-    supabase,
-    change > 0 ? "line_add" : "line_remove",
-    `LINE stock adjustment by user ${lineUserId}`,
-    dotId,
-    dot.quantity,
-    newQuantity,
-    change
-  );
-
-  console.log(`[STOCK] Updated: ${dot.dot_code} from ${dot.quantity} to ${newQuantity}`);
+  await logLineInteraction(supabase, change > 0 ? "line_add" : "line_remove", `LINE adjustment: ${lineUserId}`, dotId, dot.quantity, newQuantity, change);
 
   return {
-    success: true,
-    newQuantity,
+    success: true, newQuantity,
     message: `✅ DOT: ${dot.dot_code}\n${change > 0 ? "เพิ่ม" : "ลด"} 1 → สต็อกใหม่: ${newQuantity}`
   };
 }
 
-// Verify signature and find matching store from database
+// Verify signature and find matching store - UPDATED: Returns accessToken
 async function verifyAndFindStore(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   body: string,
   signature: string
-): Promise<{ storeId: string; valid: boolean } | null> {
+): Promise<{ storeId: string; accessToken: string; valid: boolean } | null> {
   console.log("[VERIFY] Starting signature verification...");
   
-  // Get all stores with LINE enabled and credentials
+  // Fetch secrets AND tokens
   const { data: stores, error } = await supabase
     .from("stores")
-    .select("id, name, line_channel_secret")
-    .eq("line_enabled", true)
+    .select("id, name, line_channel_secret, line_channel_access_token")
     .not("line_channel_secret", "is", null);
 
-  if (error) {
-    console.error("[VERIFY] Error fetching stores:", error);
-  }
+  if (error) console.error("[VERIFY] Error fetching stores:", error);
 
-  console.log(`[VERIFY] Found ${stores?.length || 0} LINE-enabled store(s)`);
-
-  // Try each store's secret until one validates
   if (stores && stores.length > 0) {
     for (const store of stores) {
       if (store.line_channel_secret) {
-        console.log(`[VERIFY] Trying store: ${store.name} (${store.id})`);
         const isValid = await verifySignature(body, signature, store.line_channel_secret);
         if (isValid) {
-          console.log(`[VERIFY] ✅ Signature verified for store: ${store.name} (${store.id})`);
-          return { storeId: store.id, valid: true };
+          console.log(`[VERIFY] ✅ Verified store: ${store.name} (${store.id})`);
+          // Use store-specific token, or fallback to env if null in DB
+          const token = store.line_channel_access_token || Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") || "";
+          return { storeId: store.id, accessToken: token, valid: true };
         }
       }
     }
   }
 
-  // Fall back to global secret if no store matches
+  // Fallback to global env vars
   const globalSecret = Deno.env.get("LINE_CHANNEL_SECRET");
   if (globalSecret) {
-    console.log("[VERIFY] Trying global LINE_CHANNEL_SECRET...");
     const isValid = await verifySignature(body, signature, globalSecret);
     if (isValid) {
-      console.log("[VERIFY] ✅ Signature verified using global secret");
-      return { storeId: "", valid: true };
+      console.log("[VERIFY] ✅ Verified using global secret");
+      return { 
+        storeId: "", 
+        accessToken: Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") || "", 
+        valid: true 
+      };
     }
   }
 
@@ -1318,8 +786,7 @@ async function verifyAndFindStore(
   return null;
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1328,289 +795,150 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Supabase configuration missing");
-    }
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error("Supabase config missing");
 
-    // Get request body and signature
     const body = await req.text();
     const signature = req.headers.get("x-line-signature");
 
-    console.log("[WEBHOOK] ==========================================");
-    console.log("[WEBHOOK] Received LINE webhook request");
-    console.log(`[WEBHOOK] Signature present: ${!!signature}`);
-    console.log(`[WEBHOOK] Body length: ${body.length} bytes`);
-    
-    // Try to extract destination for logging
-    try {
-      const parsed = JSON.parse(body);
-      if (parsed.destination) {
-        console.log(`[WEBHOOK] Destination ID (Bot ID): ${parsed.destination}`);
-      }
-    } catch {
-      console.log("[WEBHOOK] Could not parse body for destination ID");
-    }
-
     if (!signature) {
-      console.error("[WEBHOOK] Missing X-Line-Signature header");
-      return new Response(JSON.stringify({ error: "Missing signature" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ error: "Missing signature" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Initialize Supabase client with service role for full access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Try to verify signature against store secrets (then fall back to global)
+    
+    // 1. Verify and Get Store Context & Token
     const matchedStore = await verifyAndFindStore(supabase, body, signature);
     
     if (!matchedStore) {
-      console.error("[WEBHOOK] Invalid signature - no matching store found");
-      return new Response(JSON.stringify({ error: "Invalid signature" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const identifiedStoreId = matchedStore.storeId;
-    console.log(`[WEBHOOK] Identified store ID: ${identifiedStoreId || 'global/unknown'}`);
+    const { storeId: identifiedStoreId, accessToken: currentAccessToken } = matchedStore;
+    console.log(`[WEBHOOK] Identified Store: ${identifiedStoreId || 'Global'}, Token length: ${currentAccessToken?.length}`);
 
-    // Parse webhook body
     const webhookBody: LineWebhookBody = JSON.parse(body);
 
-    // Handle webhook verification (LINE sends empty events array)
+    // 2. Handle Verification Event (Empty events)
     if (webhookBody.events.length === 0) {
-      console.log("[WEBHOOK] Verification request received (empty events)");
-      
-      // Mark the matching store as verified
       if (identifiedStoreId) {
-        const { error: updateError } = await supabase
-          .from("stores")
-          .update({
+        await supabase.from("stores").update({
             line_webhook_verified: true,
             line_webhook_verified_at: new Date().toISOString(),
-          })
-          .eq("id", identifiedStoreId);
-        
-        if (updateError) {
-          console.error("[WEBHOOK] Error updating webhook verification:", updateError);
-        } else {
-          console.log(`[WEBHOOK] ✅ Store ${identifiedStoreId} webhook verified`);
-        }
+          }).eq("id", identifiedStoreId);
+        console.log(`[WEBHOOK] ✅ Store ${identifiedStoreId} verified via webhook event`);
       }
-      
-      return new Response(JSON.stringify({ success: true, verified: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Process each event
+    // 3. Process Events
     for (const event of webhookBody.events) {
-      console.log(`[EVENT] Processing: ${event.type}`);
       const lineUserId = event.source.userId;
-      console.log(`[EVENT] LINE User ID: ${lineUserId}`);
-
+      
       if (event.type === "follow") {
-        console.log("[EVENT] New follower");
-        await sendReply(event.replyToken, [generateWelcomeMessage()]);
+        await sendReply(currentAccessToken, event.replyToken, [generateWelcomeMessage()]);
         continue;
       }
 
       if (event.type === "message" && event.message?.type === "text") {
         const messageText = event.message.text.trim();
-        console.log(`[EVENT] Message: "${messageText}"`);
 
-        // Check if this is a link code (6 uppercase alphanumeric characters)
+        // --- HANDLE LINK CODE ---
         if (/^[A-Z0-9]{6}$/.test(messageText.toUpperCase())) {
-          console.log("[EVENT] Detected link code");
+          // Pass identifiedStoreId to handleLinkCode to enable verified owner logic
           const linkResult = await handleLinkCode(supabase, lineUserId, messageText, identifiedStoreId);
-          // Handle both string and Flex Message responses
-          const replyMessage = typeof linkResult === "string" 
-            ? { type: "text", text: linkResult }
-            : linkResult;
-          await sendReply(event.replyToken, [replyMessage]);
+          const replyMessage = typeof linkResult === "string" ? { type: "text", text: linkResult } : linkResult;
+          await sendReply(currentAccessToken, event.replyToken, [replyMessage]);
           continue;
         }
 
-        // Get user permissions - filtered by identified store if available
+        // --- HANDLE STOCK SEARCH ---
         const userPerms = await getUserPermissions(supabase, lineUserId, identifiedStoreId || undefined);
 
-        // Check if user can view stock
         if (!canViewStock(userPerms)) {
-          console.log("[EVENT] User cannot view stock, showing public results + registration prompt");
-          
-          // Allow public search for shared items, but prompt registration
-          // Use fuzzy size matching
+          // Public Search
           const sanitizedInput = sanitizeSizeInput(messageText);
           const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
-          
-          console.log(`[SEARCH] Public search: "${messageText}" -> pattern: "${fuzzyPattern}"`);
-          
-          const { data: tires } = await supabase
-            .from("tires")
-            .select(`
-              id, brand, model, size, price, store_id,
-              tire_dots (id, dot_code, quantity, position, promotion),
-              stores (name)
-            `)
+          const { data: tires } = await supabase.from("tires")
+            .select(`id, brand, model, size, price, store_id, tire_dots (id, dot_code, quantity, position, promotion), stores (name)`)
             .or(`size.ilike.${fuzzyPattern},brand.ilike.%${messageText}%,model.ilike.%${messageText}%`)
-            .eq("is_shared", true)
-            .limit(5);
+            .eq("is_shared", true).limit(5);
 
-          // Log the search
           await logLineSearch(supabase, lineUserId, messageText, tires?.length || 0);
 
           if (tires && tires.length > 0) {
-            console.log(`[SEARCH] Found ${tires.length} public tire(s)`);
-            const flexMessage = generateTireFlexMessage(tires as TireWithDots[], false);
-            await sendReply(event.replyToken, [
-              flexMessage,
-              generateRegistrationMessage()
-            ]);
+            await sendReply(currentAccessToken, event.replyToken, [generateTireFlexMessage(tires as TireWithDots[], false), generateRegistrationMessage()]);
           } else {
-            console.log("[SEARCH] No public tires found");
-            await sendReply(event.replyToken, [generateRegistrationMessage()]);
+            await sendReply(currentAccessToken, event.replyToken, [generateRegistrationMessage()]);
           }
           continue;
         }
 
-        // User is authenticated - search with full permissions
+        // Authenticated Search
         const canAdjust = canAdjustStock(userPerms);
-        console.log(`[EVENT] User authenticated: can_adjust=${canAdjust}, store_id=${userPerms?.store_id}`);
-
-        // Fuzzy size search: sanitize input and build flexible pattern
         const sanitizedInput = sanitizeSizeInput(messageText);
         const fuzzyPattern = buildFuzzyPattern(sanitizedInput);
-        
-        console.log(`[SEARCH] Fuzzy search: "${messageText}" -> sanitized: "${sanitizedInput}" -> pattern: "${fuzzyPattern}"`);
 
-        // Build query - include user's store tires plus shared tires
-        // Use fuzzy pattern for size, regular ilike for brand/model
-        let tiresQuery = supabase
-          .from("tires")
-          .select(`
-            id, brand, model, size, price, store_id,
-            tire_dots (id, dot_code, quantity, position, promotion),
-            stores (name)
-          `)
+        let tiresQuery = supabase.from("tires")
+          .select(`id, brand, model, size, price, store_id, tire_dots (id, dot_code, quantity, position, promotion), stores (name)`)
           .or(`size.ilike.${fuzzyPattern},brand.ilike.%${messageText}%,model.ilike.%${messageText}%`);
 
-        // Add store filter if user has a store
         if (userPerms?.store_id) {
           tiresQuery = tiresQuery.or(`store_id.eq.${userPerms.store_id},is_shared.eq.true`);
         } else {
           tiresQuery = tiresQuery.eq("is_shared", true);
         }
 
-        const { data: tires, error } = await tiresQuery.limit(10);
-
-        if (error) {
-          console.error("[SEARCH] Database query error:", error);
-          throw error;
-        }
-
-        console.log(`[SEARCH] Found ${tires?.length || 0} tire(s)`);
-
-        // Log the search
+        const { data: tires } = await tiresQuery.limit(10);
         await logLineSearch(supabase, lineUserId, messageText, tires?.length || 0, userPerms?.store_id);
-
-        // Send flex message with results (include adjust buttons if permitted)
-        const flexMessage = generateTireFlexMessage(tires as TireWithDots[], canAdjust);
-        await sendReply(event.replyToken, [flexMessage]);
+        await sendReply(currentAccessToken, event.replyToken, [generateTireFlexMessage(tires as TireWithDots[], canAdjust)]);
       }
 
+      // --- HANDLE POSTBACK ---
       if (event.type === "postback" && event.postback) {
         const params = new URLSearchParams(event.postback.data);
         const action = params.get("action");
         const tireId = params.get("tire_id");
         const dotId = params.get("dot_id");
 
-        console.log(`[POSTBACK] Action: ${action}, tire_id: ${tireId}, dot_id: ${dotId}`);
-
-        // Get user permissions for postback actions - filtered by identified store
         const userPerms = await getUserPermissions(supabase, lineUserId, identifiedStoreId || undefined);
 
         if (action === "add_stock" && dotId) {
-          if (!canAdjustStock(userPerms)) {
-            console.log("[POSTBACK] Access denied for add_stock");
-            await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
-            continue;
-          }
-
+          if (!canAdjustStock(userPerms)) { await sendReply(currentAccessToken, event.replyToken, [generateAccessDeniedMessage()]); continue; }
           const result = await adjustStock(supabase, dotId, 1, lineUserId);
-          await sendReply(event.replyToken, [{ type: "text", text: result.message }]);
+          await sendReply(currentAccessToken, event.replyToken, [{ type: "text", text: result.message }]);
         }
 
         if (action === "remove_stock" && dotId) {
-          if (!canAdjustStock(userPerms)) {
-            console.log("[POSTBACK] Access denied for remove_stock");
-            await sendReply(event.replyToken, [generateAccessDeniedMessage()]);
-            continue;
-          }
-
+          if (!canAdjustStock(userPerms)) { await sendReply(currentAccessToken, event.replyToken, [generateAccessDeniedMessage()]); continue; }
           const result = await adjustStock(supabase, dotId, -1, lineUserId);
-          await sendReply(event.replyToken, [{ type: "text", text: result.message }]);
+          await sendReply(currentAccessToken, event.replyToken, [{ type: "text", text: result.message }]);
         }
 
         if (action === "check_branches" && tireId) {
-          console.log("[POSTBACK] Checking other branches");
-          
-          // Find same tire in other stores
-          const { data: tire } = await supabase
-            .from("tires")
-            .select("brand, model, size")
-            .eq("id", tireId)
-            .maybeSingle();
-
-          if (tire) {
-            const { data: otherTires } = await supabase
-              .from("tires")
-              .select(`
-                id, brand, model, size, price, store_id,
-                tire_dots (id, dot_code, quantity, position, promotion),
-                stores (name)
-              `)
-              .eq("brand", tire.brand)
-              .eq("size", tire.size)
-              .eq("is_shared", true)
-              .neq("id", tireId)
-              .limit(5);
-
-            const canAdjust = canAdjustStock(userPerms);
-            const message = otherTires && otherTires.length > 0
-              ? generateTireFlexMessage(otherTires as TireWithDots[], canAdjust)
-              : { type: "text", text: "ไม่พบยางรุ่นนี้ในสาขาอื่น" };
-
-            await sendReply(event.replyToken, [message]);
-          }
+            // Find same tire in other stores
+            const { data: tire } = await supabase.from("tires").select("brand, model, size").eq("id", tireId).maybeSingle();
+            if (tire) {
+              const { data: otherTires } = await supabase.from("tires")
+                .select(`id, brand, model, size, price, store_id, tire_dots (id, dot_code, quantity, position, promotion), stores (name)`)
+                .eq("brand", tire.brand).eq("size", tire.size).eq("is_shared", true).neq("id", tireId).limit(5);
+              
+              const message = otherTires && otherTires.length > 0 
+                ? generateTireFlexMessage(otherTires as TireWithDots[], canAdjustStock(userPerms))
+                : { type: "text", text: "ไม่พบยางรุ่นนี้ในสาขาอื่น" };
+              await sendReply(currentAccessToken, event.replyToken, [message]);
+            }
         }
 
         if (action === "reserve" && tireId) {
-          console.log("[POSTBACK] Reservation request");
-          // Send reservation confirmation
-          await sendReply(event.replyToken, [
-            {
-              type: "text",
-              text: "✅ ได้รับคำขอจองแล้ว\n\nเจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันภายใน 30 นาที"
-            }
-          ]);
+          await sendReply(currentAccessToken, event.replyToken, [{ type: "text", text: "✅ ได้รับคำขอจองแล้ว\n\nเจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันภายใน 30 นาที" }]);
         }
       }
     }
 
-    console.log("[WEBHOOK] Processing complete");
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("[WEBHOOK] Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
