@@ -27,6 +27,7 @@ import {
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TireCard } from "@/components/inventory/TireCard";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useTires, Tire } from "@/hooks/useTires";
 import { useToast } from "@/hooks/use-toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -47,7 +48,8 @@ const itemVariants = {
 };
 
 export default function Inventory() {
-  const { store } = useAuth();
+  const { store, isStaff } = useAuth();
+  const { canAdd, canEdit, canDelete } = usePermissions();
   const { 
     tires, 
     loading, 
@@ -178,15 +180,22 @@ export default function Inventory() {
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
               <CircleDot className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">No Store Found</h2>
+            <h2 className="text-xl font-semibold mb-2">
+              {isStaff ? "Waiting for Approval" : "No Store Found"}
+            </h2>
             <p className="text-muted-foreground mb-6">
-              Create your store profile to start managing inventory
+              {isStaff 
+                ? "Your store access is pending approval from the store owner"
+                : "Create your store profile to start managing inventory"
+              }
             </p>
-            <Link to="/store/setup">
-              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                Set Up Store
-              </Button>
-            </Link>
+            {!isStaff && (
+              <Link to="/store/setup">
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                  Set Up Store
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </AppLayout>
@@ -219,22 +228,26 @@ export default function Inventory() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Tire Vault</h1>
               <p className="text-muted-foreground mt-1">
-                {stats.totalTires} tires • {stats.totalStock} in stock
+                {store.name} • {stats.totalTires} tires • {stats.totalStock} in stock
               </p>
             </div>
             <div className="flex gap-2">
-              <Link to="/import">
-                <Button variant="outline" size="sm">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import
-                </Button>
-              </Link>
-              <Link to="/inventory/add">
-                <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tire
-                </Button>
-              </Link>
+              {canAdd && (
+                <>
+                  <Link to="/import">
+                    <Button variant="outline" size="sm">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import
+                    </Button>
+                  </Link>
+                  <Link to="/inventory/add">
+                    <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Tire
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
 
@@ -373,28 +386,35 @@ export default function Inventory() {
             <motion.div variants={itemVariants}>
               <Card className="glass-card">
                 <CardContent className="py-16">
-                  <div className="flex flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center">
                     <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
                       <Package className="w-10 h-10 text-muted-foreground" />
                     </div>
-                    <h2 className="text-xl font-semibold mb-2">No Tires Yet</h2>
+                    <h2 className="text-xl font-semibold mb-2">
+                      {isStaff ? `Welcome to ${store.name}!` : "No Tires Yet"}
+                    </h2>
                     <p className="text-muted-foreground mb-6 max-w-md">
-                      Start building your inventory by adding tires manually or importing from Excel
+                      {isStaff 
+                        ? "Your store's inventory is empty. Contact your store owner to add products."
+                        : "Start building your inventory by adding tires manually or importing from Excel"
+                      }
                     </p>
-                    <div className="flex gap-3">
-                      <Link to="/import">
-                        <Button variant="outline">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Import Excel
-                        </Button>
-                      </Link>
-                      <Link to="/inventory/add">
-                        <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Tire
-                        </Button>
-                      </Link>
-                    </div>
+                    {canAdd && (
+                      <div className="flex gap-3">
+                        <Link to="/import">
+                          <Button variant="outline">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Import Excel
+                          </Button>
+                        </Link>
+                        <Link to="/inventory/add">
+                          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Tire
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -425,6 +445,8 @@ export default function Inventory() {
                     onDelete={handleDelete}
                     onQuantityChange={handleQuantityChange}
                     onToggleShare={handleToggleShare}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 ))}
               </AnimatePresence>

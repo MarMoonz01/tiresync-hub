@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActionCard } from "@/components/dashboard/QuickActionCard";
@@ -24,7 +25,8 @@ import { StockMovementChart } from "@/components/dashboard/StockMovementChart";
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 
 export default function Dashboard() {
-  const { profile, store } = useAuth();
+  const { profile, store, isStaff } = useAuth();
+  const { canAdd } = usePermissions();
   const { loading, tireStats, salesStats, dailyMovements, recentLogs } = useDashboardStats();
 
   const stats = [
@@ -79,23 +81,27 @@ export default function Dashboard() {
     },
   ];
 
+  // Filter quick actions based on permissions
   const quickActions = [
-    {
+    // Add Tire - only if user can add
+    ...(canAdd ? [{
       to: "/inventory/add",
       icon: Plus,
       label: "Add Tire",
       bgColor: "bg-primary/10",
       hoverBgColor: "bg-primary/20",
       iconColor: "text-primary",
-    },
-    {
+    }] : []),
+    // Import - only if user can add
+    ...(canAdd ? [{
       to: "/import",
       icon: Upload,
       label: "Import",
       bgColor: "bg-accent/10",
       hoverBgColor: "bg-accent/20",
       iconColor: "text-accent",
-    },
+    }] : []),
+    // Inventory - always visible
     {
       to: "/inventory",
       icon: CircleDot,
@@ -104,6 +110,7 @@ export default function Dashboard() {
       hoverBgColor: "bg-success/20",
       iconColor: "text-success",
     },
+    // Marketplace - always visible
     {
       to: "/marketplace",
       icon: Package,
@@ -130,13 +137,13 @@ export default function Dashboard() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {store 
-                ? `Managing ${store.name}` 
+                ? (isStaff ? `Staff at ${store.name}` : `Managing ${store.name}`)
                 : "Set up your store to start"}
             </p>
           </div>
 
-          {/* Store Setup CTA */}
-          {!store && (
+          {/* Store Setup CTA - only show for non-staff users without a store */}
+          {!store && !isStaff && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}

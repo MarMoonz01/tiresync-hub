@@ -54,14 +54,17 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin, hasStore } = useAuth(); // isAdmin จะเป็น true เมื่อ user มีบทบาทเป็น admin
+  const { isOwner, isAdmin, hasStore } = useAuth();
   const { t } = useLanguage();
 
-  // สร้างรายการเมนูตามสิทธิ์การใช้งาน
+  // Only store owners and system admins can see admin menu items
+  const canAccessAdminItems = (isOwner || isAdmin) && hasStore;
+
+  // Build menu items based on permissions
   const navItems = [
     ...baseNavItems,
-    // ถ้าเป็น Admin และมีร้านค้า ถึงจะแสดงเมนูรายงานและ Audit Log
-    ...(isAdmin && hasStore ? adminOnlyNavItems : []),
+    // Show Sales Report, Audit Log, Staff Management only for owners/admins with a store
+    ...(canAccessAdminItems ? adminOnlyNavItems : []),
     ...bottomNavItems,
   ];
 
