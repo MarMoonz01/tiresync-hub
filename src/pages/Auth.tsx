@@ -19,7 +19,6 @@ type UserType = "owner" | "staff";
 interface StoreOption {
   id: string;
   name: string;
-  address?: string | null;
 }
 
 export default function Auth() {
@@ -58,10 +57,10 @@ export default function Auth() {
 
       setSearchingStores(true);
       try {
-        // ค้นหาจากตาราง stores (ตรวจสอบ RLS Policy ให้เปิดเป็น Public read สำหรับเบื้องต้น)
+        // Use public view accessible to unauthenticated users during signup
         const { data, error } = await supabase
-          .from("stores")
-          .select("id, name, address")
+          .from("stores_signup_search")
+          .select("id, name")
           .ilike("name", `%${storeSearch}%`)
           .limit(5);
 
@@ -291,14 +290,13 @@ export default function Auth() {
                                     setSelectedStoreId(store.id);
                                     setStoreSearch(store.name);
                                   }}
-                                  className="w-full p-4 bg-white rounded-2xl border-2 border-primary/10 flex items-center gap-4 text-left hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm"
+                                  className="w-full p-4 bg-card rounded-2xl border-2 border-primary/10 flex items-center gap-4 text-left hover:bg-primary/5 hover:border-primary/30 transition-all shadow-sm"
                                 >
                                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
                                     <Store className="w-5 h-5" />
                                   </div>
                                   <div className="flex-1 overflow-hidden">
-                                    <div className="text-sm font-bold text-primary truncate leading-none mb-1">{store.name}</div>
-                                    <div className="text-[10px] text-muted-foreground truncate italic">{store.address || "ไม่ระบุที่อยู่"}</div>
+                                    <div className="text-sm font-bold text-primary truncate">{store.name}</div>
                                   </div>
                                   <div className="w-5 h-5 rounded-full border-2 border-primary/20 flex-shrink-0" />
                                 </button>
