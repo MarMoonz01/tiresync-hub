@@ -1,248 +1,106 @@
 
-# Staff Onboarding & RBAC System Implementation Plan
 
-## Overview
-This plan implements a complete Role-Based Access Control system that allows staff members to seamlessly access their assigned store's inventory after approval, with appropriate permission restrictions.
+# Fix Store Search During Signup
 
----
+## Problem Statement
 
-## Phase 1: Fix Build Errors
+When staff members try to sign up and search for a store to join, **they cannot see any stores** because:
 
-### 1.1 Remove Invalid `role` Property Usage
-**File:** `src/components/layout/AppLayout.tsx`
+1. The signup page queries the `stores` table directly
+2. The RLS policy on `stores` requires users to be authenticated AND approved
+3. Users signing up are not authenticated yet, so the search returns empty results
 
-The component currently uses `role` from `useAuth` which doesn't exist. We'll remove the `userRole` prop being passed to `DesktopSidebar` since it already fetches `isAdmin` internally.
-
-**Changes:**
-- Remove `const { role } = useAuth();` 
-- Remove `userRole` prop from `DesktopSidebar`
-- `DesktopSidebar` already uses `isAdmin` and `hasStore` directly from `useAuth`
+This breaks the staff onboarding flow completely.
 
 ---
 
-## Phase 2: Enhance Auth Context for Staff Support
+## Solution Overview
 
-### 2.1 Update `useAuth.tsx` to Support Multi-Role Users
-
-**New Properties to Add:**
-- `activeRole`: `'owner' | 'staff' | null` - Identifies the user's relationship to their store
-- `permissions`: Permission object for the current store
-- `storeMembership`: The `store_members` record if user is staff
-
-**Updated `fetchStore` Logic:**
-```text
-1. Check if user is a store OWNER (stores.owner_id = user.id)
-   - If found: set store, activeRole = 'owner', permissions = full access
-   
-2. If not owner, check store_members table:
-   - Query where user_id = user.id AND is_approved = true
-   - Join with stores to get store details
-   - If found: set store from joined data, activeRole = 'staff', permissions from store_members record
-   
-3. If neither: store = null, activeRole = null
-```
-
-**New Interface:**
-```typescript
-interface AuthContextType {
-  // ... existing properties
-  activeRole: 'owner' | 'staff' | null;
-  permissions: Permissions | null;
-  storeMembership: StoreMembership | null;
-  isOwner: boolean;  // Helper: activeRole === 'owner'
-  isStaff: boolean;  // Helper: activeRole === 'staff'
-}
-```
+Create a dedicated public endpoint that allows unauthenticated users to search for active stores during signup, while still protecting sensitive store information.
 
 ---
 
-## Phase 3: Update Staff Approval Logic
+## Implementation Plan
 
-### 3.1 Enhance `useStaffRequests.tsx` 
+### Phase 1: Create Public Store Search View
 
-**Approval Flow Updates:**
-1. Update `staff_join_requests.status` to `'approved'`
-2. Upsert into `store_members` with:
-   - `store_id`, `user_id`, `role: 'staff'`
-   - Default permissions JSONB:
-     ```json
-     {
-       "web": { "view": true, "add": false, "edit": false, "delete": false },
-       "line": { "view": true, "adjust": false }
-     }
-     ```
-   - `is_approved: true`
-3. Update `profiles.status` to `'approved'`
-4. Invalidate queries to trigger immediate UI update
+**Database Migration Required**
 
----
-
-## Phase 4: Protected Route Updates
-
-### 4.1 Update `ProtectedRoute.tsx`
-
-**New Logic for `requireStore`:**
-```text
-Current: Redirects to /store/setup if !hasStore
-New Logic:
-- If user is OWNER without store → redirect to /store/setup
-- If user is STAFF without approved membership → redirect to /pending
-- Staff should NEVER access /store/setup (only owners can create stores)
-```
-
-**Add New Prop:**
-- `ownerOnly?: boolean` - For routes like `/store/setup` that only owners can access
-
----
-
-## Phase 5: Permission-Based UI Controls
-
-### 5.1 Create Permission Check Utility
-**New File:** `src/hooks/usePermissions.tsx`
-
-```typescript
-function usePermissions() {
-  const { permissions, isOwner } = useAuth();
-  
-  return {
-    canView: isOwner || permissions?.web?.view,
-    canAdd: isOwner || permissions?.web?.add,
-    canEdit: isOwner || permissions?.web?.edit,
-    canDelete: isOwner || permissions?.web?.delete,
-    canAdjustLine: isOwner || permissions?.line?.adjust,
-    canViewLine: isOwner || permissions?.line?.view,
-  };
-}
-```
-
-### 5.2 Update Inventory Page
-**File:** `src/pages/Inventory.tsx`
-
-- Wrap "Add Tire" button with `canAdd` check
-- Wrap "Import" button with `canAdd` check  
-- Show store name in welcome message
-
-### 5.3 Update TireCard Component
-**File:** `src/components/inventory/TireCard.tsx`
-
-- Add `permissions` prop or use `usePermissions` hook
-- Conditionally render Edit button based on `canEdit`
-- Conditionally render Delete button based on `canDelete`
-- Conditionally render +/- quantity buttons based on `canEdit`
-- Conditionally render Share toggle based on `canEdit`
-
----
-
-## Phase 6: Staff Dashboard Experience
-
-### 6.1 Update Dashboard Page
-**File:** `src/pages/Dashboard.tsx`
-
-**Changes:**
-- Show different welcome message for staff: "Welcome to {store.name}"
-- Hide "Set Up Store" CTA for staff members
-- Conditionally show Quick Actions based on permissions:
-  - "Add Tire" → only if `canAdd`
-  - "Import" → only if `canAdd`
-
-### 6.2 Update Desktop Sidebar
-**File:** `src/components/layout/DesktopSidebar.tsx`
-
-**Current Logic:** Shows admin items if `isAdmin && hasStore`
-**New Logic:** 
-- Use `isOwner` from auth context instead of just `isAdmin`
-- Staff should NOT see: Sales Report, Audit Log, Staff Management
-
-### 6.3 Update Mobile Bottom Nav
-**File:** `src/components/layout/MobileBottomNav.tsx`
-
-- Admin menu item should only show for store owners, not staff
-
----
-
-## Phase 7: Empty State Improvements
-
-### 7.1 Staff-Specific Empty State
-When inventory is empty for a staff member, show:
-```
-"Welcome to {store.name}!"
-"Your store's inventory is empty. Contact your store owner to add products."
-```
-
-Instead of showing "Set Up Store" button.
-
----
-
-## Implementation Order
-
-1. **Fix Build Errors** (Phase 1) - Critical, unblocks the app
-2. **Update Auth Context** (Phase 2) - Foundation for all RBAC
-3. **Update Staff Approval** (Phase 3) - Enables staff onboarding
-4. **Protected Routes** (Phase 4) - Security layer
-5. **Permission Hooks** (Phase 5.1) - Reusable permission checking
-6. **UI Permission Checks** (Phase 5.2, 5.3, Phase 6) - User-facing restrictions
-
----
-
-## Technical Details
-
-### Database Queries for Staff Store Resolution
+Create a new view `stores_signup_search` specifically for the signup flow that:
+- Only exposes minimal store information (id, name)
+- No sensitive fields (phone, email, address, owner_id)
+- Only shows active stores
+- Grants access to the `anon` role (unauthenticated users)
 
 ```sql
--- Query to get staff's store membership
+CREATE VIEW public.stores_signup_search AS
 SELECT 
-  sm.*, 
-  s.id as store_id,
-  s.name as store_name,
-  s.* 
-FROM store_members sm
-JOIN stores s ON sm.store_id = s.id
-WHERE sm.user_id = $user_id 
-  AND sm.is_approved = true
-LIMIT 1;
+    id,
+    name
+FROM public.stores
+WHERE is_active = true;
+
+GRANT SELECT ON public.stores_signup_search TO anon;
+GRANT SELECT ON public.stores_signup_search TO authenticated;
 ```
 
-### Permission Object Structure
+### Phase 2: Update Auth.tsx Store Search
+
+**File:** `src/pages/Auth.tsx`
+
+Modify the store search query to use the new public view:
+
 ```typescript
-interface Permissions {
-  web: {
-    view: boolean;
-    add: boolean;
-    edit: boolean;
-    delete: boolean;
-  };
-  line: {
-    view: boolean;
-    adjust: boolean;
-  };
-}
+// Before (broken)
+const { data, error } = await supabase
+  .from("stores")
+  .select("id, name, address")
+  .ilike("name", `%${storeSearch}%`)
+  .limit(5);
+
+// After (fixed)
+const { data, error } = await supabase
+  .from("stores_signup_search")
+  .select("id, name")
+  .ilike("name", `%${storeSearch}%`)
+  .limit(5);
 ```
 
-### Files to Modify
-1. `src/components/layout/AppLayout.tsx` - Remove invalid props
-2. `src/hooks/useAuth.tsx` - Add staff store resolution
-3. `src/hooks/useStaffRequests.tsx` - Enhance approval flow
-4. `src/components/auth/ProtectedRoute.tsx` - Staff-aware routing
-5. `src/pages/Inventory.tsx` - Permission-based UI
-6. `src/components/inventory/TireCard.tsx` - Action restrictions
-7. `src/pages/Dashboard.tsx` - Staff experience
-8. `src/components/layout/DesktopSidebar.tsx` - Menu visibility
-9. `src/components/layout/MobileBottomNav.tsx` - Menu visibility
+### Phase 3: Update UI to Remove Address Display
 
-### New Files to Create
-1. `src/hooks/usePermissions.tsx` - Permission utility hook
+Since the public view intentionally excludes the address for privacy, update the store search results UI:
+- Remove the address display line from the store cards
+- Show only the store name
+- Optionally add a description field if needed in the future
+
+---
+
+## Security Considerations
+
+| Concern | Resolution |
+|---------|------------|
+| Exposing store data to public | Only expose `id` and `name` - no sensitive fields |
+| Store enumeration | Limited to active stores only, search requires minimum 2 characters |
+| Privacy | Address, phone, email, owner_id all excluded from public view |
+
+---
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `supabase/migrations/[new].sql` | Create `stores_signup_search` view with anon access |
+| `src/pages/Auth.tsx` | Update query to use new view, remove address display |
+| `src/integrations/supabase/types.ts` | Will auto-update after migration |
 
 ---
 
 ## Testing Checklist
 
-After implementation, verify:
-- [ ] Build compiles without errors
-- [ ] Owner can create store and see all menu items
-- [ ] Staff approval updates store_members correctly
-- [ ] Staff sees their assigned store's inventory immediately after approval
-- [ ] Staff cannot access /store/setup route
-- [ ] Staff without approved membership redirects to /pending
-- [ ] Add/Edit/Delete buttons hidden for staff without permissions
-- [ ] Staff sees appropriate dashboard message
-- [ ] Mobile nav hides admin items for staff
+After implementation:
+- [ ] Open signup page in incognito/private browser (unauthenticated)
+- [ ] Select "Staff" user type
+- [ ] Type a store name and verify stores appear in search results
+- [ ] Select a store and complete signup
+- [ ] Verify the join request is created successfully
+
