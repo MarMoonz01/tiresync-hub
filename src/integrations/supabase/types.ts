@@ -123,6 +123,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orders_buyer_store_id_fkey"
+            columns: ["buyer_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_signup_search"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_seller_store_id_fkey"
             columns: ["seller_store_id"]
             isOneToOne: false
@@ -134,6 +141,13 @@ export type Database = {
             columns: ["seller_store_id"]
             isOneToOne: false
             referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_store_id_fkey"
+            columns: ["seller_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_signup_search"
             referencedColumns: ["id"]
           },
           {
@@ -237,6 +251,13 @@ export type Database = {
             referencedRelation: "stores_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "staff_join_requests_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_signup_search"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stock_logs: {
@@ -327,6 +348,13 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_members_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_signup_search"
             referencedColumns: ["id"]
           },
         ]
@@ -487,6 +515,13 @@ export type Database = {
             referencedRelation: "stores_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tires_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores_signup_search"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -539,6 +574,21 @@ export type Database = {
           logo_url?: string | null
           name?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stores_signup_search: {
+        Row: {
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
         }
         Relationships: []
       }
