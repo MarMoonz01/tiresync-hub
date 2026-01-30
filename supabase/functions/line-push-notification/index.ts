@@ -1,460 +1,139 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 const LINE_PUSH_API_URL = "https://api.line.me/v2/bot/message/push";
-const LOW_STOCK_THRESHOLD = 4;
-
-interface TireDot {
-  id: string;
-  dot_code: string;
-  quantity: number;
-}
-
-interface Store {
-  name: string;
-  owner_id: string;
-}
-
-interface TireWithDots {
-  id: string;
-  brand: string;
-  model: string | null;
-  size: string;
-  tire_dots: TireDot[];
-  stores: Store | Store[] | null;
-}
-
-interface StaffRequestData {
-  requester_name: string;
-  requester_email: string;
-  store_name: string;
-  requested_at: string;
-}
-
-// Helper to get store name from stores field (handles both single object and array)
-function getStoreName(stores: Store | Store[] | null | undefined): string {
-  if (!stores) return "ร้านค้า";
-  if (Array.isArray(stores)) {
-    return stores[0]?.name || "ร้านค้า";
-  }
-  return stores.name || "ร้านค้า";
-}
-
-// Generate staff request alert Flex Message
-function generateStaffRequestAlert(data: StaffRequestData): object {
-  const requestDate = new Date(data.requested_at).toLocaleDateString("th-TH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-
-  return {
-    type: "flex",
-    altText: `👤 คำขอเข้าร่วมร้าน: ${data.requester_name}`,
-    contents: {
-      type: "bubble",
-      header: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "text",
-            text: "👤 คำขอเข้าร่วมทีมใหม่",
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          }
-        ],
-        backgroundColor: "#2563EB",
-        paddingAll: "lg"
-      },
-      body: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "text",
-            text: data.requester_name || "ไม่ระบุชื่อ",
-            weight: "bold",
-            size: "lg",
-            color: "#1F2937"
-          },
-          {
-            type: "text",
-            text: data.requester_email,
-            size: "sm",
-            color: "#6B7280",
-            margin: "xs"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "box",
-            layout: "horizontal",
-            contents: [
-              {
-                type: "text",
-                text: "ร้านค้า:",
-                size: "sm",
-                color: "#6B7280",
-                flex: 1
-              },
-              {
-                type: "text",
-                text: data.store_name,
-                size: "sm",
-                color: "#1F2937",
-                weight: "bold",
-                flex: 2,
-                align: "end"
-              }
-            ],
-            margin: "lg"
-          },
-          {
-            type: "box",
-            layout: "horizontal",
-            contents: [
-              {
-                type: "text",
-                text: "วันที่ขอ:",
-                size: "sm",
-                color: "#6B7280",
-                flex: 1
-              },
-              {
-                type: "text",
-                text: requestDate,
-                size: "sm",
-                color: "#1F2937",
-                flex: 2,
-                align: "end"
-              }
-            ],
-            margin: "sm"
-          }
-        ],
-        paddingAll: "lg"
-      },
-      footer: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "button",
-            action: {
-              type: "uri",
-              label: "จัดการคำขอ",
-              uri: "https://id-preview--a5cdc804-bf59-4c95-96b8-dab96ec988fc.lovable.app/staff"
-            },
-            style: "primary",
-            color: "#2563EB"
-          }
-        ],
-        paddingAll: "md"
-      }
-    }
-  };
-}
-
-// Generate low stock alert Flex Message
-function generateLowStockAlert(tire: TireWithDots, lowStockDots: { dot_code: string; quantity: number }[]): object {
-  const dotList = lowStockDots.map(dot => ({
-    type: "box",
-    layout: "horizontal",
-    contents: [
-      {
-        type: "text",
-        text: `DOT ${dot.dot_code}`,
-        size: "sm",
-        color: "#555555",
-        flex: 2
-      },
-      {
-        type: "text",
-        text: `เหลือ ${dot.quantity} เส้น`,
-        size: "sm",
-        color: "#EF4444",
-        weight: "bold",
-        align: "end",
-        flex: 1
-      }
-    ],
-    margin: "sm"
-  }));
-
-  return {
-    type: "flex",
-    altText: `⚠️ แจ้งเตือน: ${tire.brand} ${tire.size} สต็อกต่ำ`,
-    contents: {
-      type: "bubble",
-      header: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "text",
-            text: "⚠️ แจ้งเตือนสต็อกต่ำ",
-            weight: "bold",
-            size: "lg",
-            color: "#FFFFFF"
-          }
-        ],
-        backgroundColor: "#F59E0B",
-        paddingAll: "lg"
-      },
-      body: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "text",
-            text: `${tire.brand.toUpperCase()}`,
-            weight: "bold",
-            size: "lg",
-            color: "#2563EB"
-          },
-          {
-            type: "text",
-            text: `${tire.model || ""} • ${tire.size}`,
-            size: "sm",
-            color: "#666666",
-            margin: "xs"
-          },
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: "รายการที่เหลือน้อย:",
-            size: "sm",
-            color: "#888888",
-            margin: "lg"
-          },
-          ...dotList,
-          {
-            type: "separator",
-            margin: "lg"
-          },
-          {
-            type: "text",
-            text: `📍 ${getStoreName(tire.stores)}`,
-            size: "xs",
-            color: "#888888",
-            margin: "lg"
-          }
-        ],
-        paddingAll: "lg"
-      },
-      footer: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "button",
-            action: {
-              type: "uri",
-              label: "จัดการสต็อก",
-              uri: "https://id-preview--a5cdc804-bf59-4c95-96b8-dab96ec988fc.lovable.app/inventory"
-            },
-            style: "primary",
-            color: "#2563EB"
-          }
-        ],
-        paddingAll: "md"
-      }
-    }
-  };
-}
-
-// Send push message to LINE user
-async function sendPushMessage(userId: string, messages: object[]): Promise<void> {
-  const channelAccessToken = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
-  
-  if (!channelAccessToken) {
-    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not configured");
-  }
-
-  const response = await fetch(LINE_PUSH_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${channelAccessToken}`
-    },
-    body: JSON.stringify({
-      to: userId,
-      messages
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("LINE Push API error:", errorText);
-    throw new Error(`LINE Push API error: ${response.status}`);
-  }
-}
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // 1. Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Supabase configuration missing");
+    // 2. รับ Payload จาก Database Webhook
+    // (SQL Trigger จะส่ง object ชื่อ 'record' มาให้)
+    const payload = await req.json()
+    const record = payload.record 
+
+    console.log("🔔 Webhook Payload received:", record);
+
+    // 3. กรอง: ถ้าไม่มี record หรือ send_line = false ให้ข้ามไปเลย
+    if (!record || !record.send_line) {
+      console.log("Skipping: send_line is false or no record provided");
+      return new Response(JSON.stringify({ message: 'Skipped' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // 4. เชื่อมต่อ Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    // Parse request body
-    const body = await req.json().catch(() => ({}));
-    const { tire_id, admin_line_user_id, type, store_id, requester_user_id } = body;
+    // 5. หา LINE User ID ของคนรับ (จาก user_id)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('line_user_id')
+      .eq('user_id', record.user_id)
+      .single()
 
-    // Handle staff request notification
-    if (type === "staff_request" && store_id && requester_user_id) {
-      // Get store owner's LINE user ID
-      const { data: store, error: storeError } = await supabase
-        .from("stores")
-        .select("name, owner_id")
-        .eq("id", store_id)
-        .single();
-
-      if (storeError || !store) {
-        console.error("Store not found:", storeError);
-        return new Response(JSON.stringify({ error: "Store not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      // Get owner's LINE user ID
-      const { data: ownerProfile, error: ownerError } = await supabase
-        .from("profiles")
-        .select("line_user_id")
-        .eq("user_id", store.owner_id)
-        .single();
-
-      if (ownerError || !ownerProfile?.line_user_id) {
-        console.log("Owner has no LINE linked:", ownerError);
-        return new Response(JSON.stringify({ 
-          success: true, 
-          sent: false, 
-          reason: "Owner has no LINE account linked" 
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      // Get requester's profile
-      const { data: requesterProfile, error: requesterError } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("user_id", requester_user_id)
-        .single();
-
-      if (requesterError) {
-        console.error("Requester profile not found:", requesterError);
-      }
-
-      const alertMessage = generateStaffRequestAlert({
-        requester_name: requesterProfile?.full_name || "ไม่ระบุชื่อ",
-        requester_email: requesterProfile?.email || "ไม่ระบุอีเมล",
-        store_name: store.name,
-        requested_at: new Date().toISOString()
-      });
-
-      await sendPushMessage(ownerProfile.line_user_id, [alertMessage]);
-
-      return new Response(JSON.stringify({ success: true, sent: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+    if (profileError || !profile?.line_user_id) {
+      console.log(`User ${record.user_id} has no LINE ID linked.`)
+      // ไม่ถือเป็น Error แค่บอกว่าส่งไม่ได้
+      return new Response(JSON.stringify({ message: 'User not linked to LINE' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    // Option 1: Check specific tire (low stock alert)
-    if (tire_id) {
-      const { data: tire, error } = await supabase
-        .from("tires")
-        .select(`
-          id, brand, model, size,
-          tire_dots (id, dot_code, quantity),
-          stores (name, owner_id)
-        `)
-        .eq("id", tire_id)
-        .single();
+    // 6. เลือกสีหัวข้อตามความด่วน (type)
+    let headerColor = '#1DB446'; // เขียว (ค่าเริ่มต้น / info)
+    let headerText = 'การแจ้งเตือน';
 
-      if (error || !tire) {
-        return new Response(JSON.stringify({ error: "Tire not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      const tireData = tire as TireWithDots;
-      const lowStockDots = tireData.tire_dots.filter(dot => dot.quantity > 0 && dot.quantity <= LOW_STOCK_THRESHOLD);
-
-      if (lowStockDots.length > 0 && admin_line_user_id) {
-        const alertMessage = generateLowStockAlert(tireData, lowStockDots);
-        await sendPushMessage(admin_line_user_id, [alertMessage]);
-        
-        return new Response(JSON.stringify({ success: true, sent: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-
-      return new Response(JSON.stringify({ success: true, sent: false, reason: "No low stock items" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+    if (record.type === 'critical') {
+      headerColor = '#EF4444'; // แดง
+      headerText = '⚠️ ด่วนมาก';
+    } else if (record.type === 'warning') {
+      headerColor = '#F59E0B'; // เหลือง
+      headerText = 'แจ้งเตือน';
     }
 
-    // Option 2: Scan all tires for low stock (can be called by a cron job)
-    const { data: tiresWithLowStock, error } = await supabase
-      .from("tires")
-      .select(`
-        id, brand, model, size,
-        tire_dots!inner (id, dot_code, quantity),
-        stores (name, owner_id)
-      `)
-      .gt("tire_dots.quantity", 0)
-      .lte("tire_dots.quantity", LOW_STOCK_THRESHOLD);
+    // 7. สร้าง Flex Message (ใช้ Title/Message จาก Database ตรงๆ)
+    const flexMessage = {
+      type: 'flex',
+      altText: `${record.title}: ${record.message}`,
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: headerText,
+              color: '#FFFFFF',
+              weight: 'bold'
+            }
+          ],
+          backgroundColor: headerColor
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: record.title,
+              weight: 'bold',
+              size: 'lg',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: record.message,
+              size: 'md',
+              color: '#666666',
+              wrap: true,
+              margin: 'md'
+            }
+          ]
+        }
+      }
+    };
 
-    if (error) {
-      console.error("Error fetching low stock tires:", error);
-      throw error;
+    // 8. ยิงเข้า LINE API
+    const lineRes = await fetch(LINE_PUSH_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('LINE_CHANNEL_ACCESS_TOKEN')}`,
+      },
+      body: JSON.stringify({
+        to: profile.line_user_id,
+        messages: [flexMessage],
+      }),
+    })
+
+    if (!lineRes.ok) {
+      const errorText = await lineRes.text()
+      throw new Error(`LINE API Error: ${errorText}`)
     }
 
-    console.log(`Found ${tiresWithLowStock?.length || 0} tires with low stock`);
+    console.log("✅ Notification sent to LINE successfully!");
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      low_stock_count: tiresWithLowStock?.length || 0,
-      message: "To send alerts, provide admin_line_user_id in the request body"
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
 
   } catch (error) {
-    console.error("Push notification error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    console.error("Internal Error:", error)
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
-});
+})

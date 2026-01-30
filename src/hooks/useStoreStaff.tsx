@@ -3,6 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
+// 1. นิยามสิทธิ์มาตรฐาน (Role Presets)
+const ROLE_PERMISSIONS = {
+  manager: {
+    web: { view: true, add: true, edit: true, delete: true },
+    line: { view: true, adjust: true },
+  },
+  staff: {
+    web: { view: true, add: true, edit: true, delete: false }, // Staff ทั่วไปห้ามลบ
+    line: { view: true, adjust: true },
+  },
+  sales: {
+    web: { view: true, add: false, edit: false, delete: false }, // Sales ดูอย่างเดียว
+    line: { view: true, adjust: false }, // Sales ห้ามปรับสต็อกผ่าน LINE
+  },
+};
+
 interface StorePermissions {
   web: {
     view: boolean;
@@ -46,7 +62,6 @@ export function useStoreStaff(searchQuery: string = "") {
     queryFn: async () => {
       if (!store?.id) return [];
 
-      // Fetch store members with their profiles
       const { data: members, error: membersError } = await supabase
         .from("store_members")
         .select("*")
@@ -55,10 +70,8 @@ export function useStoreStaff(searchQuery: string = "") {
       if (membersError) throw membersError;
       if (!members || members.length === 0) return [];
 
-      // Get user IDs to fetch profiles
       const userIds = members.map((m) => m.user_id);
 
-      // Fetch profiles for these users
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
@@ -66,7 +79,6 @@ export function useStoreStaff(searchQuery: string = "") {
 
       if (profilesError) throw profilesError;
 
-      // Combine members with profiles
       let result: StoreMember[] = members.map((member) => ({
         ...member,
         permissions: member.permissions as unknown as StorePermissions | null,
@@ -74,7 +86,6 @@ export function useStoreStaff(searchQuery: string = "") {
         profile: profiles?.find((p) => p.user_id === member.user_id) || null,
       }));
 
-      // Apply search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         result = result.filter(
@@ -93,7 +104,6 @@ export function useStoreStaff(searchQuery: string = "") {
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
       if (!store?.id) throw new Error("No store found");
 
-      // First, find the user by email
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("user_id")
@@ -103,11 +113,14 @@ export function useStoreStaff(searchQuery: string = "") {
       if (profileError) throw profileError;
       if (!profile) throw new Error("User not found with this email");
 
-      // Add them as a store member
+      // 2. เลือกสิทธิ์ตาม Role ที่ส่งมา (ถ้าไม่มีให้ใช้ staff)
+      const permissions = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS['staff'];
+
       const { error } = await supabase.from("store_members").insert({
         store_id: store.id,
         user_id: profile.user_id,
         role,
+        permissions, // บันทึกสิทธิ์ลงไปด้วยทันที
       });
 
       if (error) {
@@ -135,9 +148,16 @@ export function useStoreStaff(searchQuery: string = "") {
 
   const updateMemberRoleMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
+      
+      // 3. เลือกสิทธิ์ใหม่ตาม Role ที่เปลี่ยน
+      const newPermissions = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS['staff'];
+
       const { error } = await supabase
         .from("store_members")
-        .update({ role })
+        .update({ 
+          role,
+          permissions: newPermissions // อัปเดตสิทธิ์ให้ตรงกับ Role ใหม่
+        })
         .eq("id", memberId);
 
       if (error) throw error;
@@ -146,7 +166,7 @@ export function useStoreStaff(searchQuery: string = "") {
       queryClient.invalidateQueries({ queryKey: ["store-staff"] });
       toast({
         title: "Role updated",
-        description: "Staff member role has been updated.",
+        description: "Staff member role and permissions have been updated.",
       });
     },
     onError: (error) => {

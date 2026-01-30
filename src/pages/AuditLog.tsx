@@ -31,6 +31,9 @@ import {
 import { format } from "date-fns";
 import { th, enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const dateRangeOptions: { value: AuditDateRange; label: string; labelTh: string }[] = [
   { value: "7d", label: "Last 7 Days", labelTh: "7 วันที่ผ่านมา" },
@@ -49,11 +52,12 @@ const actionOptions: { value: AuditAction; label: string; labelTh: string }[] = 
 export default function AuditLog() {
   const { language } = useLanguage();
   const [dateRange, setDateRange] = useState<AuditDateRange>("30d");
+  const [customDate, setCustomDate] = useState<DateRange | undefined>();
   const [actionFilter, setActionFilter] = useState<AuditAction>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  const { loading, logs, stats } = useAuditLog(dateRange, actionFilter, debouncedSearch);
+  const { loading, logs, stats } = useAuditLog(dateRange, actionFilter, debouncedSearch, customDate);
 
   const t = (en: string, th: string) => language === "th" ? th : en;
 
@@ -61,6 +65,13 @@ export default function AuditLog() {
     return format(new Date(dateStr), "PPp", {
       locale: language === "th" ? th : enUS,
     });
+  };
+
+  const handleDateSelect = (date: DateRange | undefined) => {
+    setCustomDate(date);
+    if (date) {
+      setDateRange("custom");
+    }
   };
 
   const getActionBadge = (action: string) => {
@@ -109,6 +120,7 @@ export default function AuditLog() {
         </div>
 
         {/* Stats Cards */}
+        {/* (คงเดิม) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -178,9 +190,9 @@ export default function AuditLog() {
         {/* Filters */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               {/* Search */}
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder={t("Search by product, DOT, or staff...", "ค้นหาตามสินค้า, DOT, หรือพนักงาน...")}
@@ -190,23 +202,36 @@ export default function AuditLog() {
                 />
               </div>
 
-              {/* Date Range */}
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as AuditDateRange)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {dateRangeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {language === "th" ? option.labelTh : option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Date Range Select */}
+              <div className="flex gap-2 items-center flex-wrap">
+                <Select value={dateRange} onValueChange={(v) => {
+                  setDateRange(v as AuditDateRange);
+                  if (v !== 'custom') setCustomDate(undefined);
+                }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dateRangeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {language === "th" ? option.labelTh : option.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">{t("Custom Date", "กำหนดเอง")}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Calendar Picker (Show if custom or always accessible) */}
+                <DatePickerWithRange 
+                  date={customDate} 
+                  setDate={handleDateSelect}
+                  className={cn(dateRange !== 'custom' && "hidden sm:block opacity-50 hover:opacity-100 transition-opacity")}
+                />
+              </div>
 
               {/* Action Filter */}
               <Select value={actionFilter} onValueChange={(v) => setActionFilter(v as AuditAction)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -252,7 +277,7 @@ export default function AuditLog() {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       {/* Action Badge */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-[120px]">
                         {getActionBadge(log.action)}
                         <div className="flex items-center gap-2 text-sm">
                           <span className={cn(
@@ -264,8 +289,8 @@ export default function AuditLog() {
                             {log.action === "add" ? "+" : log.action === "remove" ? "-" : ""}
                             {Math.abs(log.quantity_change)}
                           </span>
-                          <span className="text-muted-foreground">
-                            ({log.quantity_before} → {log.quantity_after})
+                          <span className="text-muted-foreground text-xs">
+                            ({log.quantity_before}→{log.quantity_after})
                           </span>
                         </div>
                       </div>
@@ -286,18 +311,23 @@ export default function AuditLog() {
                         </div>
                       </div>
 
-                      {/* User & Time */}
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <User className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-foreground">
+                      {/* User & Time (Updated with Avatar) */}
+                      <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l sm:pl-4 pt-3 sm:pt-0 mt-2 sm:mt-0 min-w-[200px] justify-end">
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-medium text-foreground">
                             {log.user_name || log.user_email}
                           </span>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>{formatDate(log.created_at)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatDate(log.created_at)}</span>
-                        </div>
+                        <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
+                          <AvatarImage src={log.user_avatar || ""} alt={log.user_name || ""} />
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {log.user_name?.substring(0, 2).toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
                       </div>
                     </div>
                   </div>

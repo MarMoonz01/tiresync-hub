@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -16,13 +16,16 @@ import { LineIntegrationCard } from "@/components/profile/LineIntegrationCard";
 import { StoreAssociationsCard } from "@/components/profile/StoreAssociationsCard";
 
 export default function Profile() {
-  const { profile, roles, isAdmin, isModerator, refetchProfile } = useAuth();
+  // ดึง isOwner และ storeMembership มาใช้เพื่อเช็คตำแหน่ง
+  const { profile, isAdmin, refetchProfile, isOwner, storeMembership } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const initials = profile?.full_name
     ?.split(" ")
@@ -64,12 +67,80 @@ export default function Profile() {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${profile.user_id}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', profile.user_id);
+
+      if (updateError) throw updateError;
+
+      await refetchProfile();
+      toast({
+        title: "Avatar updated",
+        description: "Your profile picture has been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error updating avatar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // ✅ Logic ใหม่: แสดง Badge ตามตำแหน่งจริงในร้าน
   const getRoleBadge = () => {
-    if (isAdmin) return { label: "Admin", variant: "default" as const };
-    if (isModerator) return { label: "Moderator", variant: "secondary" as const };
-    const hasStoreMember = roles.some(r => r.role === "store_member");
-    if (hasStoreMember) return { label: "Store Member", variant: "outline" as const };
-    return { label: "Pending", variant: "outline" as const };
+    // 1. ถ้าเป็นเจ้าของร้าน
+    if (isOwner) return { label: "Store Owner", variant: "default" as const };
+
+    // 2. ถ้าเป็นพนักงาน (เช็คจาก storeMembership)
+    if (storeMembership?.role) {
+      // แปลงตัวอักษรแรกเป็นพิมพ์ใหญ่ (manager -> Manager)
+      const roleName = storeMembership.role.charAt(0).toUpperCase() + storeMembership.role.slice(1);
+      
+      // เลือกสี Badge ให้ต่างกันตามตำแหน่ง
+      let variant: "default" | "secondary" | "outline" = "outline";
+      
+      switch (storeMembership.role.toLowerCase()) {
+        case 'manager':
+          variant = "default"; // สีเข้ม (สำคัญ)
+          break;
+        case 'sales':
+          variant = "secondary"; // สีรอง
+          break;
+        default:
+          variant = "outline"; // ทั่วไป
+      }
+
+      return { label: roleName, variant };
+    }
+
+    // 3. ถ้าเป็น System Admin
+    if (isAdmin) return { label: "System Admin", variant: "destructive" as const };
+
+    // ถ้าไม่มีตำแหน่งอะไรเลย ให้คืนค่า null (ไม่แสดง Badge)
+    return null;
   };
 
   const roleBadge = getRoleBadge();
@@ -107,30 +178,41 @@ export default function Profile() {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
+                
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  disabled={isUploading}
+                />
+                
+                {/* Camera Button triggers file input */}
                 <button
                   className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors"
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
                 >
-                  <Camera className="w-4 h-4" />
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               <div className="mt-4 text-center">
                 <p className="font-semibold text-lg">{profile?.full_name || "User"}</p>
                 <p className="text-sm text-muted-foreground">{profile?.email}</p>
                 <div className="flex justify-center gap-2 mt-2">
-                  <Badge variant={roleBadge.variant}>{roleBadge.label}</Badge>
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      profile?.status === "approved" 
-                        ? "bg-success/10 text-success border-success/30" 
-                        : profile?.status === "pending" 
-                        ? "bg-warning/10 text-warning border-warning/30" 
-                        : "bg-destructive/10 text-destructive border-destructive/30"
-                    }
-                  >
-                    {profile?.status || "pending"}
-                  </Badge>
+                  
+                  {/* แสดง Badge เฉพาะเมื่อมี roleBadge */}
+                  {roleBadge && (
+                    <Badge variant={roleBadge.variant}>{roleBadge.label}</Badge>
+                  )}
+
                 </div>
               </div>
             </CardContent>
@@ -191,10 +273,7 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Store Associations */}
           <StoreAssociationsCard />
-
-          {/* LINE Integration */}
           <LineIntegrationCard />
         </motion.div>
       </div>

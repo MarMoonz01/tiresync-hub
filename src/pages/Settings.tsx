@@ -1,16 +1,21 @@
 import { motion } from "framer-motion";
-import { User, Store, Bell, Shield, LogOut } from "lucide-react";
+import { User, Store, Bell, Shield, LogOut, Globe, MessageCircle, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { LineSettingsCard } from "@/components/store/LineSettingsCard";
 
 export default function Settings() {
-  const { profile, store, isAdmin, isModerator, roles } = useAuth();
+  const { profile, store, isAdmin, isModerator, roles, storeMembership } = useAuth();
+  const { isOwner, isAdmin: isSystemAdmin } = usePermissions();
   const navigate = useNavigate();
 
   const initials = profile?.full_name
@@ -25,39 +30,40 @@ export default function Settings() {
   };
 
   const getRoleBadge = () => {
-    if (isAdmin) return { label: "Admin", variant: "default" as const };
+    if (isOwner) return { label: "Store Owner", variant: "default" as const };
+    if (storeMembership?.role) {
+      const roleName = storeMembership.role.charAt(0).toUpperCase() + storeMembership.role.slice(1);
+      let variant: "default" | "secondary" | "outline" = "outline";
+      switch (storeMembership.role.toLowerCase()) {
+        case 'manager': variant = "default"; break;
+        case 'sales': variant = "secondary"; break;
+        default: variant = "outline";
+      }
+      return { label: roleName, variant };
+    }
+    if (isAdmin) return { label: "System Admin", variant: "destructive" as const };
     if (isModerator) return { label: "Moderator", variant: "secondary" as const };
-    const hasStoreMember = roles.some(r => r.role === "store_member");
-    if (hasStoreMember) return { label: "Store Member", variant: "outline" as const };
-    return { label: "Pending", variant: "outline" as const };
+    return { label: "User", variant: "outline" as const };
   };
 
   const roleBadge = getRoleBadge();
 
-  const menuItems = [
+  const accountMenuItems = [
     {
       icon: User,
       title: "Edit Profile",
-      description: "Update your personal information",
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      description: "Update personal details",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
       onClick: () => navigate("/profile"),
-    },
-    {
-      icon: Bell,
-      title: "Notifications",
-      description: "Configure alert preferences",
-      color: "text-accent",
-      bgColor: "bg-accent/10",
-      onClick: () => {},
     },
     {
       icon: Shield,
       title: "Security",
-      description: "Password and security settings",
-      color: "text-success",
-      bgColor: "bg-success/10",
-      onClick: () => {},
+      description: "Password & authentication",
+      color: "text-green-500",
+      bgColor: "bg-green-500/10",
+      onClick: () => {}, 
     },
   ];
 
@@ -65,104 +71,156 @@ export default function Settings() {
     <AppLayout>
       <div className="page-container">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-5 max-w-lg mx-auto"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 max-w-2xl mx-auto"
         >
-          {/* Header */}
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your account
-            </p>
+            <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+            <p className="text-muted-foreground">Manage your preferences and store settings</p>
           </div>
 
-          {/* Profile Card */}
-          <Card className="border-0 shadow-soft bg-card/60 backdrop-blur-sm">
+          {/* Profile Section */}
+          <Card className="border-0 shadow-sm bg-card/50 backdrop-blur-sm">
             <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-12 h-12 ring-2 ring-border/40">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-16 h-16 border-2 border-background shadow-sm">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">
+                  <h3 className="font-semibold text-lg truncate">
                     {profile?.full_name || "User"}
                   </h3>
-                  <p className="text-muted-foreground text-xs truncate">
+                  <p className="text-muted-foreground text-sm truncate">
                     {profile?.email}
                   </p>
-                  <div className="flex gap-1.5 mt-1.5">
-                    <Badge variant={roleBadge.variant} className="text-[10px] px-1.5 py-0">
+                  <div className="flex gap-2 mt-2">
+                    <Badge variant={roleBadge.variant} className="px-2 py-0.5 text-xs">
                       {roleBadge.label}
-                    </Badge>
-                    <Badge 
-                      variant={
-                        profile?.status === "approved" 
-                          ? "success" 
-                          : profile?.status === "pending" 
-                          ? "warning" 
-                          : "destructive"
-                      }
-                      className="text-[10px] px-1.5 py-0"
-                    >
-                      {profile?.status || "pending"}
                     </Badge>
                   </div>
                 </div>
+                <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
+                  Edit
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Store Info */}
-          {store && (
-            <Card className="border-0 shadow-soft bg-card/60 backdrop-blur-sm">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                  <Store className="w-3.5 h-3.5" />
-                  My Store
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 pt-0">
-                <p className="font-medium text-sm">{store.name}</p>
-                {store.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{store.description}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Menu Items */}
-          <div className="space-y-2">
-            {menuItems.map((item) => (
+          {/* Store Settings */}
+          {(store && (isOwner || isSystemAdmin)) && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                Store Settings
+              </h2>
+              
               <Card 
-                key={item.title}
-                className="border-0 shadow-soft bg-card/60 backdrop-blur-sm cursor-pointer hover:shadow-soft-lg transition-all"
-                onClick={item.onClick}
+                className="cursor-pointer hover:bg-accent/5 transition-colors border-0 shadow-sm"
+                onClick={() => navigate("/store")}
               >
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl ${item.bgColor} flex items-center justify-center`}>
-                    <item.icon className={`w-4 h-4 ${item.color}`} />
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Store className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                    <h3 className="font-medium">{store.name}</h3>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {store.address || "No address set"}
+                    </p>
                   </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
                 </CardContent>
               </Card>
-            ))}
+
+              {/* ✅ ตรงนี้ครับที่เปลี่ยน: ส่ง line_channel_access_token เข้าไป */}
+              <LineSettingsCard 
+                lineEnabled={store.line_enabled || false}
+                // ถ้าใน useAuth ยังไม่ได้แก้ Type ให้ใช้ as any เพื่อ bypass (ถ้าคุณไม่อยากแก้ไฟล์อื่น)
+                lineChannelAccessToken={(store as any).line_channel_access_token || ""} 
+                lineChannelSecret={store.line_channel_secret || ""}
+              />
+            </div>
+          )}
+
+          {/* Preferences */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
+              Preferences
+            </h2>
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-0 divide-y">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                      <Globe className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Language</p>
+                      <p className="text-xs text-muted-foreground">Select your preferred language</p>
+                    </div>
+                  </div>
+                  <LanguageToggle />
+                </div>
+
+                <div className="flex items-center justify-between p-4 opacity-50 cursor-not-allowed">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                      <Bell className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Notifications</p>
+                      <p className="text-xs text-muted-foreground">Manage app notifications (Coming Soon)</p>
+                    </div>
+                  </div>
+                  <Switch disabled />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="w-full text-center text-sm text-destructive hover:underline underline-offset-4 py-2"
-          >
-            Sign Out
-          </button>
+          {/* Account */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
+              Account
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {accountMenuItems.map((item) => (
+                <Card 
+                  key={item.title}
+                  className="cursor-pointer hover:shadow-md transition-all border-0 shadow-sm"
+                  onClick={item.onClick}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl ${item.bgColor} flex items-center justify-center`}>
+                      <item.icon className={`w-5 h-5 ${item.color}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <Button 
+              variant="destructive" 
+              className="w-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+            <p className="text-center text-xs text-muted-foreground mt-4">
+              TireSync Hub v1.0.0
+            </p>
+          </div>
+
         </motion.div>
       </div>
     </AppLayout>

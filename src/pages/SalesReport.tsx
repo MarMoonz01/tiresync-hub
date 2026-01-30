@@ -33,6 +33,8 @@ import {
   Bar,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { DateRange as DayPickerDateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 
 const dateRangeOptions: { value: DateRange; label: string; labelTh: string }[] = [
   { value: "7d", label: "Last 7 Days", labelTh: "7 วันที่ผ่านมา" },
@@ -44,15 +46,17 @@ const dateRangeOptions: { value: DateRange; label: string; labelTh: string }[] =
 export default function SalesReport() {
   const { language } = useLanguage();
   const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const [customDate, setCustomDate] = useState<DayPickerDateRange | undefined>();
+  
   const { 
     loading, 
     salesData, 
     topProducts, 
     overview, 
-    monthlyData,
-    previousPeriod,
+    monthlyData, 
+    previousPeriod, 
     calculateChange 
-  } = useSalesReport(dateRange);
+  } = useSalesReport(dateRange, customDate);
 
   const t = (en: string, th: string) => language === "th" ? th : en;
 
@@ -107,6 +111,13 @@ export default function SalesReport() {
     );
   };
 
+  const handleDateSelect = (date: DayPickerDateRange | undefined) => {
+    setCustomDate(date);
+    if (date) {
+      setDateRange("custom");
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -122,17 +133,27 @@ export default function SalesReport() {
           </div>
           
           {/* Date Range Selector */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             {dateRangeOptions.map((option) => (
               <Button
                 key={option.value}
                 variant={dateRange === option.value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setDateRange(option.value)}
+                onClick={() => {
+                  setDateRange(option.value);
+                  setCustomDate(undefined);
+                }}
               >
                 {language === "th" ? option.labelTh : option.label}
               </Button>
             ))}
+            
+            {/* Custom Date Picker */}
+            <DatePickerWithRange 
+              date={customDate} 
+              setDate={handleDateSelect}
+              className={dateRange !== 'custom' ? "opacity-70 hover:opacity-100" : ""}
+            />
           </div>
         </div>
 

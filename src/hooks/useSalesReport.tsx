@@ -7,16 +7,15 @@ import {
   subMonths, 
   format, 
   eachDayOfInterval,
-  eachWeekOfInterval,
-  eachMonthOfInterval,
-  startOfWeek,
-  endOfWeek,
-  startOfYear,
-  subDays
+  subDays,
+  endOfDay,
+  startOfDay
 } from "date-fns";
+import { DateRange as DayPickerDateRange } from "react-day-picker";
 
-export type DateRange = "7d" | "30d" | "90d" | "12m" | "all";
+export type DateRange = "7d" | "30d" | "90d" | "12m" | "all" | "custom";
 
+// ... (Interfaces คงเดิม SaleRecord, DailySale, TopProduct, SalesOverview, MonthlyComparison) ...
 interface SaleRecord {
   id: string;
   quantity_change: number;
@@ -53,9 +52,10 @@ interface MonthlyComparison {
   revenue: number;
 }
 
-export function useSalesReport(dateRange: DateRange = "30d") {
+export function useSalesReport(dateRange: DateRange = "30d", customDate?: DayPickerDateRange) {
   const { store } = useAuth();
   const [loading, setLoading] = useState(true);
+  // ... (States คงเดิม) ...
   const [salesData, setSalesData] = useState<DailySale[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [overview, setOverview] = useState<SalesOverview>({
@@ -72,7 +72,7 @@ export function useSalesReport(dateRange: DateRange = "30d") {
     uniqueProducts: 0,
   });
 
-  const getDateRange = useCallback((range: DateRange) => {
+  const getDateRange = useCallback((range: DateRange, custom?: DayPickerDateRange) => {
     const now = new Date();
     switch (range) {
       case "7d":
@@ -85,6 +85,11 @@ export function useSalesReport(dateRange: DateRange = "30d") {
         return { start: subMonths(now, 12), end: now };
       case "all":
         return { start: new Date(2020, 0, 1), end: now };
+      case "custom":
+        if (custom?.from) {
+          return { start: startOfDay(custom.from), end: custom.to ? endOfDay(custom.to) : endOfDay(custom.from) };
+        }
+        return { start: subDays(now, 30), end: now };
       default:
         return { start: subDays(now, 30), end: now };
     }
@@ -122,6 +127,7 @@ export function useSalesReport(dateRange: DateRange = "30d") {
       const dotIds = dotsData?.map((d) => d.id) || [];
 
       if (dotIds.length === 0) {
+        // ... (Reset states empty) ...
         setSalesData([]);
         setTopProducts([]);
         setOverview({ totalSales: 0, totalRevenue: 0, averageOrderSize: 0, uniqueProducts: 0 });
@@ -131,7 +137,7 @@ export function useSalesReport(dateRange: DateRange = "30d") {
         return;
       }
 
-      const { start, end } = getDateRange(dateRange);
+      const { start, end } = getDateRange(dateRange, customDate);
 
       // Fetch sales logs (remove actions)
       const { data: salesLogs, error: salesError } = await supabase
@@ -145,6 +151,7 @@ export function useSalesReport(dateRange: DateRange = "30d") {
 
       if (salesError) throw salesError;
 
+      // ... (Calculation logic remains exactly the same) ...
       // Calculate daily sales
       const dailySalesMap = new Map<string, { quantity: number; revenue: number }>();
       const productSalesMap = new Map<string, { totalSold: number; revenue: number }>();
@@ -294,7 +301,7 @@ export function useSalesReport(dateRange: DateRange = "30d") {
     } finally {
       setLoading(false);
     }
-  }, [store, dateRange, getDateRange]);
+  }, [store, dateRange, customDate, getDateRange]);
 
   useEffect(() => {
     fetchSalesReport();

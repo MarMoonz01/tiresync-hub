@@ -53,8 +53,9 @@ const App = () => (
               <Route path="/inventory/edit/:id" element={
                 <ProtectedRoute><EditTire /></ProtectedRoute>
               } />
+              {/* แก้ไขตรงนี้: เพิ่ม ownerOnly เพื่อป้องกัน Staff เข้าหน้านี้ */}
               <Route path="/import" element={
-                <ProtectedRoute><Import /></ProtectedRoute>
+                <ProtectedRoute ownerOnly><Import /></ProtectedRoute>
               } />
               <Route path="/store" element={
                 <ProtectedRoute><MyStore /></ProtectedRoute>

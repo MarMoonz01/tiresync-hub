@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { subDays, format } from "date-fns";
+import { subDays, startOfDay, endOfDay } from "date-fns";
+import { DateRange } from "react-day-picker";
 
-export type AuditDateRange = "7d" | "30d" | "90d" | "all";
+export type AuditDateRange = "7d" | "30d" | "90d" | "all" | "custom";
 export type AuditAction = "all" | "add" | "remove" | "adjust";
 
 interface AuditLogEntry {
@@ -23,6 +24,7 @@ interface AuditLogEntry {
   tire_size?: string;
   user_email?: string;
   user_name?: string | null;
+  user_avatar?: string | null; // เพิ่ม Avatar
 }
 
 interface AuditStats {
@@ -36,7 +38,8 @@ interface AuditStats {
 export function useAuditLog(
   dateRange: AuditDateRange = "30d",
   actionFilter: AuditAction = "all",
-  searchQuery: string = ""
+  searchQuery: string = "",
+  customDate?: DateRange
 ) {
   const { store } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -49,7 +52,7 @@ export function useAuditLog(
     uniqueUsers: 0,
   });
 
-  const getDateRange = useCallback((range: AuditDateRange) => {
+  const getDateRange = useCallback((range: AuditDateRange, custom?: DateRange) => {
     const now = new Date();
     switch (range) {
       case "7d":
@@ -60,6 +63,8 @@ export function useAuditLog(
         return subDays(now, 90);
       case "all":
         return new Date(2020, 0, 1);
+      case "custom":
+        return custom?.from || subDays(now, 30);
       default:
         return subDays(now, 30);
     }
@@ -103,7 +108,12 @@ export function useAuditLog(
         return;
       }
 
-      const startDate = getDateRange(dateRange);
+      const startDate = getDateRange(dateRange, customDate);
+      let endDate = new Date(); // Default end is now
+      
+      if (dateRange === "custom" && customDate?.to) {
+        endDate = endOfDay(customDate.to);
+      }
 
       // Build query
       let query = supabase
@@ -111,6 +121,7 @@ export function useAuditLog(
         .select("*")
         .in("tire_dot_id", dotIds)
         .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString()) // Filter end date too
         .order("created_at", { ascending: false });
 
       if (actionFilter !== "all") {
@@ -124,17 +135,17 @@ export function useAuditLog(
       // Get unique user IDs to fetch their profiles
       const userIds = [...new Set((logsData || []).map((l) => l.user_id).filter(Boolean))] as string[];
 
-      // Fetch user profiles
-      let userMap = new Map<string, { email: string; full_name: string | null }>();
+      // Fetch user profiles (Include avatar_url)
+      let userMap = new Map<string, { email: string; full_name: string | null; avatar_url: string | null }>();
       
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, email, full_name")
+          .select("user_id, email, full_name, avatar_url") // เพิ่ม avatar_url
           .in("user_id", userIds);
 
         userMap = new Map(
-          (profilesData || []).map((p) => [p.user_id, { email: p.email, full_name: p.full_name }])
+          (profilesData || []).map((p) => [p.user_id, { email: p.email, full_name: p.full_name, avatar_url: p.avatar_url }])
         );
       }
 
@@ -152,6 +163,7 @@ export function useAuditLog(
           tire_size: tire?.size || "Unknown",
           user_email: user?.email || "System",
           user_name: user?.full_name,
+          user_avatar: user?.avatar_url, // ใส่ Avatar
         };
       });
 
@@ -190,7 +202,7 @@ export function useAuditLog(
     } finally {
       setLoading(false);
     }
-  }, [store, dateRange, actionFilter, searchQuery, getDateRange]);
+  }, [store, dateRange, customDate, actionFilter, searchQuery, getDateRange]);
 
   useEffect(() => {
     fetchAuditLogs();

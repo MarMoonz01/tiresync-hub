@@ -9,7 +9,9 @@ import {
   Upload,
   ArrowRight,
   ShoppingCart,
-  XCircle
+  XCircle,
+  Search,
+  Store
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,8 +94,9 @@ export default function Dashboard() {
       hoverBgColor: "bg-primary/20",
       iconColor: "text-primary",
     }] : []),
-    // Import - only if user can add
-    ...(canAdd ? [{
+    // Import - only if user can add AND IS NOT STAFF
+    // แก้ไขตรงนี้: เพิ่มเงื่อนไข !isStaff
+    ...(canAdd && !isStaff ? [{
       to: "/import",
       icon: Upload,
       label: "Import",
@@ -142,7 +145,7 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Store Setup CTA - only show for non-staff users without a store */}
+          {/* Store Setup CTA / Join Store - Logic Updated */}
           {!store && !isStaff && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}

@@ -30,7 +30,7 @@ interface DesktopSidebarProps {
   onToggle: () => void;
 }
 
-// เมนูพื้นฐานที่ทุกคน (Admin & Staff) เห็นเหมือนกัน
+// เมนูพื้นฐานที่ทุกคน (Admin & Staff) เห็นเหมือนกัน (โดยปกติ)
 const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
@@ -54,15 +54,21 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isOwner, isAdmin, hasStore } = useAuth();
+  // แก้ไขตรงนี้: เพิ่มการดึง isStaff มาใช้
+  const { isOwner, isAdmin, hasStore, isStaff } = useAuth();
   const { t } = useLanguage();
 
   // Only store owners and system admins can see admin menu items
   const canAccessAdminItems = (isOwner || isAdmin) && hasStore;
 
+  // แก้ไขตรงนี้: กรองเมนู Import ออก ถ้าเป็น Staff
+  const filteredBaseNavItems = baseNavItems.filter(item => 
+    item.path !== "/import" || !isStaff
+  );
+
   // Build menu items based on permissions
   const navItems = [
-    ...baseNavItems,
+    ...filteredBaseNavItems,
     // Show Sales Report, Audit Log, Staff Management only for owners/admins with a store
     ...(canAccessAdminItems ? adminOnlyNavItems : []),
     ...bottomNavItems,
