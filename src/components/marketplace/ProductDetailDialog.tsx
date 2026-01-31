@@ -28,10 +28,6 @@ export function StoreProductDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* FIX ความกระตุก:
-         1. ใช้ data-[state=open]:!animate-none เพื่อบังคับปิด Animation ของ Shadcn ทุกกรณี
-         2. ตั้ง bg-transparent เพื่อไม่ให้เห็นกล่องขาวแวบขึ้นมาก่อน
-      */}
       <DialogContent className="
         max-w-4xl p-0 
         bg-transparent border-none shadow-none 
@@ -40,17 +36,17 @@ export function StoreProductDetailDialog({
         [&>button]:hidden overflow-visible
       ">
         
-        {/* ใช้ motion.div ตัวเดียวคุมทั้งหมด เพื่อความลื่นไหลระดับ GPU */}
+        {/* ✅ ปรับ Animation ใหม่: เน้นขยายตัว (Pop) ไวๆ แทนการลอยขึ้น (Fade Up) */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.96 }} // เอา y ออก และเริ่ม scale ที่ 0.96 (ไม่ต้องขยายเยอะ)
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ 
             type: "spring", 
-            stiffness: 350,   // ความเด้ง (ค่าสูง = เด้งเร็วแบบ App มือถือ)
-            damping: 25,      // ความหนืด (ค่านี้ช่วยให้หยุดนิ่งแบบไม่สั่น)
-            mass: 0.5         // น้ำหนักเบา ขยับไว
+            stiffness: 500,   // ดีดตัวเร็วขึ้น (ของเดิม 350)
+            damping: 30,      // หยุดนิ่งเร็ว (ไม่สั่นค้าง)
+            mass: 0.4         // น้ำหนักเบาลง ขยับไวขึ้น
           }}
-          style={{ willChange: "transform, opacity" }} // บังคับใช้ GPU render
+          style={{ willChange: "transform, opacity" }}
           className="bg-white dark:bg-card shadow-2xl rounded-2xl overflow-hidden relative flex flex-col max-h-[85vh]"
         >
             {/* Custom Close Button */}

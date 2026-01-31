@@ -105,7 +105,8 @@ const ProductSelector = ({
     : "data-[selected=true]:bg-blue-50 data-[selected=true]:text-blue-900";
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    // ✅ เพิ่ม modal={true} เพื่อแก้ปัญหา Scroll ใน Dialog
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -137,6 +138,7 @@ const ProductSelector = ({
             onValueChange={onSearchChange}
             className="text-base"
           />
+          {/* ✅ Max Height และ Overflow ถูกต้องแล้ว */}
           <CommandList className="max-h-[300px] overflow-y-auto pretty-scrollbar">
             {loading ? (
               <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">

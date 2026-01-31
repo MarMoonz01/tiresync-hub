@@ -10,7 +10,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { StoreCard } from "@/components/network/StoreCard";
 import { StockComparisonDialog } from "@/components/network/StockComparisonDialog";
 import { PartnerRequestDialog } from "@/components/network/PartnerRequestDialog";
-import { StoreDetailsDialog } from "@/components/network/StoreDetailsDialog"; // ✅ Import ตัวใหม่
+import { StoreDetailsDialog } from "@/components/network/StoreDetailsDialog";
 import { useNetworkStores } from "@/hooks/useNetworkStores";
 import { usePartnerships } from "@/hooks/usePartnerships";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,13 +50,17 @@ export default function Network() {
   } = usePartnerships();
   
   const [searchParams] = useSearchParams();
+  
+  // ✅ 1. เพิ่ม state เพื่อบอกว่า "คำนวณแท็บเสร็จแล้วนะ"
+  const [isTabInitialized, setIsTabInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState("discover");
+  
   const [localSearch, setLocalSearch] = useState("");
   
   // States for Dialogs
   const [comparePartner, setComparePartner] = useState<any>(null);
   const [selectedRequestStore, setSelectedRequestStore] = useState<any>(null);
-  const [viewStore, setViewStore] = useState<any>(null); // ✅ State สำหรับดูข้อมูลร้าน
+  const [viewStore, setViewStore] = useState<any>(null);
 
   // State สำหรับ Confirm Dialog
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -66,12 +70,27 @@ export default function Network() {
     name: string;
   }>({ open: false, type: 'cancel_request', id: '', name: '' });
 
+  // ✅ 2. LOGIC ใหม่: รอ partnersLoading เสร็จก่อน แล้วค่อยเลือกแท็บทีเดียว
   useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && (tab === 'discover' || tab === 'partners' || tab === 'requests')) {
-      setActiveTab(tab);
+    // ถ้าข้อมูลยังโหลดไม่เสร็จ หรือเคย initialize ไปแล้ว ให้หยุด
+    if (partnersLoading || isTabInitialized) return;
+
+    const tabParam = searchParams.get('tab');
+    
+    if (tabParam && (tabParam === 'discover' || tabParam === 'partners' || tabParam === 'requests')) {
+      // กรณี URL บังคับมา
+      setActiveTab(tabParam);
+    } else if (partners.length > 0) {
+      // กรณีมี Partners -> ไปหน้า Partners
+      setActiveTab('partners');
+    } else {
+      // กรณีไม่มี Partners -> ไปหน้า Discover (Default)
+      setActiveTab('discover');
     }
-  }, [searchParams]);
+
+    // บอกว่าพร้อมแสดงผลแล้ว
+    setIsTabInitialized(true);
+  }, [partners, partnersLoading, searchParams, isTabInitialized]);
 
   const debouncedSearch = useDebouncedValue(localSearch, 400);
 
@@ -79,6 +98,19 @@ export default function Network() {
     setSearchQuery(debouncedSearch);
   }, [debouncedSearch, setSearchQuery]);
 
+  // ✅ 3. ถ้ายังคำนวณแท็บไม่เสร็จ ให้แสดง Loading กลางจอ (ป้องกันการกระพริบสลับแท็บ)
+  if (partnersLoading || !isTabInitialized) {
+    return (
+      <AppLayout>
+        <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-muted-foreground animate-pulse text-sm">Loading network...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // --- Logic เดิม ---
   const incomingRequests = requests.filter(r => r.receiver_store_id === myStore?.id);
   const outgoingRequests = requests.filter(r => r.requester_store_id === myStore?.id);
 
@@ -176,10 +208,8 @@ export default function Network() {
                     <div 
                       key={store.id} 
                       className="cursor-pointer transition-transform hover:scale-[1.01]"
-                      // Discover: คลิกเพื่อเปิด Dialog ขอเป็น Partner (หรือจะดูรายละเอียดก่อนก็ได้ แล้วแต่ Logic)
                       onClick={() => setSelectedRequestStore(store)}
                     >
-                      {/* ในหน้า Discover ไม่ต้องมีปุ่ม Compare/View ก็ได้ หรือจะมี View ก็ได้ */}
                       <StoreCard store={store} />
                     </div>
                   ))}
@@ -189,9 +219,7 @@ export default function Network() {
 
             {/* --- TAB: MY PARTNERS --- */}
             <TabsContent value="partners" className="mt-0 space-y-4">
-              {partnersLoading ? (
-                <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-              ) : partners.length === 0 ? (
+              {partners.length === 0 ? (
                 <motion.div variants={itemVariants}>
                   <Card className="glass-card">
                     <CardContent className="py-16 text-center">
@@ -210,14 +238,13 @@ export default function Network() {
                     .filter(p => p.name.toLowerCase().includes(localSearch.toLowerCase()))
                     .map((partner) => (
                     <div key={partner.id} className="relative group h-full">
-                      {/* ✅ StoreCard ที่สมบูรณ์แบบ: มีทั้ง View และ Compare */}
                       <StoreCard 
                         store={partner} 
-                        onCompare={() => setComparePartner(partner)} // ปุ่มขวา: เปรียบเทียบสต็อก
-                        onClick={() => setViewStore(partner)}       // ปุ่มซ้าย: ดูรายละเอียดร้าน
+                        onCompare={() => setComparePartner(partner)} 
+                        onClick={() => setViewStore(partner)}
                       />
                       
-                      {/* ปุ่ม Disconnect (มุมขวาบน) */}
+                      {/* Disconnect Button */}
                       <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                          <Button 
                            variant="secondary" 
@@ -282,7 +309,7 @@ export default function Network() {
                 )}
               </motion.div>
 
-              {/* Outgoing (Sent Requests) */}
+              {/* Outgoing */}
               <motion.div variants={itemVariants}>
                 <h3 className="font-semibold mb-4 text-muted-foreground pt-4 border-t border-border/40">Sent Requests</h3>
                 {outgoingRequests.length === 0 ? (
@@ -355,7 +382,6 @@ export default function Network() {
 
           {/* --- DIALOGS SECTION --- */}
           
-          {/* 1. Partner Request Dialog (สำหรับหน้า Discover) */}
           <PartnerRequestDialog 
             store={selectedRequestStore}
             open={!!selectedRequestStore}
@@ -364,14 +390,12 @@ export default function Network() {
             loading={partnersLoading}
           />
           
-          {/* 2. Stock Comparison Dialog (สำหรับกดปุ่ม Compare) */}
           <StockComparisonDialog 
             open={!!comparePartner} 
             partner={comparePartner} 
             onOpenChange={(open) => !open && setComparePartner(null)} 
           />
 
-          {/* 3. Store Details Dialog (สำหรับกดปุ่ม View) */}
           <StoreDetailsDialog 
             store={viewStore}
             open={!!viewStore}

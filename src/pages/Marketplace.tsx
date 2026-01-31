@@ -10,236 +10,23 @@ import {
   Phone,
   Eye,
   PackageX,
-  Calendar,
-  Package,
   Gauge,
-  Layers,
-  Info,
-  X
+  Layers
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogClose
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-// ==========================================
-// 1. Component: Store Product Detail Dialog
-// (Re-designed & Animated to match reference)
-// ==========================================
-function StoreProductDetailDialog({
-  product,
-  open,
-  onOpenChange,
-}: {
-  product: any;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  if (!product) return null;
-
-  const totalStock = product.tire_dots?.reduce((sum: number, dot: any) => sum + dot.quantity, 0) || 0;
-  // ชื่อสินค้าตามภาพ: BRAND MODEL SIZE
-  const productName = `${product.brand} ${product.model || ''} ${product.size}`;
-
-  // Animation Variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { 
-        staggerChildren: 0.1,
-        delayChildren: 0.2 
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { type: "spring", stiffness: 300, damping: 24 }
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden gap-0 bg-white dark:bg-card border-none shadow-2xl">
-        <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={containerVariants}
-            className="p-8 max-h-[90vh] overflow-y-auto"
-        >
-            {/* Header Section */}
-            <DialogHeader className="mb-8 space-y-4">
-                <motion.div variants={itemVariants} className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 border-slate-200 uppercase tracking-wider">
-                        {product.brand}
-                    </Badge>
-                    {product.is_shared && (
-                        <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none text-xs font-medium px-2.5 py-0.5">
-                            Shared Network
-                        </Badge>
-                    )}
-                </motion.div>
-                
-                <motion.div variants={itemVariants}>
-                    <DialogTitle className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white leading-tight">
-                        {productName}
-                    </DialogTitle>
-                    <DialogDescription className="text-slate-400 mt-2 font-mono text-sm">
-                        SKU: {product.id}
-                    </DialogDescription>
-                </motion.div>
-            </DialogHeader>
-
-            {/* Content Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
-                
-                {/* Left Column: Summary & Price */}
-                <motion.div variants={itemVariants} className="md:col-span-5 space-y-6">
-                    {/* Summary Box */}
-                    <div className="bg-slate-50/80 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                        <div className="flex gap-3 mb-4">
-                            <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                            <div>
-                                <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">Product Summary</h4>
-                                <p className="text-slate-500 text-sm leading-relaxed">
-                                    {product.brand} {product.model} tire sized {product.size}.
-                                </p>
-                            </div>
-                        </div>
-
-                        <Separator className="bg-slate-200 dark:bg-slate-700 my-4" />
-
-                        <div className="space-y-5">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-slate-500 font-medium">Price (Network)</span>
-                                <span className="text-3xl font-extrabold text-blue-600">
-                                    {product.network_price ? `฿${product.network_price.toLocaleString()}` : "N/A"}
-                                </span>
-                            </div>
-                            
-                            <div className="flex justify-between items-center bg-white dark:bg-black/20 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center gap-2 text-slate-500">
-                                    <Package className="w-4 h-4" />
-                                    <span className="font-medium">Total Stock</span>
-                                </div>
-                                <span className={`font-bold ${totalStock > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                    {totalStock} units
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Right Column: Specs & DOTs */}
-                <motion.div variants={itemVariants} className="md:col-span-7 space-y-8">
-                    {/* Specifications */}
-                    <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Specifications</h4>
-                        <div className="grid grid-cols-2 gap-y-6 gap-x-12">
-                            <div>
-                                <p className="text-xs text-slate-400 mb-1">Size</p>
-                                <p className="font-semibold text-slate-900 dark:text-white text-lg">{product.size}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400 mb-1">Load/Speed</p>
-                                <p className="font-semibold text-slate-900 dark:text-white text-lg">
-                                    {product.load_index}{product.speed_rating || '-'}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400 mb-1">Pattern/Model</p>
-                                <p className="font-semibold text-slate-900 dark:text-white text-base break-words">
-                                    {product.model || '-'}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400 mb-1">Type</p>
-                                <p className="font-semibold text-slate-900 dark:text-white text-base">
-                                    {product.type || 'Radial'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator className="bg-slate-100 dark:bg-slate-800" />
-
-                    {/* Available DOTs */}
-                    <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" /> Available DOTs
-                        </h4>
-                        
-                        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                            <Table>
-                                <TableHeader className="bg-slate-50 dark:bg-slate-900">
-                                    <TableRow className="hover:bg-transparent border-b border-slate-200 dark:border-slate-800">
-                                        <TableHead className="h-10 text-xs font-semibold text-slate-500 pl-6">DOT (Year/Week)</TableHead>
-                                        <TableHead className="h-10 text-right text-xs font-semibold text-slate-500 pr-6">Qty</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {product.tire_dots && product.tire_dots.length > 0 ? (
-                                        product.tire_dots.map((dot: any) => (
-                                            <TableRow key={dot.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                                                <TableCell className="font-mono text-sm pl-6 py-3 font-medium text-slate-700 dark:text-slate-300">
-                                                    {dot.dot_code || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-right text-sm pr-6 py-3 font-semibold text-slate-900 dark:text-white">
-                                                    {dot.quantity}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="h-24 text-center text-slate-400 italic text-sm">
-                                                No specific DOT data available.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-        </motion.div>
-        
-        {/* Close Button Overlay */}
-        <DialogClose className="absolute right-6 top-6 rounded-full p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors">
-             <X className="w-4 h-4 text-slate-500" />
-        </DialogClose>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// ✅ Import Component Dialog ที่แยกไฟล์ไว้
+import { StoreProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
 
 // ==========================================
-// 2. Component: Marketplace Store Card
+// 1. Component: Marketplace Store Card
 // ==========================================
 const MarketplaceStoreCard = ({ store, onClick }: { store: any, onClick: () => void }) => {
   const initials = store.name.substring(0, 2).toUpperCase();
@@ -293,18 +80,20 @@ const MarketplaceStoreCard = ({ store, onClick }: { store: any, onClick: () => v
 };
 
 // ==========================================
-// 3. Component: Product Item Card (No Image)
+// 2. Component: Product Item Card (Optimized)
 // ==========================================
 const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => void }) => {
     const totalStock = product.tire_dots?.reduce((sum: number, dot: any) => sum + dot.quantity, 0) || 0;
     
     return (
         <motion.div 
-            layout 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            whileHover={{ scale: 1.02, transition: { type: "spring", stiffness: 300 } }}
+            // ✅ เปลี่ยน Animation เป็นแบบลอยขึ้น (y) แทน scale เพื่อความลื่นไหล
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ 
+                y: -5, 
+                transition: { type: "spring", stiffness: 400, damping: 10 } 
+            }}
             whileTap={{ scale: 0.98 }}
             className="cursor-pointer group h-full"
             onClick={onClick}
@@ -366,7 +155,7 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
 };
 
 // ==========================================
-// 4. MAIN PAGE: Marketplace
+// 3. MAIN PAGE: Marketplace
 // ==========================================
 
 export default function Marketplace() {
@@ -619,19 +408,19 @@ export default function Marketplace() {
                           </p>
                       </div>
                    ) : (
+                      // ✅ เอา layout ออก และทำ Simple Fade In
                       <motion.div 
-                        layout 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
                       >
-                          <AnimatePresence>
-                              {filteredStoreProducts.map((product) => (
-                                 <ProductItemCard 
-                                    key={product.id} 
-                                    product={product} 
-                                    onClick={() => setSelectedProduct(product)} 
-                                 />
-                              ))}
-                          </AnimatePresence>
+                          {filteredStoreProducts.map((product) => (
+                                <ProductItemCard 
+                                key={product.id} 
+                                product={product} 
+                                onClick={() => setSelectedProduct(product)} 
+                                />
+                          ))}
                       </motion.div>
                    )}
                </div>
@@ -639,7 +428,7 @@ export default function Marketplace() {
           )}
         </AnimatePresence>
 
-        {/* Product Detail Dialog (Custom for Store View) */}
+        {/* Product Detail Dialog */}
         <StoreProductDetailDialog
           product={selectedProduct}
           open={!!selectedProduct}
