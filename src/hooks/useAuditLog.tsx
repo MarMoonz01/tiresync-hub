@@ -4,7 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { subDays, startOfDay, endOfDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-export type AuditDateRange = "7d" | "30d" | "90d" | "all" | "custom";
+// เพิ่ม "today" เข้าไปใน Type
+export type AuditDateRange = "today" | "7d" | "30d" | "90d" | "all" | "custom";
 export type AuditAction = "all" | "add" | "remove" | "adjust";
 
 interface AuditLogEntry {
@@ -24,7 +25,7 @@ interface AuditLogEntry {
   tire_size?: string;
   user_email?: string;
   user_name?: string | null;
-  user_avatar?: string | null; // เพิ่ม Avatar
+  user_avatar?: string | null;
 }
 
 interface AuditStats {
@@ -36,7 +37,7 @@ interface AuditStats {
 }
 
 export function useAuditLog(
-  dateRange: AuditDateRange = "30d",
+  dateRange: AuditDateRange = "today", // ตั้งค่าเริ่มต้นเป็น today
   actionFilter: AuditAction = "all",
   searchQuery: string = "",
   customDate?: DateRange
@@ -55,6 +56,8 @@ export function useAuditLog(
   const getDateRange = useCallback((range: AuditDateRange, custom?: DateRange) => {
     const now = new Date();
     switch (range) {
+      case "today": // เพิ่ม case สำหรับวันนี้ (เริ่ม 00:00 น.)
+        return startOfDay(now);
       case "7d":
         return subDays(now, 7);
       case "30d":
@@ -66,7 +69,7 @@ export function useAuditLog(
       case "custom":
         return custom?.from || subDays(now, 30);
       default:
-        return subDays(now, 30);
+        return startOfDay(now); // Default fallback
     }
   }, []);
 
@@ -113,6 +116,8 @@ export function useAuditLog(
       
       if (dateRange === "custom" && customDate?.to) {
         endDate = endOfDay(customDate.to);
+      } else if (dateRange === "today") {
+        endDate = endOfDay(new Date()); // มั่นใจว่าจบที่สิ้นสุดของวันนี้
       }
 
       // Build query
@@ -121,7 +126,7 @@ export function useAuditLog(
         .select("*")
         .in("tire_dot_id", dotIds)
         .gte("created_at", startDate.toISOString())
-        .lte("created_at", endDate.toISOString()) // Filter end date too
+        .lte("created_at", endDate.toISOString())
         .order("created_at", { ascending: false });
 
       if (actionFilter !== "all") {
@@ -135,13 +140,13 @@ export function useAuditLog(
       // Get unique user IDs to fetch their profiles
       const userIds = [...new Set((logsData || []).map((l) => l.user_id).filter(Boolean))] as string[];
 
-      // Fetch user profiles (Include avatar_url)
+      // Fetch user profiles
       let userMap = new Map<string, { email: string; full_name: string | null; avatar_url: string | null }>();
       
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, email, full_name, avatar_url") // เพิ่ม avatar_url
+          .select("user_id, email, full_name, avatar_url")
           .in("user_id", userIds);
 
         userMap = new Map(
@@ -163,7 +168,7 @@ export function useAuditLog(
           tire_size: tire?.size || "Unknown",
           user_email: user?.email || "System",
           user_name: user?.full_name,
-          user_avatar: user?.avatar_url, // ใส่ Avatar
+          user_avatar: user?.avatar_url,
         };
       });
 
@@ -185,7 +190,7 @@ export function useAuditLog(
 
       setLogs(filteredLogs);
 
-      // Calculate stats (from all logs, not filtered)
+      // Calculate stats
       const allLogs = logsData || [];
       const uniqueUsers = new Set(allLogs.map((l) => l.user_id).filter(Boolean));
 

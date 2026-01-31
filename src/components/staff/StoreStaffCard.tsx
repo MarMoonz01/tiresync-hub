@@ -43,6 +43,12 @@ export function StoreStaffCard({
         .toUpperCase()
     : profile?.email?.[0]?.toUpperCase() || "?";
 
+  // 1. Logic เช็คสถานะ Online (ใช้ any cast เผื่อ type ยังไม่อัปเดต)
+  const lastSignIn = (profile as any)?.last_sign_in_at;
+  const isOnline = lastSignIn
+    ? (new Date().getTime() - new Date(lastSignIn).getTime()) < 15 * 60 * 1000 // 15 นาที
+    : false;
+
   // Get permission badges
   const getPermissionBadges = () => {
     if (!permissions) return null;
@@ -67,19 +73,30 @@ export function StoreStaffCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={profile?.avatar_url || ""} alt={profile?.full_name || "User"} />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          {/* 2. ส่วน Avatar พร้อมจุดสถานะ */}
+          <div className="relative">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={profile?.avatar_url || ""} alt={profile?.full_name || "User"} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {/* จุดแสดงสถานะ (Online Indicator) */}
+            <span className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-background ${isOnline ? "bg-green-500" : "bg-gray-300"}`} />
+          </div>
+
           <div className="min-w-0">
             <p className="font-medium text-sm text-foreground truncate">
               {profile?.full_name || "Unknown User"}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {profile?.email || "No email"}
-            </p>
+            {/* 3. แสดง Email และสถานะ Online เป็นตัวหนังสือ */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+              <span>{profile?.email || "No email"}</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className={isOnline ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                {isOnline ? "Online" : "Offline"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -109,29 +126,12 @@ export function StoreStaffCard({
         </DropdownMenu>
       </div>
 
+      {/* 4. ส่วน Badge (ลบพวก Approved/Pending ออก เหลือแค่ Role) */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className="text-[10px] capitalize">
           {member.role}
         </Badge>
-        {!member.is_approved && (
-          <Badge variant="warning" className="text-[10px]">
-            Pending Approval
-          </Badge>
-        )}
-        {profile?.status && member.is_approved && (
-          <Badge
-            variant={
-              profile.status === "approved"
-                ? "success"
-                : profile.status === "pending"
-                ? "warning"
-                : "destructive"
-            }
-            className="text-[10px]"
-          >
-            {profile.status}
-          </Badge>
-        )}
+        {/* ลบ Badge Approved/Pending/Status ออกแล้วตามที่ขอ */}
       </div>
 
       {/* Permission badges */}

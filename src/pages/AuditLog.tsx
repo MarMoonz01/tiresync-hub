@@ -20,7 +20,6 @@ import {
   Plus, 
   Minus, 
   RefreshCw,
-  User,
   Clock,
   Package,
   Activity,
@@ -28,14 +27,16 @@ import {
   TrendingUp,
   TrendingDown
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { th, enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+// เพิ่มตัวเลือก Today
 const dateRangeOptions: { value: AuditDateRange; label: string; labelTh: string }[] = [
+  { value: "today", label: "Today", labelTh: "วันนี้" },
   { value: "7d", label: "Last 7 Days", labelTh: "7 วันที่ผ่านมา" },
   { value: "30d", label: "Last 30 Days", labelTh: "30 วันที่ผ่านมา" },
   { value: "90d", label: "Last 90 Days", labelTh: "90 วันที่ผ่านมา" },
@@ -51,7 +52,8 @@ const actionOptions: { value: AuditAction; label: string; labelTh: string }[] = 
 
 export default function AuditLog() {
   const { language } = useLanguage();
-  const [dateRange, setDateRange] = useState<AuditDateRange>("30d");
+  // ตั้งค่าเริ่มต้นเป็น "today" เพื่อให้ Reset การแสดงผลทุกครั้งที่เข้าหน้านี้
+  const [dateRange, setDateRange] = useState<AuditDateRange>("today");
   const [customDate, setCustomDate] = useState<DateRange | undefined>();
   const [actionFilter, setActionFilter] = useState<AuditAction>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,8 +63,16 @@ export default function AuditLog() {
 
   const t = (en: string, th: string) => language === "th" ? th : en;
 
-  const formatDate = (dateStr: string) => {
-    return format(new Date(dateStr), "PPp", {
+  // ฟังก์ชันจัดรูปแบบหัวข้อวันที่ (สำหรับ Grouping)
+  const getGroupDateTitle = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isToday(date)) {
+      return t("Today", "วันนี้");
+    }
+    if (isYesterday(date)) {
+      return t("Yesterday", "เมื่อวานนี้");
+    }
+    return format(date, "EEEE, d MMMM yyyy", {
       locale: language === "th" ? th : enUS,
     });
   };
@@ -106,6 +116,18 @@ export default function AuditLog() {
     }
   };
 
+  // Logic จัดกลุ่ม Logs ตามวันที่
+  const groupedLogs = logs.reduce((groups, log) => {
+    const dateKey = format(new Date(log.created_at), "yyyy-MM-dd");
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
+    }
+    groups[dateKey].push(log);
+    return groups;
+  }, {} as Record<string, typeof logs>);
+
+  const uniqueDates = Object.keys(groupedLogs);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -120,7 +142,6 @@ export default function AuditLog() {
         </div>
 
         {/* Stats Cards */}
-        {/* (คงเดิม) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -221,7 +242,7 @@ export default function AuditLog() {
                   </SelectContent>
                 </Select>
 
-                {/* Calendar Picker (Show if custom or always accessible) */}
+                {/* Calendar Picker (Show if custom) */}
                 <DatePickerWithRange 
                   date={customDate} 
                   setDate={handleDateSelect}
@@ -246,7 +267,7 @@ export default function AuditLog() {
           </CardContent>
         </Card>
 
-        {/* Audit Log List */}
+        {/* Audit Log List (Modified to use Grouping) */}
         <Card>
           <CardHeader>
             <CardTitle>{t("Activity History", "ประวัติกิจกรรม")}</CardTitle>
@@ -269,66 +290,81 @@ export default function AuditLog() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-4 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      {/* Action Badge */}
-                      <div className="flex items-center gap-3 min-w-[120px]">
-                        {getActionBadge(log.action)}
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className={cn(
-                            "font-bold",
-                            log.action === "add" ? "text-green-600 dark:text-green-400" : 
-                            log.action === "remove" ? "text-red-600 dark:text-red-400" : 
-                            "text-foreground"
-                          )}>
-                            {log.action === "add" ? "+" : log.action === "remove" ? "-" : ""}
-                            {Math.abs(log.quantity_change)}
-                          </span>
-                          <span className="text-muted-foreground text-xs">
-                            ({log.quantity_before}→{log.quantity_after})
-                          </span>
-                        </div>
-                      </div>
+              <div className="space-y-8">
+                {/* Loop ผ่านวันที่ (uniqueDates) แทนการ Loop logs ตรงๆ */}
+                {uniqueDates.map((dateKey) => (
+                  <div key={dateKey} className="space-y-4">
+                    {/* Sticky Date Header */}
+                    <div className="sticky top-0 z-10 bg-card/95 backdrop-blur py-2 border-b border-border/50">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-primary" />
+                            {getGroupDateTitle(dateKey)}
+                        </h3>
+                    </div>
 
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="font-medium text-foreground truncate">
-                            {log.tire_brand} {log.tire_model || ""} - {log.tire_size}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                          <span>DOT: {log.dot_code}</span>
-                          {log.notes && (
-                            <span className="truncate">• {log.notes}</span>
-                          )}
-                        </div>
-                      </div>
+                    <div className="space-y-3">
+                      {groupedLogs[dateKey].map((log) => (
+                        <div
+                          key={log.id}
+                          className="p-4 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            {/* Action Badge */}
+                            <div className="flex items-center gap-3 min-w-[120px]">
+                              {getActionBadge(log.action)}
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className={cn(
+                                  "font-bold",
+                                  log.action === "add" ? "text-green-600 dark:text-green-400" : 
+                                  log.action === "remove" ? "text-red-600 dark:text-red-400" : 
+                                  "text-foreground"
+                                )}>
+                                  {log.action === "add" ? "+" : log.action === "remove" ? "-" : ""}
+                                  {Math.abs(log.quantity_change)}
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                  ({log.quantity_before}→{log.quantity_after})
+                                </span>
+                              </div>
+                            </div>
 
-                      {/* User & Time (Updated with Avatar) */}
-                      <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l sm:pl-4 pt-3 sm:pt-0 mt-2 sm:mt-0 min-w-[200px] justify-end">
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm font-medium text-foreground">
-                            {log.user_name || log.user_email}
-                          </span>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatDate(log.created_at)}</span>
+                            {/* Product Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Package className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="font-medium text-foreground truncate">
+                                  {log.tire_brand} {log.tire_model || ""} - {log.tire_size}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                                <span>DOT: {log.dot_code}</span>
+                                {log.notes && (
+                                  <span className="truncate">• {log.notes}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* User & Time */}
+                            <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l sm:pl-4 pt-3 sm:pt-0 mt-2 sm:mt-0 min-w-[200px] justify-end">
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-medium text-foreground">
+                                  {log.user_name || log.user_email}
+                                </span>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  {/* แสดงเวลาเท่านั้น เพราะวันที่อยู่ที่ Header แล้ว */}
+                                  <span>{format(new Date(log.created_at), "HH:mm")} น.</span>
+                                </div>
+                              </div>
+                              <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
+                                <AvatarImage src={log.user_avatar || ""} alt={log.user_name || ""} />
+                                <AvatarFallback className="bg-primary/10 text-primary">
+                                  {log.user_name?.substring(0, 2).toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
                           </div>
                         </div>
-                        <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                          <AvatarImage src={log.user_avatar || ""} alt={log.user_name || ""} />
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {log.user_name?.substring(0, 2).toUpperCase() || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 ))}
