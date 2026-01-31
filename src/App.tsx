@@ -53,13 +53,16 @@ const App = () => (
               <Route path="/inventory/edit/:id" element={
                 <ProtectedRoute><EditTire /></ProtectedRoute>
               } />
-              {/* แก้ไขตรงนี้: เพิ่ม ownerOnly เพื่อป้องกัน Staff เข้าหน้านี้ */}
+              {/* หน้า Import ให้เฉพาะ Owner เข้าได้ */}
               <Route path="/import" element={
                 <ProtectedRoute ownerOnly><Import /></ProtectedRoute>
               } />
+              
+              {/* ✅ แก้ไขตรงนี้: เพิ่ม ownerOnly เพื่อให้เฉพาะเจ้าของร้านเข้าหน้า My Store ได้ */}
               <Route path="/store" element={
-                <ProtectedRoute><MyStore /></ProtectedRoute>
+                <ProtectedRoute ownerOnly><MyStore /></ProtectedRoute>
               } />
+              
               <Route path="/store/setup" element={
                 <ProtectedRoute requireApproval={false} ownerOnly><StoreSetup /></ProtectedRoute>
               } />

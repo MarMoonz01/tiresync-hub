@@ -71,27 +71,22 @@ export function useTires() {
     try {
       setLoading(true);
       
-      // Build query with filters
       let query = supabase
         .from("tires")
         .select("*", { count: "exact" })
         .eq("store_id", store.id);
 
-      // Apply search filter
       if (searchQuery) {
         query = query.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
       }
 
-      // Apply brand filter
       if (brandFilter !== "all") {
         query = query.eq("brand", brandFilter);
       }
 
-      // Get total count first
       const { count } = await query;
       setTotalCount(count || 0);
 
-      // Fetch paginated data
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -100,12 +95,10 @@ export function useTires() {
         .select("*")
         .eq("store_id", store.id);
 
-      // Apply search filter
       if (searchQuery) {
         tiresQuery = tiresQuery.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
       }
 
-      // Apply brand filter
       if (brandFilter !== "all") {
         tiresQuery = tiresQuery.eq("brand", brandFilter);
       }
@@ -116,7 +109,6 @@ export function useTires() {
 
       if (tiresError) throw tiresError;
 
-      // Fetch tire_dots for paginated tires
       if (tiresData && tiresData.length > 0) {
         const tireIds = tiresData.map((t) => t.id);
         const { data: dotsData, error: dotsError } = await supabase
@@ -127,13 +119,11 @@ export function useTires() {
 
         if (dotsError) throw dotsError;
 
-        // Combine tires with their dots and apply stock filter client-side
         let tiresWithDots = tiresData.map((tire) => ({
           ...tire,
           tire_dots: dotsData?.filter((dot) => dot.tire_id === tire.id) || [],
         }));
 
-        // Apply stock filter (must be done client-side after fetching dots)
         if (stockFilter !== "all") {
           tiresWithDots = tiresWithDots.filter((tire) => {
             const totalQty = tire.tire_dots.reduce((sum, d) => sum + d.quantity, 0);
@@ -162,11 +152,8 @@ export function useTires() {
   }, [store, toast, page, searchQuery, brandFilter, stockFilter]);
 
   const createTire = async (formData: TireFormData) => {
-    if (!store) {
-      throw new Error("No store found");
-    }
+    if (!store) throw new Error("No store found");
 
-    // Insert tire
     const { data: tireData, error: tireError } = await supabase
       .from("tires")
       .insert({
@@ -185,7 +172,6 @@ export function useTires() {
 
     if (tireError) throw tireError;
 
-    // Insert tire_dots
     const validDots = formData.dots.filter((d) => d.dot_code.trim() !== "");
     if (validDots.length > 0) {
       const dotsToInsert = validDots.map((dot, index) => ({
@@ -208,7 +194,6 @@ export function useTires() {
   };
 
   const updateTire = async (tireId: string, formData: TireFormData) => {
-    // Update tire
     const { error: tireError } = await supabase
       .from("tires")
       .update({
@@ -225,10 +210,8 @@ export function useTires() {
 
     if (tireError) throw tireError;
 
-    // Delete existing dots and re-insert
     await supabase.from("tire_dots").delete().eq("tire_id", tireId);
 
-    // Insert new dots
     const validDots = formData.dots.filter((d) => d.dot_code.trim() !== "");
     if (validDots.length > 0) {
       const dotsToInsert = validDots.map((dot, index) => ({
@@ -255,12 +238,15 @@ export function useTires() {
     await fetchTires();
   };
 
+  // --- จุดที่แก้ไขหลัก: เพิ่มการส่ง user_id ---
   const updateDotQuantity = async (
     dotId: string,
     change: number,
     notes?: string
   ) => {
-    // Get current dot data
+    // 1. ดึงข้อมูล User ปัจจุบัน
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { data: dotData, error: fetchError } = await supabase
       .from("tire_dots")
       .select("*")
@@ -272,7 +258,6 @@ export function useTires() {
     const quantityBefore = dotData.quantity;
     const quantityAfter = Math.max(0, quantityBefore + change);
 
-    // Update quantity
     const { error: updateError } = await supabase
       .from("tire_dots")
       .update({ quantity: quantityAfter })
@@ -280,17 +265,21 @@ export function useTires() {
 
     if (updateError) throw updateError;
 
-    // Log the change
+    // 2. บันทึก Log พร้อม user_id
     const { error: logError } = await supabase.from("stock_logs").insert({
       tire_dot_id: dotId,
-      action: change > 0 ? "add" : "remove",
+      action: change > 0 ? "add" : "remove", // ใช้ "add" หรือ "remove" (Audit Log กรองด้วยคำนี้)
       quantity_before: quantityBefore,
       quantity_after: quantityAfter,
       quantity_change: change,
       notes: notes || null,
+      user_id: user?.id || null, // <--- ส่งค่า user_id ไปด้วย
     });
 
-    if (logError) console.error("Failed to log stock change:", logError);
+    if (logError) {
+      console.error("Failed to log stock change:", logError);
+      // Optional: แจ้งเตือนถ้า Log พัง (แต่ปกติไม่ควรพังถ้าผ่าน RLS แล้ว)
+    }
 
     await fetchTires();
   };
@@ -299,7 +288,6 @@ export function useTires() {
     fetchTires();
   }, [fetchTires]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [searchQuery, brandFilter, stockFilter]);

@@ -93,22 +93,25 @@ export function TireCard({
       )}>
         <CardContent className="p-0">
           {/* Main Info */}
-          <div className="p-4">
-            <div className="flex items-start justify-between gap-3">
+          <div className="p-5"> {/* เพิ่ม Padding ให้ดูโปร่งขึ้น */}
+            <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm text-foreground">
+                {/* Brand & Model: ปรับให้ใหญ่ขึ้นเป็น text-base */}
+                <h3 className="font-bold text-base md:text-lg text-foreground">
                   {tire.brand} {tire.model}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                {/* Size: ปรับเป็น text-sm อ่านง่าย */}
+                <p className="text-sm text-muted-foreground mt-1 font-medium">
                   {tire.size}
                   {tire.load_index && ` • ${tire.load_index}`}
                   {tire.speed_rating && tire.speed_rating}
                 </p>
+                {/* Price: ปรับให้เด่นขึ้น */}
                 {tire.price && (
-                  <p className="text-sm font-medium text-primary mt-1">
+                  <p className="text-base font-semibold text-primary mt-2">
                     ฿{tire.price.toLocaleString()}
                     {tire.network_price && (
-                      <span className="text-muted-foreground text-xs ml-2">
+                      <span className="text-muted-foreground text-xs ml-2 font-normal">
                         Net: ฿{tire.network_price.toLocaleString()}
                       </span>
                     )}
@@ -116,9 +119,9 @@ export function TireCard({
                 )}
               </div>
 
-              {/* Stock Badge */}
+              {/* Stock Badge: ปรับขนาด Font และ Padding */}
               <div className={cn(
-                "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm",
                 isOutOfStock 
                   ? "bg-destructive/10 text-destructive" 
                   : isLowStock 
@@ -126,47 +129,47 @@ export function TireCard({
                   : "bg-success/10 text-success"
               )}>
                 {isOutOfStock ? (
-                  <AlertTriangle className="w-3 h-3" />
+                  <AlertTriangle className="w-4 h-4" />
                 ) : (
-                  <Package className="w-3 h-3" />
+                  <Package className="w-4 h-4" />
                 )}
                 {totalQuantity}
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/30">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setExpanded(!expanded)}
-                className="text-muted-foreground text-xs h-8 px-2"
+                className="text-muted-foreground text-sm h-9 px-3 hover:bg-secondary/50"
               >
                 {expanded ? (
                   <>
-                    <ChevronUp className="w-3.5 h-3.5 mr-1" />
-                    Hide
+                    <ChevronUp className="w-4 h-4 mr-2" />
+                    Hide Details
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="w-3.5 h-3.5 mr-1" />
-                    {tire.tire_dots?.length || 0} DOTs
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    View {tire.tire_dots?.length || 0} DOTs
                   </>
                 )}
               </Button>
 
               <div className="flex items-center gap-2">
-                {/* Share Toggle - only show if user can edit */}
+                {/* Share Toggle */}
                 {canEdit && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2 px-2">
                           {shareLoading ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           ) : (
                             <Share2 className={cn(
-                              "w-3.5 h-3.5 transition-colors",
+                              "w-4 h-4 transition-colors",
                               tire.is_shared ? "text-primary" : "text-muted-foreground"
                             )} />
                           )}
@@ -174,48 +177,48 @@ export function TireCard({
                             checked={tire.is_shared}
                             onCheckedChange={handleToggleShare}
                             disabled={shareLoading}
-                            className="scale-75 data-[state=checked]:bg-primary"
+                            className="data-[state=checked]:bg-primary"
                           />
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="text-xs">
-                        {tire.is_shared ? "Shared" : "Share to Network"}
+                      <TooltipContent className="text-sm">
+                        {tire.is_shared ? "Shared to Network" : "Share to Network"}
                       </TooltipContent>
                     </Tooltip>
 
-                    <div className="w-px h-4 bg-border/50" />
+                    <div className="w-px h-5 bg-border/50 mx-1" />
                   </>
                 )}
 
-                {/* Edit button - only show if user can edit */}
+                {/* Edit button: ขยายขนาด */}
                 {canEdit && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors"
                     onClick={() => onEdit(tire)}
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-4 h-4" />
                   </Button>
                 )}
 
-                {/* Delete button - only show if user can delete */}
+                {/* Delete button: ขยายขนาด */}
                 {canDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        className="h-9 w-9 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Tire</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete {tire.brand} {tire.model} ({tire.size})?
+                        <AlertDialogDescription className="text-base">
+                          Are you sure you want to delete <span className="font-semibold text-foreground">{tire.brand} {tire.model}</span>?
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -234,15 +237,15 @@ export function TireCard({
             </div>
           </div>
 
-          {/* DOT Details */}
+          {/* DOT Details Section */}
           {expanded && tire.tire_dots && tire.tire_dots.length > 0 && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="border-t border-border/30 bg-secondary/30"
+              className="border-t border-border/30 bg-secondary/20"
             >
-              <div className="p-3 space-y-2">
+              <div className="p-4 space-y-3">
                 {tire.tire_dots.map((dot) => (
                   <DotRow
                     key={dot.id}
@@ -273,52 +276,59 @@ function DotRow({ dot, loading, onQuantityChange, canEdit = true }: DotRowProps)
   const isOut = dot.quantity === 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 p-2.5 bg-background rounded-xl">
+    <div className="flex items-center justify-between gap-4 p-3 bg-background rounded-xl border border-border/50 shadow-sm">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-medium">{dot.dot_code}</span>
+        <div className="flex items-center gap-3">
+          {/* DOT Code: ปรับเป็น text-sm และ font-mono เพื่อความชัดเจน */}
+          <span className="font-mono text-sm md:text-base font-semibold text-foreground">
+            {dot.dot_code}
+          </span>
           {dot.promotion && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            <Badge variant="outline" className="text-xs px-2 py-0.5">
               {dot.promotion}
             </Badge>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-3">
         {canEdit ? (
           <>
+            {/* ปุ่มลบ: ขยายขนาด */}
             <Button
               variant="outline"
               size="icon"
-              className="h-7 w-7"
+              className="h-9 w-9 rounded-lg border-input hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
               disabled={loading || dot.quantity === 0}
               onClick={() => dot.id && onQuantityChange(dot.id, -1)}
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-4 h-4" />
             </Button>
 
+            {/* ตัวเลขจำนวน: ขยายให้ใหญ่เห็นชัดๆ (text-lg) */}
             <span className={cn(
-              "w-8 text-center text-sm font-medium",
+              "w-8 text-center text-lg font-bold tabular-nums",
               isOut && "text-destructive",
-              isLow && "text-warning"
+              isLow && "text-warning",
+              !isOut && !isLow && "text-foreground"
             )}>
               {dot.quantity}
             </span>
 
+            {/* ปุ่มเพิ่ม: ขยายขนาด */}
             <Button
               variant="outline"
               size="icon"
-              className="h-7 w-7"
+              className="h-9 w-9 rounded-lg border-input hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
               disabled={loading}
               onClick={() => dot.id && onQuantityChange(dot.id, 1)}
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
             </Button>
           </>
         ) : (
           <span className={cn(
-            "px-3 text-sm font-medium",
+            "px-3 text-base font-semibold",
             isOut && "text-destructive",
             isLow && "text-warning"
           )}>

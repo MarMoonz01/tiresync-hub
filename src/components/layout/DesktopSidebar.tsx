@@ -30,12 +30,12 @@ interface DesktopSidebarProps {
   onToggle: () => void;
 }
 
-// เมนูพื้นฐานที่ทุกคน (Admin & Staff) เห็นเหมือนกัน (โดยปกติ)
+// เมนูพื้นฐานที่ทุกคนเห็น (จะถูกกรองสิทธิ์ทีหลัง)
 const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
   { icon: Upload, labelKey: "import", path: "/import" },
-  { icon: Store, labelKey: "myStore", path: "/store" },
+  { icon: Store, labelKey: "myStore", path: "/store" }, // รายการนี้จะถูกซ่อนสำหรับ Staff
   { icon: Search, labelKey: "marketplace", path: "/marketplace" },
   { icon: Users, labelKey: "network", path: "/network" },
 ];
@@ -54,17 +54,22 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  // แก้ไขตรงนี้: เพิ่มการดึง isStaff มาใช้
   const { isOwner, isAdmin, hasStore, isStaff } = useAuth();
   const { t } = useLanguage();
 
   // Only store owners and system admins can see admin menu items
   const canAccessAdminItems = (isOwner || isAdmin) && hasStore;
 
-  // แก้ไขตรงนี้: กรองเมนู Import ออก ถ้าเป็น Staff
-  const filteredBaseNavItems = baseNavItems.filter(item => 
-    item.path !== "/import" || !isStaff
-  );
+  // กรองเมนูตามสิทธิ์การใช้งาน
+  const filteredBaseNavItems = baseNavItems.filter(item => {
+    // 1. ซ่อนเมนู Import สำหรับ Staff
+    if (item.path === "/import" && isStaff) return false;
+    
+    // 2. ซ่อนเมนู My Store สำหรับ Staff (เฉพาะ Owner เท่านั้นที่เห็น)
+    if (item.path === "/store" && !isOwner) return false;
+
+    return true;
+  });
 
   // Build menu items based on permissions
   const navItems = [

@@ -10,7 +10,8 @@ import {
   Loader2,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw // เพิ่มไอคอน Refresh
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTires, Tire } from "@/hooks/useTires";
 import { useToast } from "@/hooks/use-toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { cn } from "@/lib/utils"; // เพิ่ม utility สำหรับ className
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -65,13 +67,15 @@ export default function Inventory() {
     setBrandFilter,
     stockFilter,
     setStockFilter,
-    toggleShare
+    toggleShare,
+    fetchTires // เพิ่มฟังก์ชัน fetchTires ออกมาจาก useTires
   } = useTires();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [showFilters, setShowFilters] = useState(false);
   const [localSearch, setLocalSearch] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false); // สถานะหมุนติ้วๆ
   
   // Debounce the search value
   const debouncedSearch = useDebouncedValue(localSearch, 400);
@@ -157,6 +161,20 @@ export default function Inventory() {
     }
   };
 
+  // ฟังก์ชัน Refresh ด้วยมือ
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchTires(); // ดึงข้อมูลใหม่
+      // หน่วงเวลาเล็กน้อยให้เห็น animation ว่าหมุนแล้ว (UX)
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error("Refresh failed", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const clearFilters = () => {
     setLocalSearch("");
     setBrandFilter("all");
@@ -202,7 +220,7 @@ export default function Inventory() {
     );
   }
 
-  if (loading) {
+  if (loading && !isRefreshing && tires.length === 0) {
     return (
       <AppLayout>
         <div className="page-container">
@@ -293,14 +311,29 @@ export default function Inventory() {
                   className="pl-10"
                 />
               </div>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => setShowFilters(!showFilters)}
-                className={showFilters ? "bg-primary/10" : ""}
-              >
-                <Filter className="w-4 h-4" />
-              </Button>
+              
+              <div className="flex gap-2">
+                {/* ปุ่ม Refresh ใหม่ */}
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  title="Refresh Inventory"
+                >
+                  <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={showFilters ? "bg-primary/10" : ""}
+                  title="Filters"
+                >
+                  <Filter className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Filter Panel */}

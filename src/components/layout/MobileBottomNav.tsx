@@ -4,7 +4,8 @@ import {
   LayoutDashboard, 
   CircleDot, 
   Search, 
-  Settings 
+  Settings,
+  Store // เพิ่ม Import Store icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,8 @@ export function MobileBottomNav() {
     { icon: LayoutDashboard, label: "Home", path: "/dashboard", show: true },
     { icon: CircleDot, label: "Tires", path: "/inventory", show: true },
     { icon: Search, label: "Market", path: "/marketplace", show: true },
+    // เพิ่มเมนู My Store สำหรับ Owner เท่านั้น
+    { icon: Store, label: "My Store", path: "/store", show: isOwner },
     // Show Admin/Settings only for store owners and system admins
     { icon: Settings, label: "Admin", path: "/settings", show: canAccessAdmin },
   ].filter(item => item.show);

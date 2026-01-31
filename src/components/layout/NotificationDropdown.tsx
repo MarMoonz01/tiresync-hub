@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Check, Info, AlertTriangle, XCircle } from "lucide-react";
+import { Bell, Check, Info, AlertTriangle, XCircle, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-// ถ้าไม่มี date-fns ให้ใช้ new Date().toLocaleDateString() แทนได้ครับ
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -40,7 +39,6 @@ export function NotificationDropdown() {
       .limit(20);
 
     if (data) {
-      // Cast type ให้ตรง
       const typedData = data.map(n => ({
         ...n,
         type: (['info', 'warning', 'critical'].includes(n.type) ? n.type : 'info') as any
@@ -50,24 +48,23 @@ export function NotificationDropdown() {
     }
   };
 
-  // Realtime Subscription: เด้งทันทีที่มีคน Insert ลงตาราง notifications ของเรา
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
 
+    // Realtime Subscription
     const channel = supabase
       .channel('noti-updates')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // ฟังทุก event (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
-          console.log("New Notification:", payload);
-          fetchNotifications(); // ดึงใหม่ทันที
+        () => {
+          fetchNotifications(); // ดึงข้อมูลใหม่เมื่อมีการเปลี่ยนแปลง
         }
       )
       .subscribe();
@@ -78,14 +75,32 @@ export function NotificationDropdown() {
   }, [user]);
 
   const markAllAsRead = async () => {
-    if (!user) return;
+    if (!user || unreadCount === 0) return;
+    
+    // Optimistic update (อัปเดตหน้าจอทันทีเพื่อให้รู้สึกเร็ว)
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
+
+    // ส่งคำสั่งไป DB
     await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', user.id)
       .eq('is_read', false);
+  };
+
+  const clearAllNotifications = async () => {
+    if (!user) return;
+    
+    // Optimistic update
+    setNotifications([]);
+    setUnreadCount(0);
+
+    // ลบข้อมูลจริงใน DB
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id);
   };
 
   const getIcon = (type: string) => {
@@ -110,17 +125,30 @@ export function NotificationDropdown() {
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/40">
           <h4 className="font-semibold text-sm">การแจ้งเตือน</h4>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-auto px-2 text-xs text-muted-foreground hover:text-primary"
-              onClick={markAllAsRead}
-            >
-              <Check className="h-3 w-3 mr-1" />
-              อ่านทั้งหมด
-            </Button>
-          )}
+          <div className="flex gap-1">
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-muted-foreground hover:text-primary"
+                onClick={markAllAsRead}
+                title="อ่านทั้งหมด"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                onClick={clearAllNotifications}
+                title="ลบทั้งหมด"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
         
         <ScrollArea className="h-[300px]">
@@ -135,7 +163,7 @@ export function NotificationDropdown() {
                 <div 
                   key={notification.id}
                   className={cn(
-                    "flex gap-3 p-4 hover:bg-muted/50 transition-colors cursor-pointer",
+                    "flex gap-3 p-4 hover:bg-muted/50 transition-colors cursor-pointer relative group",
                     !notification.is_read && "bg-blue-50/50 dark:bg-blue-900/10"
                   )}
                   onClick={() => {
@@ -169,7 +197,6 @@ export function NotificationDropdown() {
   );
 }
 
-// Helper เล็กๆ กัน error เรื่อง date format
 function tryFormatDate(dateString: string) {
   try {
     return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: th });

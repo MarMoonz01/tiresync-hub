@@ -11,14 +11,14 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface LineSettingsCardProps {
   lineEnabled?: boolean;
-  lineChannelId?: string;
+  lineChannelAccessToken?: string; // เปลี่ยนจาก Id เป็น AccessToken
   lineChannelSecret?: string;
   onUpdate?: () => void;
 }
 
 export function LineSettingsCard({
   lineEnabled: initialEnabled = false,
-  lineChannelId: initialChannelId = "",
+  lineChannelAccessToken: initialAccessToken = "", // รับค่า Access Token
   lineChannelSecret: initialSecret = "",
   onUpdate,
 }: LineSettingsCardProps) {
@@ -26,7 +26,7 @@ export function LineSettingsCard({
   const { toast } = useToast();
 
   const [lineEnabled, setLineEnabled] = useState(initialEnabled);
-  const [lineChannelId, setLineChannelId] = useState(initialChannelId);
+  const [lineChannelAccessToken, setLineChannelAccessToken] = useState(initialAccessToken); // เปลี่ยน State
   const [lineChannelSecret, setLineChannelSecret] = useState(initialSecret);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,7 +39,8 @@ export function LineSettingsCard({
         .from("stores")
         .update({
           line_enabled: lineEnabled,
-          line_channel_id: lineEnabled ? lineChannelId : null,
+          // บันทึกลง column line_channel_access_token แทน line_channel_id
+          line_channel_access_token: lineEnabled ? lineChannelAccessToken : null, 
           line_channel_secret: lineEnabled ? lineChannelSecret : null,
         })
         .eq("id", store.id);
@@ -88,12 +89,12 @@ export function LineSettingsCard({
       {lineEnabled && (
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="channelId">Channel ID</Label>
+            <Label htmlFor="channelAccessToken">Channel Access Token</Label> {/* แก้ Label */}
             <Input
-              id="channelId"
-              placeholder="Enter LINE Channel ID"
-              value={lineChannelId}
-              onChange={(e) => setLineChannelId(e.target.value)}
+              id="channelAccessToken"
+              placeholder="Enter LINE Channel Access Token" // แก้ Placeholder
+              value={lineChannelAccessToken}
+              onChange={(e) => setLineChannelAccessToken(e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -106,7 +107,7 @@ export function LineSettingsCard({
               onChange={(e) => setLineChannelSecret(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Get these from the LINE Developers Console
+              Get these from the LINE Developers Console (Messaging API)
             </p>
           </div>
           <Button
