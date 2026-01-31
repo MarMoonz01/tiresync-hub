@@ -42,6 +42,8 @@ interface TireWithDots {
   brand: string;
   model: string | null;
   size: string;
+  load_index: string | null;
+  speed_rating: string | null;
   price: number | null;
   store_id: string;
   tire_dots: TireDot[];
@@ -181,6 +183,13 @@ function generateTireFlexMessage(
     const displayDots = sortedDots.slice(0, 5);
     const remainingDots = sortedDots.length - displayDots.length;
 
+    // Calculate total stock for the summary
+    const totalStock = tire.tire_dots.reduce((sum, d) => sum + d.quantity, 0);
+    const stockLabel = totalStock === 0 ? "❌ หมดสต็อก" 
+      : totalStock <= LOW_STOCK_THRESHOLD ? "⚠️ เหลือน้อย" 
+      : "✅ มีสินค้า";
+    const stockColor = totalStock === 0 ? "#EF4444" : totalStock <= LOW_STOCK_THRESHOLD ? "#F59E0B" : "#22C55E";
+
     const dotRows = displayDots.map((dot) => {
       let statusColor = "#22C55E"; 
       let statusText = "มีสินค้า";
@@ -191,8 +200,33 @@ function generateTireFlexMessage(
         statusColor = "#F59E0B"; statusText = "เหลือน้อย";
       }
 
+      // Build DOT code text with promotion badge
+      const dotText = dot.promotion 
+        ? `${dot.dot_code || "-"} 🎁` 
+        : dot.dot_code || "-";
+
+      // DOT column with optional promotion text below
+      const dotColumnContents: object[] = [
+        { type: "text", text: dotText, size: "sm", color: "#555555" }
+      ];
+      
+      if (dot.promotion) {
+        dotColumnContents.push({
+          type: "text",
+          text: dot.promotion,
+          size: "xxs",
+          color: "#7C3AED",
+          wrap: true
+        });
+      }
+
       const rowContents: object[] = [
-        { type: "text", text: dot.dot_code || "-", size: "sm", color: "#555555", flex: 2 },
+        { 
+          type: "box",
+          layout: "vertical",
+          flex: 2,
+          contents: dotColumnContents
+        },
         { type: "text", text: `${dot.quantity}`, size: "sm", color: "#111111", align: "center", flex: 1 }
       ];
 
@@ -246,16 +280,31 @@ function generateTireFlexMessage(
       });
     }
 
+    // Build header contents with optional Load/Speed specs
+    const headerContents: object[] = [
+      { type: "text", text: `🏷️ ${tire.brand.toUpperCase()}`, weight: "bold", size: "lg", color: "#FFFFFF" },
+      { type: "text", text: `${tire.model || ""} • ${tire.size}`, size: "sm", color: "#E0E7FF", margin: "xs" }
+    ];
+
+    // Add Load Index + Speed Rating row if available
+    if (tire.load_index || tire.speed_rating) {
+      const specsText = `📐 ${tire.load_index || "-"}${tire.speed_rating || ""} (Load/Speed)`;
+      headerContents.push({
+        type: "text",
+        text: specsText,
+        size: "xs",
+        color: "#C7D2FE",
+        margin: "xs"
+      });
+    }
+
     // Main Card Structure
     const bubbleContent: any = {
       type: "bubble",
       header: {
         type: "box",
         layout: "vertical",
-        contents: [
-          { type: "text", text: `🏷️ ${tire.brand.toUpperCase()}`, weight: "bold", size: "lg", color: "#FFFFFF" },
-          { type: "text", text: `${tire.model || ""} • ${tire.size}`, size: "sm", color: "#E0E7FF", margin: "xs" }
-        ],
+        contents: headerContents,
         backgroundColor: "#2563EB",
         paddingAll: "lg"
       },
@@ -283,11 +332,20 @@ function generateTireFlexMessage(
               { type: "text", text: tire.price ? `฿${tire.price.toLocaleString()}` : "สอบถาม", size: "md", color: "#2563EB", weight: "bold", align: "end" }
             ],
             margin: "lg"
+          },
+          // NEW: Total stock summary row
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              { type: "text", text: "📦 รวมสต็อก:", size: "sm", color: "#666666" },
+              { type: "text", text: `${totalStock} เส้น ${stockLabel}`, size: "sm", weight: "bold", align: "end", color: stockColor }
+            ],
+            margin: "md"
           }
         ],
         paddingAll: "lg"
       }
-      // ❌ เอา Footer ออก (ปุ่มจอง/สาขาอื่น) ตามคำขอ
     };
 
     return bubbleContent;
@@ -482,7 +540,7 @@ async function searchTires(supabase: any, messageText: string, storeId: string, 
   const to = from + ITEMS_PER_PAGE; 
 
   const { data: tires, error } = await supabase.from("tires")
-    .select(`id, brand, model, size, price, store_id, tire_dots (id, dot_code, quantity, position, promotion), stores (name)`)
+    .select(`id, brand, model, size, load_index, speed_rating, price, store_id, tire_dots (id, dot_code, quantity, position, promotion), stores (name)`)
     .eq("store_id", storeId) // Lock to specific store
     .or(`size.ilike.${fuzzyPattern},brand.ilike.%${messageText}%,model.ilike.%${messageText}%`)
     .range(from, to);

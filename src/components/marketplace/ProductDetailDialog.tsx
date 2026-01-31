@@ -1,246 +1,194 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Store, 
-  Package, 
-  Calendar, 
-  Tag,
-  ChevronDown
-} from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogClose
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MarketplaceProduct, ProductStore } from "@/hooks/useMarketplaceProducts";
-import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Calendar, Package, Info, X } from "lucide-react";
+import { motion } from "framer-motion";
 
-interface ProductDetailDialogProps {
-  product: MarketplaceProduct | null;
+export function StoreProductDetailDialog({
+  product,
+  open,
+  onOpenChange,
+}: {
+  product: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-export function ProductDetailDialog({ 
-  product, 
-  open, 
-  onOpenChange,
-}: ProductDetailDialogProps) {
-  const [expandedStores, setExpandedStores] = useState<Set<string>>(new Set());
-
-  if (!product) return null;
-
-  const toggleStoreExpand = (storeId: string) => {
-    setExpandedStores(prev => {
-      const next = new Set(prev);
-      if (next.has(storeId)) {
-        next.delete(storeId);
-      } else {
-        next.add(storeId);
-      }
-      return next;
-    });
-  };
+}) {
+  if (!product && !open) return null;
+  const safeProduct = product || {}; 
+  const totalStock = safeProduct.tire_dots?.reduce((sum: any, dot: any) => sum + dot.quantity, 0) || 0;
+  const productName = `${safeProduct.brand} ${safeProduct.model || ''} ${safeProduct.size}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] p-0 overflow-hidden">
+      {/* FIX ความกระตุก:
+         1. ใช้ data-[state=open]:!animate-none เพื่อบังคับปิด Animation ของ Shadcn ทุกกรณี
+         2. ตั้ง bg-transparent เพื่อไม่ให้เห็นกล่องขาวแวบขึ้นมาก่อน
+      */}
+      <DialogContent className="
+        max-w-4xl p-0 
+        bg-transparent border-none shadow-none 
+        !animate-none !transition-none 
+        data-[state=open]:!animate-none data-[state=closed]:!animate-none 
+        [&>button]:hidden overflow-visible
+      ">
+        
+        {/* ใช้ motion.div ตัวเดียวคุมทั้งหมด เพื่อความลื่นไหลระดับ GPU */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          initial={{ opacity: 0, scale: 0.92, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 350,   // ความเด้ง (ค่าสูง = เด้งเร็วแบบ App มือถือ)
+            damping: 25,      // ความหนืด (ค่านี้ช่วยให้หยุดนิ่งแบบไม่สั่น)
+            mass: 0.5         // น้ำหนักเบา ขยับไว
+          }}
+          style={{ willChange: "transform, opacity" }} // บังคับใช้ GPU render
+          className="bg-white dark:bg-card shadow-2xl rounded-2xl overflow-hidden relative flex flex-col max-h-[85vh]"
         >
-          <DialogHeader className="p-6 pb-4">
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, duration: 0.3 }}
-            >
-              <DialogTitle className="text-xl font-bold">
-                {product.brand} {product.model}
-              </DialogTitle>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.3 }}
-            >
-              <DialogDescription className="text-base">
-                {product.size}
-                {product.load_index && ` • ${product.load_index}`}
-                {product.speed_rating && product.speed_rating}
-              </DialogDescription>
-            </motion.div>
-          </DialogHeader>
+            {/* Custom Close Button */}
+            <DialogClose className="absolute right-4 top-4 z-50 rounded-full p-2 bg-slate-100/80 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 transition-colors backdrop-blur-sm cursor-pointer outline-none ring-0">
+                <X className="w-5 h-5 text-slate-500" />
+            </DialogClose>
 
-          <div className="px-6 pb-2">
-            <motion.div 
-              className="flex items-center gap-2 text-sm text-muted-foreground mb-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.3 }}
-            >
-              <Store className="w-4 h-4" />
-              <span>
-                Available at {product.storeCount} {product.storeCount === 1 ? "store" : "stores"}
-              </span>
-              <span className="mx-2">•</span>
-              <Package className="w-4 h-4" />
-              <span>{product.totalQuantity} total in stock</span>
-            </motion.div>
-
-            <Separator className="mb-4" />
-
-            <motion.h4 
-              className="font-medium mb-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 0.3 }}
-            >
-              Available stores:
-            </motion.h4>
-          </div>
-
-          <ScrollArea className="max-h-[50vh] px-6 pb-6">
-            <div className="space-y-3 pr-2">
-              <AnimatePresence mode="popLayout">
-                {product.stores.map((storeEntry, index) => {
-                  const storeQuantity = storeEntry.tire_dots.reduce(
-                    (sum, d) => sum + d.quantity, 0
-                  );
-                  const isOutOfStock = storeQuantity === 0;
-                  const isLowStock = storeQuantity > 0 && storeQuantity <= 4;
-                  const isExpanded = expandedStores.has(storeEntry.id);
-                  const dotsWithStock = storeEntry.tire_dots.filter(d => d.quantity > 0);
-
-                  return (
-                    <motion.div 
-                      key={storeEntry.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ 
-                        delay: index * 0.08,
-                        duration: 0.3,
-                        ease: "easeOut"
-                      }}
-                      className="rounded-xl border border-border bg-card overflow-hidden"
-                    >
-                      {/* Store header - clickable to expand */}
-                      <motion.button
-                        onClick={() => toggleStoreExpand(storeEntry.id)}
-                        className="w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors"
-                        whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)" }}
-                        whileTap={{ scale: 0.99 }}
-                      >
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
-                          {storeEntry.store.logo_url ? (
-                            <img 
-                              src={storeEntry.store.logo_url}
-                              alt={storeEntry.store.name}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <Store className="w-6 h-6 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="font-semibold truncate">
-                            {storeEntry.store.name}
-                          </p>
-                          {storeEntry.network_price && (
-                            <p className="text-lg font-bold text-primary">
-                              ฿{storeEntry.network_price.toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {/* Stock badge */}
-                        <div className={cn(
-                          "flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium shrink-0",
-                          isOutOfStock 
-                            ? "bg-destructive/10 text-destructive" 
-                            : isLowStock 
-                            ? "bg-warning/10 text-warning" 
-                            : "bg-success/10 text-success"
-                        )}>
-                          <Package className="w-4 h-4" />
-                          {storeQuantity}
-                        </div>
-
-                        {/* Expand icon */}
-                        <motion.div
-                          animate={{ rotate: isExpanded ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                        </motion.div>
-                      </motion.button>
-
-                      {/* Expandable DOT list */}
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
-                              {dotsWithStock.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-2">
-                                  No stock available
-                                </p>
-                              ) : (
-                                dotsWithStock.map((dot, dotIndex) => (
-                                  <motion.div
-                                    key={dot.id}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: dotIndex * 0.05, duration: 0.2 }}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 gap-3"
-                                  >
-                                    <div className="flex items-center gap-2 flex-wrap flex-1">
-                                      <Badge variant="outline" className="text-xs font-mono">
-                                        <Calendar className="w-3 h-3 mr-1" />
-                                        DOT {dot.dot_code}
-                                      </Badge>
-                                      <Badge 
-                                        variant="secondary" 
-                                        className={cn(
-                                          "text-xs",
-                                          dot.quantity <= 4 ? "bg-warning/10 text-warning" : ""
-                                        )}
-                                      >
-                                        <Package className="w-3 h-3 mr-1" />
-                                        {dot.quantity} pcs
-                                      </Badge>
-                                      {dot.promotion && (
-                                        <Badge className="text-xs bg-accent/10 text-accent border-accent/20">
-                                          <Tag className="w-3 h-3 mr-1" />
-                                          {dot.promotion}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </motion.div>
-                                ))
-                              )}
-                            </div>
-                          </motion.div>
+            <div className="p-8 overflow-y-auto custom-scrollbar">
+                {/* Header Section */}
+                <div className="mb-8 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 border-slate-200 uppercase tracking-wider">
+                            {safeProduct.brand}
+                        </Badge>
+                        {safeProduct.is_shared && (
+                            <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none text-xs font-medium px-2.5 py-0.5">
+                                Shared Network
+                            </Badge>
                         )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
+                    </div>
+                    
+                    <div>
+                        <DialogTitle className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white leading-tight">
+                            {productName}
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-400 mt-2 font-mono text-sm">
+                            SKU: {safeProduct.id}
+                        </DialogDescription>
+                    </div>
+                </div>
+
+                {/* Content Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+                    
+                    {/* Left Column: Summary & Price */}
+                    <div className="md:col-span-5 space-y-6">
+                        <div className="bg-slate-50/80 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors hover:bg-slate-50/90">
+                            <div className="flex gap-3 mb-4">
+                                <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">Product Summary</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">
+                                        {safeProduct.brand} {safeProduct.model} tire sized {safeProduct.size}.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Separator className="bg-slate-200 dark:bg-slate-700 my-4" />
+
+                            <div className="space-y-5">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-slate-500 font-medium">Price (Network)</span>
+                                    <span className="text-3xl font-extrabold text-blue-600">
+                                        {safeProduct.network_price ? `฿${safeProduct.network_price.toLocaleString()}` : "N/A"}
+                                    </span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center bg-white dark:bg-black/20 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                        <Package className="w-4 h-4" />
+                                        <span className="font-medium">Total Stock</span>
+                                    </div>
+                                    <span className={`font-bold ${totalStock > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                        {totalStock} units
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Specs & DOTs */}
+                    <div className="md:col-span-7 space-y-8">
+                        {/* Specifications */}
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Specifications</h4>
+                            <div className="grid grid-cols-2 gap-y-6 gap-x-12">
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Size</p>
+                                    <p className="font-semibold text-slate-900 dark:text-white text-lg">{safeProduct.size}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Load/Speed</p>
+                                    <p className="font-semibold text-slate-900 dark:text-white text-lg">
+                                        {safeProduct.load_index}{safeProduct.speed_rating || '-'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Pattern/Model</p>
+                                    <p className="font-semibold text-slate-900 dark:text-white text-base break-words">
+                                        {safeProduct.model || '-'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Type</p>
+                                    <p className="font-semibold text-slate-900 dark:text-white text-base">
+                                        {safeProduct.type || 'Radial'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                        {/* Available DOTs */}
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Calendar className="w-4 h-4" /> Available DOTs
+                            </h4>
+                            {safeProduct.tire_dots && safeProduct.tire_dots.length > 0 ? (
+                              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                                <Table>
+                                  <TableHeader className="bg-slate-50 dark:bg-slate-900">
+                                    <TableRow className="hover:bg-transparent border-b border-slate-200 dark:border-slate-800">
+                                      <TableHead className="h-10 text-xs font-semibold text-slate-500 pl-6">DOT (Year/Week)</TableHead>
+                                      <TableHead className="h-10 text-right text-xs font-semibold text-slate-500 pr-6">Qty</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {safeProduct.tire_dots.map((dot: any) => (
+                                      <TableRow key={dot.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                        <TableCell className="font-mono text-sm pl-6 py-3 font-medium text-slate-700 dark:text-slate-300">
+                                            {dot.dot_code || 'N/A'}
+                                        </TableCell>
+                                        <TableCell className="text-right text-sm pr-6 py-3 font-semibold text-slate-900 dark:text-white">
+                                            {dot.quantity}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">No specific DOT data available.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
-          </ScrollArea>
         </motion.div>
       </DialogContent>
     </Dialog>

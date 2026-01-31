@@ -92,21 +92,17 @@ export function TireCard({
         isLowStock && "ring-1 ring-warning/20"
       )}>
         <CardContent className="p-0">
-          {/* Main Info */}
-          <div className="p-5"> {/* เพิ่ม Padding ให้ดูโปร่งขึ้น */}
+          <div className="p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                {/* Brand & Model: ปรับให้ใหญ่ขึ้นเป็น text-base */}
                 <h3 className="font-bold text-base md:text-lg text-foreground">
                   {tire.brand} {tire.model}
                 </h3>
-                {/* Size: ปรับเป็น text-sm อ่านง่าย */}
                 <p className="text-sm text-muted-foreground mt-1 font-medium">
                   {tire.size}
                   {tire.load_index && ` • ${tire.load_index}`}
                   {tire.speed_rating && tire.speed_rating}
                 </p>
-                {/* Price: ปรับให้เด่นขึ้น */}
                 {tire.price && (
                   <p className="text-base font-semibold text-primary mt-2">
                     ฿{tire.price.toLocaleString()}
@@ -119,7 +115,6 @@ export function TireCard({
                 )}
               </div>
 
-              {/* Stock Badge: ปรับขนาด Font และ Padding */}
               <div className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm",
                 isOutOfStock 
@@ -137,7 +132,6 @@ export function TireCard({
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/30">
               <Button
                 variant="ghost"
@@ -146,20 +140,13 @@ export function TireCard({
                 className="text-muted-foreground text-sm h-9 px-3 hover:bg-secondary/50"
               >
                 {expanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-2" />
-                    Hide Details
-                  </>
+                  <><ChevronUp className="w-4 h-4 mr-2" />Hide Details</>
                 ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-2" />
-                    View {tire.tire_dots?.length || 0} DOTs
-                  </>
+                  <><ChevronDown className="w-4 h-4 mr-2" />View {tire.tire_dots?.length || 0} DOTs</>
                 )}
               </Button>
 
               <div className="flex items-center gap-2">
-                {/* Share Toggle */}
                 {canEdit && (
                   <>
                     <Tooltip>
@@ -185,12 +172,10 @@ export function TireCard({
                         {tire.is_shared ? "Shared to Network" : "Share to Network"}
                       </TooltipContent>
                     </Tooltip>
-
                     <div className="w-px h-5 bg-border/50 mx-1" />
                   </>
                 )}
 
-                {/* Edit button: ขยายขนาด */}
                 {canEdit && (
                   <Button
                     variant="ghost"
@@ -202,7 +187,6 @@ export function TireCard({
                   </Button>
                 )}
 
-                {/* Delete button: ขยายขนาด */}
                 {canDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -237,7 +221,6 @@ export function TireCard({
             </div>
           </div>
 
-          {/* DOT Details Section */}
           {expanded && tire.tire_dots && tire.tire_dots.length > 0 && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
@@ -279,7 +262,6 @@ function DotRow({ dot, loading, onQuantityChange, canEdit = true }: DotRowProps)
     <div className="flex items-center justify-between gap-4 p-3 bg-background rounded-xl border border-border/50 shadow-sm">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3">
-          {/* DOT Code: ปรับเป็น text-sm และ font-mono เพื่อความชัดเจน */}
           <span className="font-mono text-sm md:text-base font-semibold text-foreground">
             {dot.dot_code}
           </span>
@@ -294,18 +276,39 @@ function DotRow({ dot, loading, onQuantityChange, canEdit = true }: DotRowProps)
       <div className="flex items-center gap-3">
         {canEdit ? (
           <>
-            {/* ปุ่มลบ: ขยายขนาด */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 rounded-lg border-input hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-              disabled={loading || dot.quantity === 0}
-              onClick={() => dot.id && onQuantityChange(dot.id, -1)}
-            >
-              <Minus className="w-4 h-4" />
-            </Button>
+            {/* ปุ่มลดสต็อกพร้อม AlertDialog */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-lg border-input hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+                  disabled={loading || dot.quantity === 0}
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>ยืนยันการลดสต็อก?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    คุณต้องการลดสต็อกของ DOT <span className="font-bold text-foreground">{dot.dot_code}</span> ลง 1 เส้น ใช่หรือไม่?
+                    <br />
+                    (คงเหลือ: {dot.quantity} ➔ {Math.max(0, dot.quantity - 1)})
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => dot.id && onQuantityChange(dot.id, -1)}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    ยืนยันการลด
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
-            {/* ตัวเลขจำนวน: ขยายให้ใหญ่เห็นชัดๆ (text-lg) */}
             <span className={cn(
               "w-8 text-center text-lg font-bold tabular-nums",
               isOut && "text-destructive",
@@ -315,16 +318,38 @@ function DotRow({ dot, loading, onQuantityChange, canEdit = true }: DotRowProps)
               {dot.quantity}
             </span>
 
-            {/* ปุ่มเพิ่ม: ขยายขนาด */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 rounded-lg border-input hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-              disabled={loading}
-              onClick={() => dot.id && onQuantityChange(dot.id, 1)}
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+            {/* ปุ่มเพิ่มสต็อกพร้อม AlertDialog */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-lg border-input hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                  disabled={loading}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>ยืนยันการเพิ่มสต็อก?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    คุณต้องการเพิ่มสต็อกของ DOT <span className="font-bold text-foreground">{dot.dot_code}</span> อีก 1 เส้น ใช่หรือไม่?
+                    <br />
+                    (คงเหลือ: {dot.quantity} ➔ {dot.quantity + 1})
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => dot.id && onQuantityChange(dot.id, 1)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    ยืนยันการเพิ่ม
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <span className={cn(
