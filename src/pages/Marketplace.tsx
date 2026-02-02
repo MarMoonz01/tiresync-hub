@@ -19,11 +19,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-// ✅ Import Component Dialog ที่แยกไฟล์ไว้
+// Component Dialog รายละเอียดสินค้า
 import { StoreProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
+// Component กระดานประกาศหาของ (ต้องมีไฟล์นี้)
+import { BroadcastBoard } from "@/components/marketplace/BroadcastBoard";
 
 // ==========================================
 // 1. Component: Marketplace Store Card
@@ -87,7 +90,6 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
     
     return (
         <motion.div 
-            // ✅ เปลี่ยน Animation เป็นแบบลอยขึ้น (y) แทน scale เพื่อความลื่นไหล
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ 
@@ -186,7 +188,18 @@ export default function Marketplace() {
                 .select('id')
                 .eq('owner_id', user.id)
                 .single();
-            if (myStore) myStoreId = myStore.id;
+            // ถ้าไม่เจอ owner store ให้ลองหา store ที่เป็น staff
+            if (myStore) {
+                myStoreId = myStore.id;
+            } else {
+                const { data: staffStore } = await supabase
+                    .from('store_members')
+                    .select('store_id')
+                    .eq('user_id', user.id)
+                    .eq('is_approved', true)
+                    .single();
+                if (staffStore) myStoreId = staffStore.store_id;
+            }
         }
 
         const { data, error } = await supabase
@@ -197,7 +210,7 @@ export default function Marketplace() {
           
         if (error) throw error;
 
-        // Filter out own store
+        // Filter out own store (ไม่แสดงร้านตัวเองใน Marketplace)
         const otherStores = data ? data.filter(store => store.id !== myStoreId) : [];
         setStores(otherStores);
 
@@ -274,161 +287,175 @@ export default function Marketplace() {
     <AppLayout>
       <div className="page-container space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <AnimatePresence mode="wait">
-          {!selectedStore ? (
-            // ================= VIEW 1: STORE DIRECTORY =================
-            <motion.div
-              key="directory"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
-            >
-              {/* Header */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                    <Store className="w-8 h-8 text-primary" />
-                    Marketplace
-                  </h1>
-                  <p className="text-muted-foreground mt-2 text-lg">
-                    Discover verified tire shops and suppliers.
-                  </p>
-                </div>
-                
-                <div className="relative w-full md:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search for stores..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-11"
-                  />
-                </div>
-              </div>
+        <Tabs defaultValue="browse" className="w-full space-y-6">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+                <TabsTrigger value="browse">Browse Stores</TabsTrigger>
+                <TabsTrigger value="broadcast">Broadcast Board 📢</TabsTrigger>
+            </TabsList>
 
-              {/* Stores Grid */}
-              {loadingStores ? (
-                 <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
-              ) : filteredStores.length === 0 ? (
-                <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <Store className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold">No stores found</h3>
-                    <p className="text-muted-foreground mt-2">Try adjusting your search terms.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredStores.map((store) => (
-                    <MarketplaceStoreCard 
-                        key={store.id} 
-                        store={store} 
-                        onClick={() => handleStoreSelect(store)} 
-                    />
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          ) : (
-            // ================= VIEW 2: STOREFRONT (PRODUCTS) =================
-            <motion.div
-              key="storefront"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-8"
-            >
-               {/* Store Header Banner */}
-               <div className="rounded-2xl bg-white dark:bg-card border border-border overflow-hidden shadow-sm">
-                  <div className="h-40 bg-gradient-to-r from-blue-600 to-indigo-700 relative">
-                     <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="absolute top-6 left-6 gap-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md"
-                        onClick={handleBack}
-                     >
-                        <ArrowLeft className="w-4 h-4" /> Back to Stores
-                     </Button>
-                  </div>
-                  <div className="px-8 pb-8">
-                      <div className="relative flex flex-col md:flex-row gap-6 items-start md:items-end -mt-12">
-                         <div className="h-32 w-32 rounded-2xl border-[6px] border-background bg-white shadow-xl overflow-hidden shrink-0">
-                            <Avatar className="h-full w-full rounded-xl">
-                               <AvatarImage src={selectedStore.logo_url} className="object-cover" />
-                               <AvatarFallback className="text-4xl bg-primary/10 text-primary font-bold">
-                                   {selectedStore.name.substring(0,2).toUpperCase()}
-                               </AvatarFallback>
-                            </Avatar>
-                         </div>
-                         <div className="flex-1 space-y-2 pt-2 md:pt-0 mb-2">
-                            <div className="flex flex-wrap items-center gap-3">
-                               <h1 className="text-3xl font-bold">{selectedStore.name}</h1>
-                               {selectedStore.is_active && (
-                                   <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">Verified Seller</Badge>
-                               )}
-                            </div>
-                            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                               <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {selectedStore.address || "No address"}</span>
-                               <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" /> {selectedStore.phone || "No phone"}</span>
-                            </div>
-                         </div>
-                         
-                         <div className="w-full md:w-auto mt-4 md:mt-0">
-                            <div className="relative">
-                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                               <Input
-                                 placeholder={`Search in ${selectedStore.name}...`}
-                                 value={searchQuery}
-                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                 className="pl-10 w-full md:w-72"
-                               />
-                            </div>
-                         </div>
-                      </div>
-                  </div>
-               </div>
-
-               {/* Products Grid */}
-               <div className="space-y-4">
-                   <h2 className="text-xl font-semibold flex items-center gap-2">
-                       <ShoppingBag className="w-5 h-5 text-primary" />
-                       Shared Inventory
-                       <Badge variant="secondary" className="ml-2">{filteredStoreProducts.length}</Badge>
-                   </h2>
-
-                   {loadingProducts ? (
-                       <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
-                   ) : filteredStoreProducts.length === 0 ? (
-                      <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                          <PackageX className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-1">No shared tires found</h3>
-                          <p className="text-muted-foreground max-w-md mx-auto">
-                            {debouncedSearch 
-                               ? `No matches for "${debouncedSearch}".` 
-                               : "This store hasn't shared any tires to the network yet."}
+            {/* ============ TAB 1: BROWSE STORES ============ */}
+            <TabsContent value="browse" className="mt-0">
+                <AnimatePresence mode="wait">
+                  {!selectedStore ? (
+                    // ---------------- VIEW 1: STORE DIRECTORY ----------------
+                    <motion.div
+                      key="directory"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-8"
+                    >
+                      {/* Header */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                            <Store className="w-8 h-8 text-primary" />
+                            Marketplace
+                          </h1>
+                          <p className="text-muted-foreground mt-2 text-lg">
+                            Discover verified tire shops and suppliers.
                           </p>
+                        </div>
+                        
+                        <div className="relative w-full md:w-80">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search for stores..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-11"
+                          />
+                        </div>
                       </div>
-                   ) : (
-                      // ✅ เอา layout ออก และทำ Simple Fade In
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
-                      >
-                          {filteredStoreProducts.map((product) => (
-                                <ProductItemCard 
-                                key={product.id} 
-                                product={product} 
-                                onClick={() => setSelectedProduct(product)} 
-                                />
-                          ))}
-                      </motion.div>
-                   )}
-               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Product Detail Dialog */}
+                      {/* Stores Grid */}
+                      {loadingStores ? (
+                         <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
+                      ) : filteredStores.length === 0 ? (
+                        <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <Store className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold">No stores found</h3>
+                            <p className="text-muted-foreground mt-2">Try adjusting your search terms.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {filteredStores.map((store) => (
+                            <MarketplaceStoreCard 
+                                key={store.id} 
+                                store={store} 
+                                onClick={() => handleStoreSelect(store)} 
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    // ---------------- VIEW 2: STOREFRONT (PRODUCTS) ----------------
+                    <motion.div
+                      key="storefront"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="space-y-8"
+                    >
+                       {/* Store Header Banner */}
+                       <div className="rounded-2xl bg-white dark:bg-card border border-border overflow-hidden shadow-sm">
+                          <div className="h-40 bg-gradient-to-r from-blue-600 to-indigo-700 relative">
+                             <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                className="absolute top-6 left-6 gap-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md"
+                                onClick={handleBack}
+                             >
+                                <ArrowLeft className="w-4 h-4" /> Back to Stores
+                             </Button>
+                          </div>
+                          <div className="px-8 pb-8">
+                              <div className="relative flex flex-col md:flex-row gap-6 items-start md:items-end -mt-12">
+                                  <div className="h-32 w-32 rounded-2xl border-[6px] border-background bg-white shadow-xl overflow-hidden shrink-0">
+                                     <Avatar className="h-full w-full rounded-xl">
+                                        <AvatarImage src={selectedStore.logo_url} className="object-cover" />
+                                        <AvatarFallback className="text-4xl bg-primary/10 text-primary font-bold">
+                                            {selectedStore.name.substring(0,2).toUpperCase()}
+                                        </AvatarFallback>
+                                     </Avatar>
+                                  </div>
+                                  <div className="flex-1 space-y-2 pt-2 md:pt-0 mb-2">
+                                     <div className="flex flex-wrap items-center gap-3">
+                                        <h1 className="text-3xl font-bold">{selectedStore.name}</h1>
+                                        {selectedStore.is_active && (
+                                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">Verified Seller</Badge>
+                                        )}
+                                     </div>
+                                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                                        <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {selectedStore.address || "No address"}</span>
+                                        <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" /> {selectedStore.phone || "No phone"}</span>
+                                     </div>
+                                  </div>
+                                  
+                                  <div className="w-full md:w-auto mt-4 md:mt-0">
+                                     <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                          placeholder={`Search in ${selectedStore.name}...`}
+                                          value={searchQuery}
+                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                          className="pl-10 w-full md:w-72"
+                                        />
+                                     </div>
+                                  </div>
+                              </div>
+                          </div>
+                       </div>
+
+                       {/* Products Grid */}
+                       <div className="space-y-4">
+                           <h2 className="text-xl font-semibold flex items-center gap-2">
+                               <ShoppingBag className="w-5 h-5 text-primary" />
+                               Shared Inventory
+                               <Badge variant="secondary" className="ml-2">{filteredStoreProducts.length}</Badge>
+                           </h2>
+
+                           {loadingProducts ? (
+                               <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
+                           ) : filteredStoreProducts.length === 0 ? (
+                              <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                  <PackageX className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                                  <h3 className="text-xl font-semibold mb-1">No shared tires found</h3>
+                                  <p className="text-muted-foreground max-w-md mx-auto">
+                                    {debouncedSearch 
+                                       ? `No matches for "${debouncedSearch}".` 
+                                       : "This store hasn't shared any tires to the network yet."}
+                                  </p>
+                              </div>
+                           ) : (
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
+                              >
+                                  {filteredStoreProducts.map((product) => (
+                                        <ProductItemCard 
+                                        key={product.id} 
+                                        product={product} 
+                                        onClick={() => setSelectedProduct(product)} 
+                                        />
+                                  ))}
+                              </motion.div>
+                           )}
+                       </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+            </TabsContent>
+
+            {/* ============ TAB 2: BROADCAST BOARD ============ */}
+            <TabsContent value="broadcast" className="mt-0">
+                <BroadcastBoard />
+            </TabsContent>
+        </Tabs>
+
+        {/* Product Detail Dialog (Global) */}
         <StoreProductDetailDialog
           product={selectedProduct}
           open={!!selectedProduct}
