@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -109,11 +109,23 @@ export function useMarketplaceProducts() {
         .in("tire_id", tireIds)
         .order("position", { ascending: true });
 
-      // Group tires by product (brand + model + size + load_index + speed_rating)
+      // Group tires logic
       const productMap = new Map<string, MarketplaceProduct>();
 
+      // ฟังก์ชันช่วย Normalize ชื่อรุ่นให้เป็นมาตรฐานเดียวกัน (ตัดช่องว่าง, ตัวเล็กหมด)
+      // ช่วยให้ "Primacy 4" กับ "Primacy4" หรือ "PRIMACY 4" ถูกมองเป็นตัวเดียวกัน
+      // แต่ "Primacy" กับ "Pilot Sport" จะแยกกันชัดเจน
+      const normalizeModel = (modelName: string | null) => {
+         if (!modelName) return "generic";
+         // 1. แปลงเป็นตัวเล็ก
+         // 2. ตัดอักขระพิเศษและช่องว่างออกให้หมด (เหลือแค่ a-z และ 0-9)
+         return modelName.toLowerCase().replace(/[^a-z0-9]/g, "");
+      };
+
       tiresData.forEach((tire) => {
-        const productKey = `${tire.brand}|${tire.model || ""}|${tire.size}|${tire.load_index || ""}|${tire.speed_rating || ""}`;
+        // สร้าง Key โดยรวม Model ที่ Normalize แล้วเข้าไปด้วย
+        const normalizedModel = normalizeModel(tire.model);
+        const productKey = `${tire.brand}|${normalizedModel}|${tire.size}|${tire.load_index || ""}|${tire.speed_rating || ""}`;
         
         const tireStore = storesData?.find((s) => s.id === tire.store_id);
         const tireDots = dotsData?.filter((d) => d.tire_id === tire.id) || [];
@@ -141,6 +153,13 @@ export function useMarketplaceProducts() {
               existing.maxPrice = tire.network_price;
             }
           }
+          
+          // Update model name logic: Prefer non-null/longer names for display
+          // ถ้าตัวที่มีอยู่ไม่มีชื่อรุ่น แต่ตัวใหม่มี ให้เอาชื่อตัวใหม่มาใช้แสดงผล
+          if ((!existing.model && tire.model) || (existing.model && tire.model && tire.model.length > existing.model.length)) {
+             existing.model = tire.model;
+          }
+
         } else {
           productMap.set(productKey, {
             productKey,

@@ -11,7 +11,9 @@ import {
   Eye,
   PackageX,
   Gauge,
-  Layers
+  Layers,
+  ArrowRight,
+  Disc 
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -20,17 +22,26 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"; // <--- Import Pagination Components
 import { supabase } from "@/integrations/supabase/client";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-// Component Dialog รายละเอียดสินค้า
-import { StoreProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
-// Component กระดานประกาศหาของ (ต้องมีไฟล์นี้)
-import { BroadcastBoard } from "@/components/marketplace/BroadcastBoard";
+// --- Hooks ---
+import { useMarketplaceProducts, MarketplaceProduct } from "@/hooks/useMarketplaceProducts";
 
-// ==========================================
-// 1. Component: Marketplace Store Card
-// ==========================================
+// --- Components ---
+import { StoreProductDetailDialog } from "@/components/marketplace/ProductDetailDialog";
+import { BroadcastBoard } from "@/components/marketplace/BroadcastBoard";
+import { ProductGroupDialog } from "@/components/marketplace/ProductGroupDialog";
+
+// ... (MarketplaceStoreCard component code - keep unchanged) ...
 const MarketplaceStoreCard = ({ store, onClick }: { store: any, onClick: () => void }) => {
   const initials = store.name.substring(0, 2).toUpperCase();
 
@@ -39,11 +50,16 @@ const MarketplaceStoreCard = ({ store, onClick }: { store: any, onClick: () => v
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      whileHover={{ 
+        y: -5, 
+        scale: 1.02,
+        transition: { type: "spring", stiffness: 400, damping: 10 } 
+      }}
+      whileTap={{ scale: 0.95 }}
       className="cursor-pointer group h-full"
       onClick={onClick}
     >
-      <Card className="h-full overflow-hidden border-border/50 hover:shadow-lg transition-all duration-300 bg-card">
+      <Card className="h-full overflow-hidden border-border/50 hover:shadow-xl transition-all duration-300 bg-card">
         <div className="h-24 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 relative">
             <div className="absolute -bottom-8 left-6">
                 <div className="h-16 w-16 rounded-xl border-4 border-background bg-white shadow-sm overflow-hidden">
@@ -82,9 +98,7 @@ const MarketplaceStoreCard = ({ store, onClick }: { store: any, onClick: () => v
   );
 };
 
-// ==========================================
-// 2. Component: Product Item Card (Optimized)
-// ==========================================
+// ... (ProductItemCard component code - keep unchanged) ...
 const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => void }) => {
     const totalStock = product.tire_dots?.reduce((sum: number, dot: any) => sum + dot.quantity, 0) || 0;
     
@@ -93,18 +107,18 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ 
-                y: -5, 
-                transition: { type: "spring", stiffness: 400, damping: 10 } 
+                y: -8, 
+                scale: 1.02,
+                transition: { type: "spring", stiffness: 400, damping: 10 }
             }}
-            whileTap={{ scale: 0.98 }}
+            whileTap={{ scale: 0.95 }}
             className="cursor-pointer group h-full"
             onClick={onClick}
         >
-            <Card className="h-full border-border/50 hover:border-primary/50 hover:shadow-md transition-colors duration-300 flex flex-col bg-card relative overflow-hidden">
+            <Card className="h-full border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 flex flex-col bg-card relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-primary/5 to-transparent rounded-bl-3xl -mr-4 -mt-4 transition-all group-hover:from-primary/10" />
 
                 <CardContent className="p-5 flex-1 flex flex-col">
-                    {/* Header: Brand & Stock */}
                     <div className="flex justify-between items-start mb-3 relative z-10">
                         <Badge variant="outline" className="font-semibold bg-background/50 backdrop-blur-sm">
                             {product.brand}
@@ -115,7 +129,6 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
                         </div>
                     </div>
 
-                    {/* Main Info */}
                     <div className="mb-4 relative z-10">
                         <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors leading-tight mb-2">
                             {product.size}
@@ -131,14 +144,9 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
                                     {product.load_index}{product.speed_rating}
                                 </div>
                              )}
-                             <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                                <Layers className="w-3 h-3" />
-                                {product.type || 'Radial'}
-                             </div>
                         </div>
                     </div>
                     
-                    {/* Footer: Price & Action */}
                     <div className="mt-auto pt-3 border-t border-border/50 flex justify-between items-end relative z-10">
                         <div>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Network Price</p>
@@ -156,25 +164,120 @@ const ProductItemCard = ({ product, onClick }: { product: any, onClick: () => vo
     );
 };
 
+// ... (AggregatedProductCard component code - keep unchanged) ...
+const AggregatedProductCard = ({ product, onClick }: { product: MarketplaceProduct, onClick: () => void }) => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            whileHover={{ 
+                y: -8, 
+                scale: 1.02,
+                transition: { type: "spring", stiffness: 350, damping: 25 }
+            }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="cursor-pointer h-full"
+            onClick={onClick}
+        >
+            <Card className="h-full border-border/40 hover:border-primary/50 hover:shadow-xl transition-all duration-300 bg-card flex flex-col overflow-hidden group rounded-2xl">
+                <div className="h-32 bg-slate-50 dark:bg-slate-900/50 relative flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-800/50 transition-colors">
+                    <div className="absolute top-3 right-3 z-10">
+                        <Badge className="bg-white/90 text-slate-700 hover:bg-white shadow-sm backdrop-blur-sm border-slate-200 dark:bg-black/50 dark:text-slate-200 dark:border-slate-700">
+                             {product.brand}
+                        </Badge>
+                    </div>
+                    
+                    <motion.div 
+                        whileHover={{ rotate: 15, scale: 1.1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 10 }}
+                    >
+                         <Disc className="w-16 h-16 text-slate-300 dark:text-slate-600 group-hover:text-primary/40 transition-colors" />
+                    </motion.div>
+
+                    <div className="absolute bottom-2 left-3 flex gap-1">
+                        {product.storeCount > 1 && (
+                            <Badge variant="secondary" className="text-[10px] h-5 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400">
+                                {product.storeCount} Stores
+                            </Badge>
+                        )}
+                    </div>
+                </div>
+
+                <CardContent className="p-4 flex-1 flex flex-col">
+                    <div className="mb-3">
+                        <h3 className="font-bold text-xl text-foreground group-hover:text-primary transition-colors leading-tight">
+                            {product.size}
+                        </h3>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                                {product.model || "Various Models"}
+                             </span>
+                             {(product.load_index || product.speed_rating) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                   {product.load_index}{product.speed_rating}
+                                </span>
+                             )}
+                        </div>
+                    </div>
+
+                    <div className="mt-auto pt-3 flex items-end justify-between border-t border-dashed border-slate-200 dark:border-slate-800">
+                        <div>
+                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Best Price</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                                    ฿{product.minPrice?.toLocaleString()}
+                                </span>
+                                {product.maxPrice && product.maxPrice > product.minPrice! && (
+                                    <span className="text-xs text-muted-foreground line-through">
+                                        ฿{product.maxPrice?.toLocaleString()}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <Button size="icon" className="h-9 w-9 rounded-full bg-primary text-white shadow-md shadow-primary/20 group-hover:scale-110 transition-transform">
+                            <ArrowRight className="w-5 h-5" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
+    )
+}
+
 // ==========================================
-// 3. MAIN PAGE: Marketplace
+// 4. MAIN PAGE: Marketplace
 // ==========================================
 
 export default function Marketplace() {
-  // --- State ---
+  // --- State 1: Product-Centric View (Default) ---
+  const { 
+    products: aggregatedProducts, 
+    loading: loadingAggregated, 
+    searchQuery: productSearch, 
+    setSearchQuery: setProductSearch,
+    refetch: refetchProducts,
+    page, // <--- รับค่า page มา
+    totalPages, // <--- รับค่า totalPages มา
+    goToPage // <--- รับฟังก์ชันเปลี่ยนหน้ามา
+  } = useMarketplaceProducts();
+  
+  const [selectedGroupProduct, setSelectedGroupProduct] = useState<MarketplaceProduct | null>(null);
+
+  // --- State 2: Store-Centric View ---
   const [selectedStore, setSelectedStore] = useState<any | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebouncedValue(searchQuery, 400);
+  const [storeSearchQuery, setStoreSearchQuery] = useState("");
+  const debouncedStoreSearch = useDebouncedValue(storeSearchQuery, 400);
   
   const [stores, setStores] = useState<any[]>([]);
   const [loadingStores, setLoadingStores] = useState(true);
   
-  const [products, setProducts] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [storeProducts, setStoreProducts] = useState<any[]>([]);
+  const [loadingStoreProducts, setLoadingStoreProducts] = useState(false);
   
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedStoreProduct, setSelectedStoreProduct] = useState<any>(null);
 
-  // --- Effect 1: Fetch Stores ---
+  // ... (Effects for fetching stores - keep unchanged) ...
   useEffect(() => {
     const fetchStores = async () => {
       setLoadingStores(true);
@@ -188,7 +291,6 @@ export default function Marketplace() {
                 .select('id')
                 .eq('owner_id', user.id)
                 .single();
-            // ถ้าไม่เจอ owner store ให้ลองหา store ที่เป็น staff
             if (myStore) {
                 myStoreId = myStore.id;
             } else {
@@ -209,8 +311,6 @@ export default function Marketplace() {
           .order('name');
           
         if (error) throw error;
-
-        // Filter out own store (ไม่แสดงร้านตัวเองใน Marketplace)
         const otherStores = data ? data.filter(store => store.id !== myStoreId) : [];
         setStores(otherStores);
 
@@ -223,39 +323,28 @@ export default function Marketplace() {
     fetchStores();
   }, []);
 
-  // --- Effect 2: Fetch Products ---
+  // ... (Effects for fetching store products - keep unchanged) ...
   useEffect(() => {
     if (!selectedStore) {
-        setProducts([]);
+        setStoreProducts([]);
         return;
     }
 
     const fetchStoreProducts = async () => {
-        setLoadingProducts(true);
+        setLoadingStoreProducts(true);
         try {
-            console.log("Fetching tires for store:", selectedStore.id);
-            
             const { data, error } = await supabase
                 .from('tires')
-                .select(`
-                    *,
-                    tire_dots (
-                        id,
-                        quantity,
-                        dot_code
-                    )
-                `)
+                .select(`*, tire_dots (id, quantity, dot_code)`)
                 .eq('store_id', selectedStore.id)
                 .eq('is_shared', true); 
 
             if (error) throw error;
-            
-            console.log("Shared tires found:", data);
-            setProducts(data || []);
+            setStoreProducts(data || []);
         } catch (err) {
             console.error("Error fetching products:", err);
         } finally {
-            setLoadingProducts(false);
+            setLoadingStoreProducts(false);
         }
     };
 
@@ -264,22 +353,22 @@ export default function Marketplace() {
 
   // --- Filter Logic ---
   const filteredStores = stores.filter(store => 
-    store.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+    store.name.toLowerCase().includes(debouncedStoreSearch.toLowerCase())
   );
 
-  const filteredStoreProducts = products.filter(p => {
+  const filteredStoreProducts = storeProducts.filter(p => {
     const fullName = `${p.brand} ${p.model || ''} ${p.size}`.toLowerCase();
-    return fullName.includes(debouncedSearch.toLowerCase());
+    return fullName.includes(debouncedStoreSearch.toLowerCase());
   });
 
   // --- Handlers ---
   const handleStoreSelect = (store: any) => {
-    setSearchQuery(""); 
+    setStoreSearchQuery(""); 
     setSelectedStore(store);
   };
 
-  const handleBack = () => {
-    setSearchQuery("");
+  const handleBackToStores = () => {
+    setStoreSearchQuery("");
     setSelectedStore(null);
   };
 
@@ -287,17 +376,104 @@ export default function Marketplace() {
     <AppLayout>
       <div className="page-container space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <Tabs defaultValue="browse" className="w-full space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="browse">Browse Stores</TabsTrigger>
-                <TabsTrigger value="broadcast">Broadcast Board 📢</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="products" className="w-full space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <TabsList className="grid w-full sm:w-[450px] grid-cols-3">
+                    <TabsTrigger value="products">All Products</TabsTrigger>
+                    <TabsTrigger value="stores">Browse Stores</TabsTrigger>
+                    <TabsTrigger value="broadcast">Broadcast 📢</TabsTrigger>
+                </TabsList>
+            </div>
 
-            {/* ============ TAB 1: BROWSE STORES ============ */}
-            <TabsContent value="browse" className="mt-0">
+            {/* ============ TAB 1: ALL PRODUCTS ============ */}
+            <TabsContent value="products" className="mt-0 space-y-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                >
+                    {/* Header & Search */}
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-card p-6 rounded-2xl border border-border/50 shadow-sm">
+                        <div>
+                            <h2 className="text-2xl font-bold flex items-center gap-3">
+                                <ShoppingBag className="w-6 h-6 text-primary" />
+                                Marketplace Inventory
+                            </h2>
+                            <p className="text-muted-foreground mt-1">
+                                Search for tires across {aggregatedProducts.length > 0 ? aggregatedProducts.length : 'all'} grouped items.
+                            </p>
+                        </div>
+                        <div className="relative w-full md:w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search Brand, Size (e.g. 265/60)..." 
+                                value={productSearch}
+                                onChange={(e) => setProductSearch(e.target.value)}
+                                className="pl-10 h-11 bg-background"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    {loadingAggregated ? (
+                        <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
+                    ) : aggregatedProducts.length === 0 ? (
+                        <div className="text-center py-32 border-2 border-dashed rounded-xl bg-slate-50/50">
+                            <PackageX className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                            <p className="text-muted-foreground font-medium">No products match your search.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {aggregatedProducts.map((product) => (
+                                    <AggregatedProductCard 
+                                        key={product.productKey} 
+                                        product={product} 
+                                        onClick={() => setSelectedGroupProduct(product)}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* --- Pagination UI --- */}
+                            {totalPages > 1 && (
+                                <div className="mt-8 flex justify-center">
+                                    <Pagination>
+                                        <PaginationContent>
+                                            <PaginationItem>
+                                                <PaginationPrevious 
+                                                    href="#" 
+                                                    onClick={(e) => { e.preventDefault(); if(page > 1) goToPage(page - 1); }}
+                                                    className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                />
+                                            </PaginationItem>
+                                            
+                                            <PaginationItem>
+                                                <PaginationLink href="#" isActive className="cursor-default">
+                                                    Page {page} of {totalPages}
+                                                </PaginationLink>
+                                            </PaginationItem>
+
+                                            <PaginationItem>
+                                                <PaginationNext 
+                                                    href="#" 
+                                                    onClick={(e) => { e.preventDefault(); if(page < totalPages) goToPage(page + 1); }}
+                                                    className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                />
+                                            </PaginationItem>
+                                        </PaginationContent>
+                                    </Pagination>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </motion.div>
+            </TabsContent>
+
+            {/* ============ TAB 2: BROWSE STORES ============ */}
+            <TabsContent value="stores" className="mt-0">
+               {/* ... (Browse Stores content - keep unchanged) ... */}
                 <AnimatePresence mode="wait">
                   {!selectedStore ? (
-                    // ---------------- VIEW 1: STORE DIRECTORY ----------------
                     <motion.div
                       key="directory"
                       initial={{ opacity: 0, x: -20 }}
@@ -305,37 +481,33 @@ export default function Marketplace() {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-8"
                     >
-                      {/* Header */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
-                          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                            <Store className="w-8 h-8 text-primary" />
-                            Marketplace
+                          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                            <Store className="w-6 h-6 text-primary" />
+                            Store Directory
                           </h1>
-                          <p className="text-muted-foreground mt-2 text-lg">
-                            Discover verified tire shops and suppliers.
+                          <p className="text-muted-foreground mt-1">
+                            Browse verified tire shops directly.
                           </p>
                         </div>
-                        
                         <div className="relative w-full md:w-80">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
-                            placeholder="Search for stores..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search store name..."
+                            value={storeSearchQuery}
+                            onChange={(e) => setStoreSearchQuery(e.target.value)}
                             className="pl-10 h-11"
                           />
                         </div>
                       </div>
-
-                      {/* Stores Grid */}
+                      
                       {loadingStores ? (
                          <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
                       ) : filteredStores.length === 0 ? (
                         <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
                             <Store className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold">No stores found</h3>
-                            <p className="text-muted-foreground mt-2">Try adjusting your search terms.</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -350,7 +522,6 @@ export default function Marketplace() {
                       )}
                     </motion.div>
                   ) : (
-                    // ---------------- VIEW 2: STOREFRONT (PRODUCTS) ----------------
                     <motion.div
                       key="storefront"
                       initial={{ opacity: 0, x: 20 }}
@@ -358,14 +529,13 @@ export default function Marketplace() {
                       exit={{ opacity: 0, x: 20 }}
                       className="space-y-8"
                     >
-                       {/* Store Header Banner */}
                        <div className="rounded-2xl bg-white dark:bg-card border border-border overflow-hidden shadow-sm">
                           <div className="h-40 bg-gradient-to-r from-blue-600 to-indigo-700 relative">
                              <Button 
                                 variant="secondary" 
                                 size="sm" 
                                 className="absolute top-6 left-6 gap-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md"
-                                onClick={handleBack}
+                                onClick={handleBackToStores}
                              >
                                 <ArrowLeft className="w-4 h-4" /> Back to Stores
                              </Button>
@@ -398,8 +568,8 @@ export default function Marketplace() {
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                         <Input
                                           placeholder={`Search in ${selectedStore.name}...`}
-                                          value={searchQuery}
-                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                          value={storeSearchQuery}
+                                          onChange={(e) => setStoreSearchQuery(e.target.value)}
                                           className="pl-10 w-full md:w-72"
                                         />
                                      </div>
@@ -408,7 +578,6 @@ export default function Marketplace() {
                           </div>
                        </div>
 
-                       {/* Products Grid */}
                        <div className="space-y-4">
                            <h2 className="text-xl font-semibold flex items-center gap-2">
                                <ShoppingBag className="w-5 h-5 text-primary" />
@@ -416,17 +585,12 @@ export default function Marketplace() {
                                <Badge variant="secondary" className="ml-2">{filteredStoreProducts.length}</Badge>
                            </h2>
 
-                           {loadingProducts ? (
+                           {loadingStoreProducts ? (
                                <div className="flex justify-center py-32"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
                            ) : filteredStoreProducts.length === 0 ? (
                               <div className="text-center py-32 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
                                   <PackageX className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
                                   <h3 className="text-xl font-semibold mb-1">No shared tires found</h3>
-                                  <p className="text-muted-foreground max-w-md mx-auto">
-                                    {debouncedSearch 
-                                       ? `No matches for "${debouncedSearch}".` 
-                                       : "This store hasn't shared any tires to the network yet."}
-                                  </p>
                               </div>
                            ) : (
                               <motion.div 
@@ -438,7 +602,7 @@ export default function Marketplace() {
                                         <ProductItemCard 
                                         key={product.id} 
                                         product={product} 
-                                        onClick={() => setSelectedProduct(product)} 
+                                        onClick={() => setSelectedStoreProduct(product)} 
                                         />
                                   ))}
                               </motion.div>
@@ -449,17 +613,23 @@ export default function Marketplace() {
                 </AnimatePresence>
             </TabsContent>
 
-            {/* ============ TAB 2: BROADCAST BOARD ============ */}
+            {/* ============ TAB 3: BROADCAST BOARD ============ */}
             <TabsContent value="broadcast" className="mt-0">
                 <BroadcastBoard />
             </TabsContent>
         </Tabs>
 
-        {/* Product Detail Dialog (Global) */}
+        {/* Dialogs */}
+        <ProductGroupDialog
+          product={selectedGroupProduct}
+          open={!!selectedGroupProduct}
+          onOpenChange={(open) => !open && setSelectedGroupProduct(null)}
+        />
+
         <StoreProductDetailDialog
-          product={selectedProduct}
-          open={!!selectedProduct}
-          onOpenChange={(open) => !open && setSelectedProduct(null)}
+          product={selectedStoreProduct}
+          open={!!selectedStoreProduct}
+          onOpenChange={(open) => !open && setSelectedStoreProduct(null)}
         />
         
       </div>
