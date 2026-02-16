@@ -9,16 +9,18 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
   requireStore?: boolean;
   ownerOnly?: boolean;
+  requireModerator?: boolean;
 }
 
-export function ProtectedRoute({ 
-  children, 
+export function ProtectedRoute({
+  children,
   requireApproval = true,
   requireAdmin = false,
   requireStore = false,
   ownerOnly = false,
+  requireModerator = false,
 }: ProtectedRouteProps) {
-  const { user, loading, isApproved, isAdmin, hasStore, isOwner, isStaff, storeMembership } = useAuth();
+  const { user, loading, isApproved, isAdmin, hasStore, isOwner, isStaff, storeMembership, isModerator } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -43,6 +45,11 @@ export function ProtectedRoute({
 
   // If admin access is required
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // If moderator access is required
+  if (requireModerator && !isModerator && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 

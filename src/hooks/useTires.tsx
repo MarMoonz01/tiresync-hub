@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatTireSize } from "@/lib/utils";
 
 export interface TireDot {
   id?: string;
@@ -15,6 +16,7 @@ export interface TireDot {
 export interface Tire {
   id: string;
   store_id: string;
+  master_tire_id?: string | null;
   size: string;
   brand: string;
   model: string | null;
@@ -29,6 +31,7 @@ export interface Tire {
 }
 
 export interface TireFormData {
+  master_tire_id?: string;
   size: string;
   brand: string;
   model: string;
@@ -70,14 +73,17 @@ export function useTires() {
 
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from("tires")
         .select("*", { count: "exact" })
         .eq("store_id", store.id);
 
       if (searchQuery) {
-        query = query.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
+        const formattedSize = formatTireSize(searchQuery);
+        let conditions = `brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`;
+        if (formattedSize) conditions += `,size.ilike.%${formattedSize}%`;
+        query = query.or(conditions);
       }
 
       if (brandFilter !== "all") {
@@ -96,7 +102,10 @@ export function useTires() {
         .eq("store_id", store.id);
 
       if (searchQuery) {
-        tiresQuery = tiresQuery.or(`brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`);
+        const formattedSize = formatTireSize(searchQuery);
+        let conditions = `brand.ilike.%${searchQuery}%,size.ilike.%${searchQuery}%,model.ilike.%${searchQuery}%`;
+        if (formattedSize) conditions += `,size.ilike.%${formattedSize}%`;
+        tiresQuery = tiresQuery.or(conditions);
       }
 
       if (brandFilter !== "all") {
@@ -126,7 +135,7 @@ export function useTires() {
 
         if (stockFilter !== "all") {
           tiresWithDots = tiresWithDots.filter((tire) => {
-            const totalQty = tire.tire_dots.reduce((sum, d) => sum + d.quantity, 0);
+            const totalQty = tire.tire_dots.reduce((sum: number, d: any) => sum + d.quantity, 0);
             if (stockFilter === "out") return totalQty === 0;
             if (stockFilter === "low") return totalQty > 0 && totalQty <= 4;
             if (stockFilter === "in") return totalQty > 4;
@@ -158,6 +167,7 @@ export function useTires() {
       .from("tires")
       .insert({
         store_id: store.id,
+        master_tire_id: formData.master_tire_id || null,
         size: formData.size,
         brand: formData.brand,
         model: formData.model || null,
@@ -238,13 +248,22 @@ export function useTires() {
     await fetchTires();
   };
 
-  // --- จุดที่แก้ไขหลัก: เพิ่มการส่ง user_id ---
+  const updateTirePrice = async (tireId: string, newPrice: number) => {
+    const { error } = await supabase
+      .from('tires')
+      .update({ price: newPrice })
+      .eq('id', tireId);
+
+    if (error) throw error;
+
+    setTires(prev => prev.map(t => t.id === tireId ? { ...t, price: newPrice } : t));
+  };
+
   const updateDotQuantity = async (
     dotId: string,
     change: number,
     notes?: string
   ) => {
-    // 1. ดึงข้อมูล User ปัจจุบัน
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data: dotData, error: fetchError } = await supabase
@@ -265,32 +284,22 @@ export function useTires() {
 
     if (updateError) throw updateError;
 
-    // 2. บันทึก Log พร้อม user_id
     const { error: logError } = await supabase.from("stock_logs").insert({
       tire_dot_id: dotId,
-      action: change > 0 ? "add" : "remove", // ใช้ "add" หรือ "remove" (Audit Log กรองด้วยคำนี้)
+      action: change > 0 ? "add" : "remove",
       quantity_before: quantityBefore,
       quantity_after: quantityAfter,
       quantity_change: change,
       notes: notes || null,
-      user_id: user?.id || null, // <--- ส่งค่า user_id ไปด้วย
+      user_id: user?.id || null,
     });
 
     if (logError) {
       console.error("Failed to log stock change:", logError);
-      // Optional: แจ้งเตือนถ้า Log พัง (แต่ปกติไม่ควรพังถ้าผ่าน RLS แล้ว)
     }
 
     await fetchTires();
   };
-
-  useEffect(() => {
-    fetchTires();
-  }, [fetchTires]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, brandFilter, stockFilter]);
 
   const toggleShare = async (tireId: string, isShared: boolean) => {
     const { error } = await supabase
@@ -301,6 +310,14 @@ export function useTires() {
     if (error) throw error;
     await fetchTires();
   };
+
+  useEffect(() => {
+    fetchTires();
+  }, [fetchTires]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, brandFilter, stockFilter]);
 
   return {
     tires,
@@ -319,6 +336,7 @@ export function useTires() {
     fetchTires,
     createTire,
     updateTire,
+    updateTirePrice,
     deleteTire,
     updateDotQuantity,
     toggleShare,

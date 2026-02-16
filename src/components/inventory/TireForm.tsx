@@ -66,12 +66,11 @@ export function TireForm({ tire, onSubmit, onCancel, loading }: TireFormProps) {
   };
 
   const addDot = () => {
-    if (formData.dots.length < 4) {
-      setFormData((prev) => ({
-        ...prev,
-        dots: [...prev.dots, { ...emptyDot }],
-      }));
-    }
+    // ✅ ลบเงื่อนไข if (formData.dots.length < 4) ออก เพื่อให้เพิ่มได้ไม่จำกัด
+    setFormData((prev) => ({
+      ...prev,
+      dots: [...prev.dots, { ...emptyDot }],
+    }));
   };
 
   const removeDot = (index: number) => {
@@ -203,12 +202,11 @@ export function TireForm({ tire, onSubmit, onCancel, loading }: TireFormProps) {
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">DOT Codes & Stock</CardTitle>
-          {formData.dots.length < 4 && (
-            <Button type="button" variant="outline" size="sm" onClick={addDot}>
-              <Plus className="w-4 h-4 mr-1" />
-              Add DOT
-            </Button>
-          )}
+          {/* ✅ ลบเงื่อนไข && formData.dots.length < 4 ออก เพื่อให้ปุ่มแสดงตลอด */}
+          <Button type="button" variant="outline" size="sm" onClick={addDot}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add DOT
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {formData.dots.map((dot, index) => (

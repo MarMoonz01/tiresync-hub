@@ -1,18 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  LayoutDashboard, 
-  CircleDot, 
-  Search, 
+import {
+  LayoutDashboard,
+  CircleDot,
+  Search,
   Settings,
-  Store // เพิ่ม Import Store icon
+  Store, // เพิ่ม Import Store icon
+  ShieldAlert // ✅ เพิ่ม ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 export function MobileBottomNav() {
   const location = useLocation();
-  const { isOwner, isAdmin } = useAuth();
+  const { isOwner, isAdmin, isModerator } = useAuth(); // ✅ เพิ่ม isModerator
 
   // Filter menu items based on user role
   // Only owners and system admins can see admin settings
@@ -24,13 +25,15 @@ export function MobileBottomNav() {
     { icon: Search, label: "Market", path: "/marketplace", show: true },
     // เพิ่มเมนู My Store สำหรับ Owner เท่านั้น
     { icon: Store, label: "My Store", path: "/store", show: isOwner },
+    // ✅ Moderator Link
+    { icon: ShieldAlert, label: "Mod", path: "/moderator", show: isModerator || isAdmin },
     // Show Admin/Settings only for store owners and system admins
     { icon: Settings, label: "Admin", path: "/settings", show: canAccessAdmin },
   ].filter(item => item.show);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 pb-safe">
-      <div className="flex items-center justify-around h-14">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border/40 pb-safe shadow-[0_-5px_30px_-15px_rgba(0,0,0,0.1)]">
+      <div className="flex items-center justify-around h-16">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;

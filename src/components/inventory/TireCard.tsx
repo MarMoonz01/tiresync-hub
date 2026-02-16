@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { 
-  Minus, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Share2, 
+import {
+  Minus,
+  Plus,
+  Edit2,
+  Trash2,
+  Share2,
   Package,
   AlertTriangle,
   ChevronDown,
@@ -45,11 +45,11 @@ interface TireCardProps {
   canDelete?: boolean;
 }
 
-export function TireCard({ 
-  tire, 
-  onEdit, 
-  onDelete, 
-  onQuantityChange, 
+export function TireCard({
+  tire,
+  onEdit,
+  onDelete,
+  onQuantityChange,
   onToggleShare,
   canEdit = true,
   canDelete = true,
@@ -92,7 +92,7 @@ export function TireCard({
         isLowStock && "ring-1 ring-warning/20"
       )}>
         <CardContent className="p-0">
-          <div className="p-5">
+          <div className="p-4 md:p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base md:text-lg text-foreground">
@@ -117,11 +117,11 @@ export function TireCard({
 
               <div className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm",
-                isOutOfStock 
-                  ? "bg-destructive/10 text-destructive" 
-                  : isLowStock 
-                  ? "bg-warning/10 text-warning" 
-                  : "bg-success/10 text-success"
+                isOutOfStock
+                  ? "bg-destructive/10 text-destructive"
+                  : isLowStock
+                    ? "bg-warning/10 text-warning"
+                    : "bg-success/10 text-success"
               )}>
                 {isOutOfStock ? (
                   <AlertTriangle className="w-4 h-4" />

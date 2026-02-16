@@ -13,7 +13,8 @@ import {
   UserCog,
   LogOut,
   BarChart3,
-  ClipboardList
+  ClipboardList,
+  ShieldAlert // Icon สำหรับ Moderator
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -30,17 +31,17 @@ interface DesktopSidebarProps {
   onToggle: () => void;
 }
 
-// เมนูพื้นฐานที่ทุกคนเห็น (จะถูกกรองสิทธิ์ทีหลัง)
+// เมนูพื้นฐานที่ทุกคนเห็น
 const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
   { icon: Upload, labelKey: "import", path: "/import" },
-  { icon: Store, labelKey: "myStore", path: "/store" }, // รายการนี้จะถูกซ่อนสำหรับ Staff
+  { icon: Store, labelKey: "myStore", path: "/store" },
   { icon: Search, labelKey: "marketplace", path: "/marketplace" },
   { icon: Users, labelKey: "network", path: "/network" },
 ];
 
-// เมนูที่จำกัดเฉพาะ Admin (เจ้าของร้าน) เท่านั้น
+// เมนูสำหรับ Admin/Owner ร้าน
 const adminOnlyNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
   { icon: BarChart3, labelKey: "salesReport", path: "/sales-report" },
   { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },
@@ -54,27 +55,29 @@ const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isOwner, isAdmin, hasStore, isStaff } = useAuth();
+  
+  // ✅ แก้ไขตรงนี้: ดึง isModerator และ isAdmin มาใช้โดยตรง
+  const { isOwner, isAdmin, hasStore, isStaff, isModerator } = useAuth(); 
   const { t } = useLanguage();
 
-  // Only store owners and system admins can see admin menu items
   const canAccessAdminItems = (isOwner || isAdmin) && hasStore;
 
-  // กรองเมนูตามสิทธิ์การใช้งาน
   const filteredBaseNavItems = baseNavItems.filter(item => {
-    // 1. ซ่อนเมนู Import สำหรับ Staff
     if (item.path === "/import" && isStaff) return false;
-    
-    // 2. ซ่อนเมนู My Store สำหรับ Staff (เฉพาะ Owner เท่านั้นที่เห็น)
     if (item.path === "/store" && !isOwner) return false;
-
     return true;
   });
 
-  // Build menu items based on permissions
   const navItems = [
     ...filteredBaseNavItems,
-    // Show Sales Report, Audit Log, Staff Management only for owners/admins with a store
+
+    // ✅ แก้ไขเงื่อนไข: ใช้ isModerator || isAdmin แทน userRole
+    ...((isModerator || isAdmin) ? [{
+      icon: ShieldAlert,
+      labelKey: "moderator" as TranslationKey,
+      path: "/moderator"
+    }] : []),
+
     ...(canAccessAdminItems ? adminOnlyNavItems : []),
     ...bottomNavItems,
   ];
@@ -115,7 +118,8 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
-          const label = t(item.labelKey);
+          // ถ้ายังไม่มีคำแปล ให้ใช้คำว่า Moderator ไปก่อน
+          const label = item.labelKey === "moderator" ? "Moderator" : t(item.labelKey);
 
           const linkContent = (
             <Link
@@ -170,7 +174,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
             <button
               onClick={handleLogout}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-sidebar-foreground/60 hover:text-destructive hover:text-destructive-foreground hover:bg-destructive/10",
                 collapsed && "justify-center"
               )}
             >

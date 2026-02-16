@@ -1,80 +1,37 @@
 import * as XLSX from "xlsx";
 
-export interface ParsedTireRow {
-  size: string;
+export interface TireImportRow {
   brand: string;
   model: string;
+  size: string;
   load_index: string;
   speed_rating: string;
-  price: string;
+  price: number;
   dots: {
-    dot_code: string;
-    quantity: string;
-    promotion: string;
+    code: string;
+    quantity: number;
+    promotion?: string;
   }[];
-}
-
-export interface ColumnMapping {
-  size: string | null;
-  brand: string | null;
-  model: string | null;
-  load_index: string | null;
-  price: string | null;
-  dot1: string | null;
-  qty1: string | null;
-  promo1: string | null;
-  dot2: string | null;
-  qty2: string | null;
-  promo2: string | null;
-  dot3: string | null;
-  qty3: string | null;
-  promo3: string | null;
-  dot4: string | null;
-  qty4: string | null;
-  promo4: string | null;
 }
 
 export interface ParseResult {
   headers: string[];
   rows: Record<string, string>[];
-  suggestedMapping: ColumnMapping;
+  parsedData: TireImportRow[]; // ข้อมูลที่แปลงเสร็จแล้วพร้อมใช้
 }
 
-// Common column name patterns for auto-detection
-const columnPatterns = {
-  size: ["size", "ขนาด", "ไซส์", "ไซด์"],
+// Keyword สำหรับจับคู่คอลัมน์หลัก (Standard Columns)
+const stdColPatterns = {
+  size: ["size", "ขนาด", "ไซส์"],
   brand: ["brand", "ยี่ห้อ", "ยี่ห้อยาง", "แบรนด์"],
-  model: ["model", "รุ่น", "โมเดล"],
-  load_index: ["load", "load_index", "load index", "โหลด"],
-  price: ["price", "ราคา"],
-  dot1: ["dot 1", "dot1", "dot_1", "dot"],
-  qty1: ["จำนวน 1", "qty 1", "qty1", "จำนวน", "quantity 1"],
-  promo1: ["โปรโมชั่น 1", "promo 1", "promo1", "โปรโมชั่น", "promotion 1"],
-  dot2: ["dot 2", "dot2", "dot_2"],
-  qty2: ["จำนวน 2", "qty 2", "qty2", "quantity 2"],
-  promo2: ["โปรโมชั่น 2", "promo 2", "promo2", "promotion 2"],
-  dot3: ["dot 3", "dot3", "dot_3"],
-  qty3: ["จำนวน 3", "qty 3", "qty3", "quantity 3"],
-  promo3: ["โปรโมชั่น 3", "promo 3", "promo3", "promotion 3"],
-  dot4: ["dot 4", "dot4", "dot_4"],
-  qty4: ["จำนวน 4", "qty 4", "qty4", "quantity 4"],
-  promo4: ["โปรโมชั่น 4", "promo 4", "promo4", "promotion 4"],
+  model: ["model", "รุ่น", "ลายดอก"],
+  load_index: ["load", "load_index", "li", "ดัชนีรับน้ำหนัก"],
+  price: ["price", "ราคา", "ราคาขาย", "unit price"],
 };
 
-function findMatchingColumn(
-  headers: string[],
-  patterns: string[]
-): string | null {
-  const normalizedHeaders = headers.map((h) => h.toLowerCase().trim());
-  for (const pattern of patterns) {
-    const idx = normalizedHeaders.findIndex(
-      (h) => h.includes(pattern.toLowerCase())
-    );
-    if (idx !== -1) {
-      return headers[idx];
-    }
-  }
-  return null;
+// ฟังก์ชันช่วยหาชื่อคอลัมน์จริงจาก Keyword
+function findColumnName(headers: string[], patterns: string[]): string | undefined {
+  return headers.find(h => patterns.some(p => h.toLowerCase().includes(p.toLowerCase())));
 }
 
 export function parseExcelFile(file: File): Promise<ParseResult> {
@@ -86,56 +43,111 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {
-          header: 1,
-          defval: "",
-        }) as string[][];
 
-        if (jsonData.length < 2) {
-          reject(new Error("File must have at least a header row and one data row"));
+        // อ่านข้อมูลแบบ JSON (Array of Objects)
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+        if (jsonData.length === 0) {
+          reject(new Error("File is empty"));
           return;
         }
 
-        const headers = jsonData[0].map((h) => String(h).trim());
-        const rows = jsonData.slice(1).map((row) => {
-          const obj: Record<string, string> = {};
-          headers.forEach((header, idx) => {
-            obj[header] = String(row[idx] || "").trim();
+        // ดึงหัวตารางทั้งหมดจากแถวแรก
+        const headers = Object.keys(jsonData[0] as object);
+
+        // Map ข้อมูลเข้าสู่โครงสร้าง TireImportRow
+        const parsedData: TireImportRow[] = (jsonData as any[]).map((row) => {
+
+          // 1. หาคอลัมน์พื้นฐาน (Basic Info)
+          const sizeKey = findColumnName(headers, stdColPatterns.size);
+          const brandKey = findColumnName(headers, stdColPatterns.brand);
+          const modelKey = findColumnName(headers, stdColPatterns.model);
+          const loadKey = findColumnName(headers, stdColPatterns.load_index);
+          const priceKey = findColumnName(headers, stdColPatterns.price);
+
+          // แปลง Size Format (เช่น 1955515 -> 195/55R15)
+          let fmtSize = sizeKey ? String(row[sizeKey] || "").trim() : "";
+          if (/^\d{7}$/.test(fmtSize)) {
+            fmtSize = `${fmtSize.substring(0, 3)}/${fmtSize.substring(3, 5)}R${fmtSize.substring(5, 7)}`;
+          }
+
+          // แยก Load Index & Speed Rating (เช่น "82T" -> LI: "82", SR: "T")
+          let rawLoad = loadKey ? String(row[loadKey] || "").trim() : "";
+          let loadIndex = "";
+          let speedRating = "";
+
+          if (rawLoad) {
+            // Regex: จับคู่ตัวเลข (อาจมี /) ตามด้วยตัวอักษร 1-2 ตัวด้านหลัง
+            // กลุ่ม 1: (\d+(?:\/\d+)?) -> 91 หรือ 106/104
+            // กลุ่ม 2: ([a-zA-Z]+) -> H, V, R
+            const loadMatch = rawLoad.match(/^(\d+(?:\/\d+)?)\s*([a-zA-Z]+)$/);
+            if (loadMatch) {
+              loadIndex = loadMatch[1];
+              speedRating = loadMatch[2].toUpperCase();
+            } else {
+              // ถ้าไม่ตรง Format ให้ใส่เป็น Load Index ทั้งก้อนไปก่อน
+              loadIndex = rawLoad;
+            }
+          }
+
+          // 2. กวาด DOT แบบ Dynamic (Unlimited)
+          const dots: { code: string; quantity: number; promotion?: string }[] = [];
+
+          // หาคอลัมน์ที่ขึ้นต้นด้วย "DOT" ทั้งหมด (ไม่สนตัวพิมพ์เล็กใหญ่)
+          const dotColumns = headers.filter(h => /^(DOT)/i.test(h.trim()));
+
+          dotColumns.forEach(dotColKey => {
+            // ดึง "ตัวเลข" ท้ายชื่อคอลัมน์ (เช่น "DOT 1" -> "1", "DOT 99" -> "99")
+            const match = dotColKey.match(/(\d+)$/);
+            if (!match) return;
+
+            const suffix = match[1]; // เลขต่อท้าย
+
+            // หาคู่ของมัน: "จำนวน X" หรือ "Qty X" ที่มีเลขท้ายตรงกัน
+            const qtyColKey = headers.find(h =>
+              new RegExp(`(จำนวน|Qty|Amount|Quantity).*?${suffix}$`, 'i').test(h.trim())
+            );
+
+            // หาคู่ของมัน: "โปรโมชั่น X" (ถ้ามี)
+            const promoColKey = headers.find(h =>
+              new RegExp(`(โปรโมชั่น|Promotion|Promo).*?${suffix}$`, 'i').test(h.trim())
+            );
+
+            // ดึงค่าออกมา
+            const dotCode = row[dotColKey];
+            const qty = qtyColKey ? row[qtyColKey] : 0;
+            const promo = promoColKey ? row[promoColKey] : "";
+
+            // ถ้ามี DOT และมีจำนวน > 0 ให้เก็บ
+            if (dotCode && qty && Number(qty) > 0) {
+              dots.push({
+                code: String(dotCode).trim(),
+                quantity: Number(qty),
+                promotion: promo ? String(promo).trim() : ""
+              });
+            }
           });
-          return obj;
+
+          return {
+            brand: brandKey ? String(row[brandKey] || "").trim() : "",
+            model: modelKey ? String(row[modelKey] || "").trim() : "",
+            size: fmtSize,
+            load_index: loadIndex,
+            speed_rating: speedRating,
+            price: priceKey ? Number(row[priceKey] || 0) : 0,
+            dots: dots
+          };
         });
 
-        // Filter out empty rows
-        const validRows = rows.filter((row) =>
-          Object.values(row).some((v) => v !== "")
-        );
-
-        // Auto-detect column mapping
-        const suggestedMapping: ColumnMapping = {
-          size: findMatchingColumn(headers, columnPatterns.size),
-          brand: findMatchingColumn(headers, columnPatterns.brand),
-          model: findMatchingColumn(headers, columnPatterns.model),
-          load_index: findMatchingColumn(headers, columnPatterns.load_index),
-          price: findMatchingColumn(headers, columnPatterns.price),
-          dot1: findMatchingColumn(headers, columnPatterns.dot1),
-          qty1: findMatchingColumn(headers, columnPatterns.qty1),
-          promo1: findMatchingColumn(headers, columnPatterns.promo1),
-          dot2: findMatchingColumn(headers, columnPatterns.dot2),
-          qty2: findMatchingColumn(headers, columnPatterns.qty2),
-          promo2: findMatchingColumn(headers, columnPatterns.promo2),
-          dot3: findMatchingColumn(headers, columnPatterns.dot3),
-          qty3: findMatchingColumn(headers, columnPatterns.qty3),
-          promo3: findMatchingColumn(headers, columnPatterns.promo3),
-          dot4: findMatchingColumn(headers, columnPatterns.dot4),
-          qty4: findMatchingColumn(headers, columnPatterns.qty4),
-          promo4: findMatchingColumn(headers, columnPatterns.promo4),
-        };
+        // กรองแถวว่างทิ้ง (ต้องมี Brand และ Size เป็นอย่างน้อย)
+        const validData = parsedData.filter(d => d.brand && d.size);
 
         resolve({
           headers,
-          rows: validRows,
-          suggestedMapping,
+          rows: jsonData as Record<string, string>[], // เก็บ Raw Data ไว้เผื่อ Debug
+          parsedData: validData // ข้อมูลที่พร้อมใช้งาน
         });
+
       } catch (err) {
         reject(err);
       }
@@ -143,58 +155,5 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
 
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsBinaryString(file);
-  });
-}
-
-export function applyMapping(
-  rows: Record<string, string>[],
-  mapping: ColumnMapping
-): ParsedTireRow[] {
-  return rows.map((row) => {
-    const dots: ParsedTireRow["dots"] = [];
-
-    // Process up to 4 DOT codes
-    for (let i = 1; i <= 4; i++) {
-      const dotKey = `dot${i}` as keyof ColumnMapping;
-      const qtyKey = `qty${i}` as keyof ColumnMapping;
-      const promoKey = `promo${i}` as keyof ColumnMapping;
-
-      const dotCol = mapping[dotKey];
-      const qtyCol = mapping[qtyKey];
-      const promoCol = mapping[promoKey];
-
-      const dotCode = dotCol ? row[dotCol] : "";
-      const quantity = qtyCol ? row[qtyCol] : "0";
-      const promotion = promoCol ? row[promoCol] : "";
-
-      if (dotCode) {
-        dots.push({
-          dot_code: dotCode,
-          quantity: String(parseInt(quantity) || 0),
-          promotion,
-        });
-      }
-    }
-
-    // Parse load index - may contain speed rating
-    let loadIndex = mapping.load_index ? row[mapping.load_index] : "";
-    let speedRating = "";
-
-    // Try to extract speed rating from load index (e.g., "91V" -> load=91, speed=V)
-    const loadMatch = loadIndex.match(/^(\d+)([A-Z])$/i);
-    if (loadMatch) {
-      loadIndex = loadMatch[1];
-      speedRating = loadMatch[2].toUpperCase();
-    }
-
-    return {
-      size: mapping.size ? row[mapping.size] : "",
-      brand: mapping.brand ? row[mapping.brand] : "",
-      model: mapping.model ? row[mapping.model] : "",
-      load_index: loadIndex,
-      speed_rating: speedRating,
-      price: mapping.price ? row[mapping.price] : "",
-      dots: dots.length > 0 ? dots : [{ dot_code: "", quantity: "0", promotion: "" }],
-    };
   });
 }
