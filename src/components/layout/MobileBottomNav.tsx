@@ -3,33 +3,32 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   CircleDot,
-  Search,
+  Users,
   Settings,
-  Store, // เพิ่ม Import Store icon
-  ShieldAlert // ✅ เพิ่ม ShieldAlert
+  ShoppingCart,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 export function MobileBottomNav() {
   const location = useLocation();
-  const { isOwner, isAdmin, isModerator } = useAuth(); // ✅ เพิ่ม isModerator
+  const { isOwner, isInterbranch } = useAuth();
 
-  // Filter menu items based on user role
-  // Only owners and system admins can see admin settings
-  const canAccessAdmin = isOwner || isAdmin;
-
-  const navItems = [
-    { icon: LayoutDashboard, label: "Home", path: "/dashboard", show: true },
-    { icon: CircleDot, label: "Tires", path: "/inventory", show: true },
-    { icon: Search, label: "Market", path: "/marketplace", show: true },
-    // เพิ่มเมนู My Store สำหรับ Owner เท่านั้น
-    { icon: Store, label: "My Store", path: "/store", show: isOwner },
-    // ✅ Moderator Link
-    { icon: ShieldAlert, label: "Mod", path: "/moderator", show: isModerator || isAdmin },
-    // Show Admin/Settings only for store owners and system admins
-    { icon: Settings, label: "Admin", path: "/settings", show: canAccessAdmin },
-  ].filter(item => item.show);
+  const navItems = isInterbranch
+    ? [
+        { icon: GitBranch, label: "Interbranch", path: "/interbranch" },
+        { icon: Settings, label: "Settings", path: "/settings" },
+      ]
+    : [
+        { icon: ShoppingCart, label: "Sales", path: "/sales" },
+        { icon: CircleDot, label: "Stock", path: "/stock" },
+        { icon: Users, label: "Customers", path: "/customers" },
+        ...(isOwner
+          ? [{ icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" }]
+          : []),
+        { icon: Settings, label: "Settings", path: "/settings" },
+      ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border/40 pb-safe shadow-[0_-5px_30px_-15px_rgba(0,0,0,0.1)]">
@@ -47,10 +46,7 @@ export function MobileBottomNav() {
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <motion.div
-                whileTap={{ scale: 0.9 }}
-                className="relative p-1"
-              >
+              <motion.div whileTap={{ scale: 0.9 }} className="relative p-1">
                 <Icon className="w-5 h-5" />
                 {isActive && (
                   <motion.div
@@ -60,10 +56,7 @@ export function MobileBottomNav() {
                   />
                 )}
               </motion.div>
-              <span className={cn(
-                "text-[10px] font-medium",
-                isActive ? "text-primary" : "text-muted-foreground"
-              )}>
+              <span className={cn("text-[10px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
                 {item.label}
               </span>
             </Link>

@@ -1,34 +1,65 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Pages
-import Landing from "./pages/Landing";
-import Auth from "./pages/Auth";
-import Pending from "./pages/Pending";
-import Dashboard from "./pages/Dashboard";
-import Inventory from "./pages/Inventory";
-import AddTire from "./pages/AddTire";
-// import EditTire from "./pages/EditTire";  <-- ❌ ลบออกแล้ว เพราะใช้ Dialog แทน
-import Import from "./pages/Import";
-import MyStore from "./pages/MyStore";
-import StoreSetup from "./pages/StoreSetup";
-import Marketplace from "./pages/Marketplace";
-import Network from "./pages/Network";
-import Settings from "./pages/Settings";
-import Profile from "./pages/Profile";
-import Staff from "./pages/Staff";
-import SalesReport from "./pages/SalesReport";
-import AuditLog from "./pages/AuditLog";
-import ModeratorDashboard from "./pages/ModeratorDashboard"; // ✅ เพิ่มเข้ามาใหม่
-import NotFound from "./pages/NotFound";
+// Public
+const Landing      = lazy(() => import("./pages/Landing"));
+const Auth         = lazy(() => import("./pages/Auth"));
+const Pending      = lazy(() => import("./pages/Pending"));
+const NotFound     = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+// Staff + owner
+const Sales        = lazy(() => import("./pages/Sales"));
+const Stock        = lazy(() => import("./pages/Stock"));
+const Customers    = lazy(() => import("./pages/Customers"));
+const Settings     = lazy(() => import("./pages/Settings"));
+
+// Owner-only
+const Dashboard        = lazy(() => import("./pages/Dashboard"));
+const Financials       = lazy(() => import("./pages/Financials"));
+const StockManagement  = lazy(() => import("./pages/StockManagement"));
+const POApproval       = lazy(() => import("./pages/POApproval"));
+const Promotions       = lazy(() => import("./pages/Promotions"));
+const ContentApproval  = lazy(() => import("./pages/ContentApproval"));
+const CRM              = lazy(() => import("./pages/CRM"));
+const Intelligence     = lazy(() => import("./pages/Intelligence"));
+const AuditLog         = lazy(() => import("./pages/AuditLog"));
+const Staff            = lazy(() => import("./pages/Staff"));
+
+// Interbranch-only
+const Interbranch  = lazy(() => import("./pages/Interbranch"));
+
+// Owner-only — network link management
+const Network      = lazy(() => import("./pages/Network"));
+
+// Subscription paywall (reachable when the store's subscription is inactive)
+const Billing      = lazy(() => import("./pages/Billing"));
+
+// Platform-admin only
+const Admin        = lazy(() => import("./pages/Admin"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60_000, retry: 1 },
+  },
+});
+
+function PageLoader() {
+  return (
+    <div className="flex flex-col gap-4 p-8">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/4" />
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -38,75 +69,80 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/pending" element={<Pending />} />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public */}
+                <Route path="/" element={<Landing />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/pending" element={<Pending />} />
 
-              <Route path="/dashboard" element={
-                <ProtectedRoute><Dashboard /></ProtectedRoute>
-              } />
+                {/* Staff + owner */}
+                <Route path="/sales" element={
+                  <ProtectedRoute><Sales /></ProtectedRoute>
+                } />
+                <Route path="/stock" element={
+                  <ProtectedRoute><Stock /></ProtectedRoute>
+                } />
+                <Route path="/customers" element={
+                  <ProtectedRoute><Customers /></ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute><Settings /></ProtectedRoute>
+                } />
 
-              <Route path="/inventory" element={
-                <ProtectedRoute><Inventory /></ProtectedRoute>
-              } />
+                {/* Owner-only */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute ownerOnly><Dashboard /></ProtectedRoute>
+                } />
+                <Route path="/financials" element={
+                  <ProtectedRoute ownerOnly><Financials /></ProtectedRoute>
+                } />
+                <Route path="/stock-management" element={
+                  <ProtectedRoute ownerOnly><StockManagement /></ProtectedRoute>
+                } />
+                <Route path="/po-approval" element={
+                  <ProtectedRoute ownerOnly><POApproval /></ProtectedRoute>
+                } />
+                <Route path="/promotions" element={
+                  <ProtectedRoute ownerOnly><Promotions /></ProtectedRoute>
+                } />
+                <Route path="/content-approval" element={
+                  <ProtectedRoute ownerOnly><ContentApproval /></ProtectedRoute>
+                } />
+                <Route path="/crm" element={
+                  <ProtectedRoute ownerOnly><CRM /></ProtectedRoute>
+                } />
+                <Route path="/intelligence" element={
+                  <ProtectedRoute ownerOnly><Intelligence /></ProtectedRoute>
+                } />
+                <Route path="/audit-log" element={
+                  <ProtectedRoute ownerOnly><AuditLog /></ProtectedRoute>
+                } />
+                <Route path="/staff" element={
+                  <ProtectedRoute ownerOnly><Staff /></ProtectedRoute>
+                } />
+                <Route path="/network" element={
+                  <ProtectedRoute ownerOnly><Network /></ProtectedRoute>
+                } />
 
-              <Route path="/inventory/add" element={
-                <ProtectedRoute><AddTire /></ProtectedRoute>
-              } />
+                {/* Subscription paywall — must stay reachable while inactive */}
+                <Route path="/billing" element={
+                  <ProtectedRoute skipSubscriptionGate><Billing /></ProtectedRoute>
+                } />
 
-              {/* ❌ ลบ Route นี้ออก เพราะเราใช้ Dialog ในหน้า Inventory แทนการเปลี่ยนหน้า */}
-              {/* <Route path="/inventory/edit/:id" element={
-                <ProtectedRoute><EditTire /></ProtectedRoute>
-              } /> */}
+                {/* Interbranch-only */}
+                <Route path="/interbranch" element={
+                  <ProtectedRoute interbranchOnly><Interbranch /></ProtectedRoute>
+                } />
 
-              <Route path="/import" element={
-                <ProtectedRoute ownerOnly><Import /></ProtectedRoute>
-              } />
+                {/* Platform-admin only (hidden) */}
+                <Route path="/admin" element={
+                  <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
+                } />
 
-              <Route path="/store" element={
-                <ProtectedRoute ownerOnly><MyStore /></ProtectedRoute>
-              } />
-
-              <Route path="/store/setup" element={
-                <ProtectedRoute requireApproval={false} ownerOnly><StoreSetup /></ProtectedRoute>
-              } />
-
-              <Route path="/marketplace" element={
-                <ProtectedRoute><Marketplace /></ProtectedRoute>
-              } />
-
-              <Route path="/network" element={
-                <ProtectedRoute><Network /></ProtectedRoute>
-              } />
-
-              <Route path="/settings" element={
-                <ProtectedRoute><Settings /></ProtectedRoute>
-              } />
-
-              <Route path="/profile" element={
-                <ProtectedRoute><Profile /></ProtectedRoute>
-              } />
-
-              <Route path="/staff" element={
-                <ProtectedRoute requireAdmin><Staff /></ProtectedRoute>
-              } />
-
-              <Route path="/sales-report" element={
-                <ProtectedRoute requireStore><SalesReport /></ProtectedRoute>
-              } />
-
-              <Route path="/audit-log" element={
-                <ProtectedRoute requireStore><AuditLog /></ProtectedRoute>
-              } />
-
-              {/* ✅ Moderator Dashboard Route */}
-              <Route path="/moderator" element={
-                <ProtectedRoute requireModerator><ModeratorDashboard /></ProtectedRoute>
-              } />
-
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

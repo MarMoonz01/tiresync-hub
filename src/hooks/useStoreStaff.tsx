@@ -2,36 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { permissionsForRole, type StorePermissions } from "@/lib/permissions";
 
-// 1. นิยามสิทธิ์มาตรฐาน (Role Presets)
-const ROLE_PERMISSIONS = {
-  manager: {
-    web: { view: true, add: true, edit: true, delete: true },
-    line: { view: true, adjust: true },
-  },
-  staff: {
-    web: { view: true, add: true, edit: true, delete: false }, // Staff ทั่วไปห้ามลบ
-    line: { view: true, adjust: true },
-  },
-  sales: {
-    web: { view: true, add: false, edit: false, delete: false }, // Sales ดูอย่างเดียว
-    line: { view: true, adjust: false }, // Sales ห้ามปรับสต็อกผ่าน LINE
-  },
-};
-
-interface StorePermissions {
-  web: {
-    view: boolean;
-    add: boolean;
-    edit: boolean;
-    delete: boolean;
-  };
-  line: {
-    view: boolean;
-    adjust: boolean;
-  };
-}
-
+// Shape consumed by the Staff UI components. Sourced from `profiles` (the single
+// source of truth) — `id` is the profile PK, `role` is the staff_position.
 interface StoreMember {
   id: string;
   store_id: string;
@@ -52,6 +26,23 @@ interface StoreMember {
   } | null;
 }
 
+// Loose profile row (generated types don't yet include staff_position/permissions).
+interface ProfileRow {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  status: "pending" | "approved" | "rejected" | "suspended";
+  store_id: string | null;
+  role: string | null;
+  staff_position: string | null;
+  permissions: StorePermissions | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export function useStoreStaff(searchQuery: string = "") {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -62,36 +53,41 @@ export function useStoreStaff(searchQuery: string = "") {
     queryFn: async () => {
       if (!store?.id) return [];
 
-      const { data: members, error: membersError } = await supabase
-        .from("store_members")
-        .select("*")
-        .eq("store_id", store.id);
-
-      if (membersError) throw membersError;
-      if (!members || members.length === 0) return [];
-
-      const userIds = members.map((m) => m.user_id);
-
-      const { data: profiles, error: profilesError } = await supabase
+      const { data, error: staffError } = await supabase
         .from("profiles")
         .select("*")
-        .in("user_id", userIds);
+        .eq("store_id", store.id)
+        .eq("role", "staff");
 
-      if (profilesError) throw profilesError;
+      if (staffError) throw staffError;
+      const rows = (data ?? []) as unknown as ProfileRow[];
 
-      let result: StoreMember[] = members.map((member) => ({
-        ...member,
-        permissions: member.permissions as unknown as StorePermissions | null,
-        is_approved: member.is_approved ?? false,
-        profile: profiles?.find((p) => p.user_id === member.user_id) || null,
+      let result: StoreMember[] = rows.map((p) => ({
+        id: p.id,
+        store_id: p.store_id ?? store.id,
+        user_id: p.user_id,
+        role: p.staff_position ?? "staff",
+        permissions: p.permissions ?? null,
+        is_approved: p.status === "approved",
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        profile: {
+          id: p.id,
+          user_id: p.user_id,
+          email: p.email,
+          full_name: p.full_name,
+          phone: p.phone,
+          avatar_url: p.avatar_url,
+          status: p.status,
+        },
       }));
 
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase();
         result = result.filter(
           (m) =>
-            m.profile?.full_name?.toLowerCase().includes(query) ||
-            m.profile?.email?.toLowerCase().includes(query)
+            m.profile?.full_name?.toLowerCase().includes(q) ||
+            m.profile?.email?.toLowerCase().includes(q)
         );
       }
 
@@ -100,106 +96,65 @@ export function useStoreStaff(searchQuery: string = "") {
     enabled: !!store?.id,
   });
 
+  // Add an existing user (by email) as staff — via SECURITY DEFINER RPC.
   const addMemberMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
-      if (!store?.id) throw new Error("No store found");
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-      if (!profile) throw new Error("User not found with this email");
-
-      // 2. เลือกสิทธิ์ตาม Role ที่ส่งมา (ถ้าไม่มีให้ใช้ staff)
-      const permissions = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS['staff'];
-
-      const { error } = await supabase.from("store_members").insert({
-        store_id: store.id,
-        user_id: profile.user_id,
-        role,
-        permissions, // บันทึกสิทธิ์ลงไปด้วยทันที
+      const permissions = permissionsForRole(role);
+      const { data, error: rpcError } = await supabase.rpc("add_staff_member", {
+        p_email: email,
+        p_position: role,
+        p_permissions: permissions as never,
       });
-
-      if (error) {
-        if (error.code === "23505") {
-          throw new Error("This user is already a member of your store");
-        }
-        throw error;
+      if (rpcError) throw rpcError;
+      const res = data as { success: boolean; error?: string } | null;
+      if (res && !res.success) {
+        if (res.error === "user_not_found") throw new Error("User not found with this email");
+        throw new Error(res.error ?? "Failed to add member");
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-staff"] });
-      toast({
-        title: "Member added",
-        description: "Staff member has been added to your store.",
-      });
+      toast({ title: "Member added", description: "Staff member has been added to your store." });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
+  // Change position + permissions. memberId is profiles.id (owner UPDATE RLS allows).
   const updateMemberRoleMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
-      
-      // 3. เลือกสิทธิ์ใหม่ตาม Role ที่เปลี่ยน
-      const newPermissions = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS['staff'];
-
-      const { error } = await supabase
-        .from("store_members")
-        .update({ 
-          role,
-          permissions: newPermissions // อัปเดตสิทธิ์ให้ตรงกับ Role ใหม่
-        })
+      const newPermissions = permissionsForRole(role);
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ staff_position: role, permissions: newPermissions } as never)
         .eq("id", memberId);
-
-      if (error) throw error;
+      if (updateError) throw updateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-staff"] });
-      toast({
-        title: "Role updated",
-        description: "Staff member role and permissions have been updated.",
-      });
+      toast({ title: "Role updated", description: "Staff member role and permissions have been updated." });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
+  // Remove staff: unlink from the store (keeps the user account).
   const removeMemberMutation = useMutation({
     mutationFn: async ({ memberId }: { memberId: string }) => {
-      const { error } = await supabase
-        .from("store_members")
-        .delete()
+      const { error: removeError } = await supabase
+        .from("profiles")
+        .update({ store_id: null, role: null, status: "suspended" } as never)
         .eq("id", memberId);
-
-      if (error) throw error;
+      if (removeError) throw removeError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-staff"] });
-      toast({
-        title: "Member removed",
-        description: "Staff member has been removed from your store.",
-      });
+      toast({ title: "Member removed", description: "Staff member has been removed from your store." });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (err) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 

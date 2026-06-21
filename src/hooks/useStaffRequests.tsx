@@ -68,65 +68,23 @@ export function useStaffRequests() {
 
   const approveRequestMutation = useMutation({
     mutationFn: async ({ requestId, permissions }: { requestId: string; permissions?: object }) => {
-      if (!store?.id || !user?.id) throw new Error("No store or user found");
-
-      // Get the request to find the user_id
-      const { data: request, error: requestError } = await supabase
-        .from("staff_join_requests")
-        .select("user_id")
-        .eq("id", requestId)
-        .single();
-
-      if (requestError) throw requestError;
-
-      // Update request status
-      const { error: updateError } = await supabase
-        .from("staff_join_requests")
-        .update({
-          status: "approved",
-          responded_at: new Date().toISOString(),
-          responded_by: user.id,
-        })
-        .eq("id", requestId);
-
-      if (updateError) throw updateError;
-
-      // Add user as store member with permissions
+      // Approval runs through a SECURITY DEFINER RPC: the target staff profile
+      // has no store_id yet, so an owner can't reach it via RLS. The RPC verifies
+      // the caller owns the request's store, then sets profiles.status/role/
+      // store_id/permissions atomically (single source of truth = profiles).
       const defaultPermissions = {
         web: { view: true, add: false, edit: false, delete: false },
         line: { view: true, adjust: false },
       };
-
-      const memberPermissions = permissions || defaultPermissions;
-
-      const { error: memberError } = await supabase
-        .from("store_members")
-        .insert({
-          store_id: store.id,
-          user_id: request.user_id,
-          role: "staff",
-          permissions: memberPermissions as unknown as null,
-          is_approved: true,
-        });
-
-      if (memberError) {
-        // If already a member, just update approval status
-        if (memberError.code === "23505") {
-          await supabase
-            .from("store_members")
-            .update({ is_approved: true, permissions: memberPermissions as unknown as null })
-            .eq("store_id", store.id)
-            .eq("user_id", request.user_id);
-        } else {
-          throw memberError;
-        }
+      const { data, error } = await supabase.rpc("approve_staff_request", {
+        p_request_id: requestId,
+        p_position: "staff",
+        p_permissions: (permissions ?? defaultPermissions) as never,
+      });
+      if (error) throw error;
+      if (data && !(data as { success: boolean }).success) {
+        throw new Error((data as { error: string }).error ?? "approve_failed");
       }
-
-      // Update user's profile status to approved
-      await supabase
-        .from("profiles")
-        .update({ status: "approved" })
-        .eq("user_id", request.user_id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff-requests"] });
@@ -147,18 +105,13 @@ export function useStaffRequests() {
 
   const rejectRequestMutation = useMutation({
     mutationFn: async ({ requestId }: { requestId: string }) => {
-      if (!user?.id) throw new Error("No user found");
-
-      const { error } = await supabase
-        .from("staff_join_requests")
-        .update({
-          status: "rejected",
-          responded_at: new Date().toISOString(),
-          responded_by: user.id,
-        })
-        .eq("id", requestId);
-
+      const { data, error } = await supabase.rpc("reject_staff_request", {
+        p_request_id: requestId,
+      });
       if (error) throw error;
+      if (data && !(data as { success: boolean }).success) {
+        throw new Error((data as { error: string }).error ?? "reject_failed");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff-requests"] });
@@ -208,8 +161,7 @@ export function useStaffRequests() {
             requester_user_id: user.id,
           }),
         });
-      } catch (notifyError) {
-        console.error("Failed to send LINE notification:", notifyError);
+      } catch {
         // Don't throw - notification failure shouldn't block the request
       }
     },

@@ -7,6 +7,8 @@ export interface TireImportRow {
   load_index: string;
   speed_rating: string;
   price: number;
+  cost: number;        // ต้นทุน (avg_cost)
+  quantity: number;    // จำนวนรวม (sum of DOTs, or a plain quantity column)
   dots: {
     code: string;
     quantity: number;
@@ -26,7 +28,8 @@ const stdColPatterns = {
   brand: ["brand", "ยี่ห้อ", "ยี่ห้อยาง", "แบรนด์"],
   model: ["model", "รุ่น", "ลายดอก"],
   load_index: ["load", "load_index", "li", "ดัชนีรับน้ำหนัก"],
-  price: ["price", "ราคา", "ราคาขาย", "unit price"],
+  price: ["price", "ราคาขาย", "sell price", "ราคา", "unit price"],
+  cost: ["cost", "ต้นทุน", "ทุน", "cost price", "ราคาทุน"],
 };
 
 // ฟังก์ชันช่วยหาชื่อคอลัมน์จริงจาก Keyword
@@ -64,6 +67,7 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
           const modelKey = findColumnName(headers, stdColPatterns.model);
           const loadKey = findColumnName(headers, stdColPatterns.load_index);
           const priceKey = findColumnName(headers, stdColPatterns.price);
+          const costKey = findColumnName(headers, stdColPatterns.cost);
 
           // แปลง Size Format (เช่น 1955515 -> 195/55R15)
           let fmtSize = sizeKey ? String(row[sizeKey] || "").trim() : "";
@@ -128,6 +132,15 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
             }
           });
 
+          // Total quantity: sum of DOT quantities, else a plain quantity column.
+          const totalDots = dots.reduce((s, d) => s + d.quantity, 0);
+          const plainQtyKey = headers.find((h) =>
+            /^(quantity|qty|จำนวน|stock|คงเหลือ|สต็อก)$/i.test(h.trim())
+          );
+          const quantity = totalDots > 0
+            ? totalDots
+            : (plainQtyKey ? Number(row[plainQtyKey] || 0) : 0);
+
           return {
             brand: brandKey ? String(row[brandKey] || "").trim() : "",
             model: modelKey ? String(row[modelKey] || "").trim() : "",
@@ -135,6 +148,8 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
             load_index: loadIndex,
             speed_rating: speedRating,
             price: priceKey ? Number(row[priceKey] || 0) : 0,
+            cost: costKey ? Number(row[costKey] || 0) : 0,
+            quantity,
             dots: dots
           };
         });

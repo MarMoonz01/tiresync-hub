@@ -1,257 +1,149 @@
-import { motion } from "framer-motion";
-import { 
-  CircleDot, 
-  TrendingUp, 
-  TrendingDown,
-  AlertTriangle, 
-  Package,
-  Plus,
-  Upload,
-  ArrowRight,
-  ShoppingCart,
-  XCircle,
-  Search,
-  Store
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { useAuth } from "@/hooks/useAuth";
-import { usePermissions } from "@/hooks/usePermissions";
+import { useAgentRuns } from "@/hooks/useAgentRuns";
+import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { QuickActionCard } from "@/components/dashboard/QuickActionCard";
-import { StockMovementChart } from "@/components/dashboard/StockMovementChart";
-import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
+import {
+  LayoutDashboard, CheckCircle, AlertCircle, Clock,
+  TrendingUp, ShoppingCart, AlertTriangle, Bell,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+import { th } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
-export default function Dashboard() {
-  const { profile, store, isStaff } = useAuth();
-  const { canAdd } = usePermissions();
-  const { loading, tireStats, salesStats, dailyMovements, recentLogs } = useDashboardStats();
+function MetricCard({ label, value, color, href }: { label: string; value: string | number; color: string; href?: string }) {
+  const content = (
+    <div className="rounded-lg border border-border bg-card p-4 hover:bg-accent transition-colors">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+    </div>
+  );
+  return href ? <Link to={href}>{content}</Link> : content;
+}
 
-  const stats = [
-    {
-      title: "Total Tires",
-      value: tireStats.totalTires,
-      icon: CircleDot,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
-    {
-      title: "Total Stock",
-      value: tireStats.totalStock,
-      icon: Package,
-      color: "text-accent",
-      bgColor: "bg-accent/10",
-    },
-    {
-      title: "Low Stock",
-      value: tireStats.lowStockCount,
-      icon: AlertTriangle,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
-    },
-    {
-      title: "Out of Stock",
-      value: tireStats.outOfStockCount,
-      icon: XCircle,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
-    },
-  ];
+function AgentHealthPanel() {
+  const { data: runs = [], isLoading } = useAgentRuns(30);
 
-  const salesMetrics = [
-    {
-      title: "This Month Sales",
-      value: salesStats.thisMonth,
-      icon: ShoppingCart,
-      color: "text-success",
-      bgColor: "bg-success/10",
-      trend: salesStats.percentChange !== 0 ? {
-        value: salesStats.percentChange,
-        isPositive: salesStats.percentChange > 0,
-      } : undefined,
-    },
-    {
-      title: "Last Month Sales",
-      value: salesStats.lastMonth,
-      icon: salesStats.percentChange >= 0 ? TrendingUp : TrendingDown,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted",
-    },
-  ];
+  const latestByAgent = runs.reduce<Record<string, (typeof runs)[0]>>((acc, run) => {
+    if (!acc[run.agent] || run.created_at > acc[run.agent].created_at) acc[run.agent] = run;
+    return acc;
+  }, {});
 
-  // Filter quick actions based on permissions
-  const quickActions = [
-    // Add Tire - only if user can add
-    ...(canAdd ? [{
-      to: "/inventory/add",
-      icon: Plus,
-      label: "Add Tire",
-      bgColor: "bg-primary/10",
-      hoverBgColor: "bg-primary/20",
-      iconColor: "text-primary",
-    }] : []),
-    // Import - only if user can add AND IS NOT STAFF
-    // แก้ไขตรงนี้: เพิ่มเงื่อนไข !isStaff
-    ...(canAdd && !isStaff ? [{
-      to: "/import",
-      icon: Upload,
-      label: "Import",
-      bgColor: "bg-accent/10",
-      hoverBgColor: "bg-accent/20",
-      iconColor: "text-accent",
-    }] : []),
-    // Inventory - always visible
-    {
-      to: "/inventory",
-      icon: CircleDot,
-      label: "Inventory",
-      bgColor: "bg-success/10",
-      hoverBgColor: "bg-success/20",
-      iconColor: "text-success",
-    },
-    // Marketplace - always visible
-    {
-      to: "/marketplace",
-      icon: Package,
-      label: "Market",
-      bgColor: "bg-warning/10",
-      hoverBgColor: "bg-warning/20",
-      iconColor: "text-warning",
-    },
-  ];
+  const agents = Object.values(latestByAgent);
 
   return (
-    <AppLayout>
-      <div className="page-container">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-6"
-        >
-          {/* Header */}
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Welcome, {profile?.full_name?.split(" ")[0] || "there"} 👋
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {store 
-                ? (isStaff ? `Staff at ${store.name}` : `Managing ${store.name}`)
-                : "Set up your store to start"}
+    <div className="rounded-lg border border-border bg-card">
+      <div className="px-4 py-3 border-b border-border">
+        <p className="font-semibold text-sm">AI Agent Health</p>
+      </div>
+      {isLoading && <p className="p-4 text-sm text-muted-foreground">กำลังโหลด...</p>}
+      {!isLoading && agents.length === 0 && (
+        <p className="p-4 text-sm text-muted-foreground">ยังไม่มีข้อมูล — agents จะแสดงหลัง cron แรกทำงาน</p>
+      )}
+      <div className="divide-y divide-border">
+        {agents.map((run) => (
+          <div key={run.id} className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {run.status === "success" ? (
+                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+              ) : run.status === "error" ? (
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              ) : (
+                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{run.agent}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[220px]">{run.summary ?? "—"}</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+              {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: th })}
             </p>
           </div>
-
-          {/* Store Setup CTA / Join Store - Logic Updated */}
-          {!store && !isStaff && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card className="border-0 shadow-soft bg-primary/5">
-                <CardContent className="p-4">
-                  <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-sm">Set Up Your Store</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">
-                        Create your store profile to start managing inventory
-                      </p>
-                    </div>
-                    <Link to="/store/setup">
-                      <Button size="sm">
-                        Get Started
-                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Inventory Stats Grid */}
-          <div>
-            <p className="section-header mb-3">Inventory</p>
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-20 rounded-2xl" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {stats.map((stat, index) => (
-                  <StatCard
-                    key={stat.title}
-                    title={stat.title}
-                    value={stat.value}
-                    icon={stat.icon}
-                    color={stat.color}
-                    bgColor={stat.bgColor}
-                    delay={index * 0.03}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Sales Stats */}
-          <div>
-            <p className="section-header mb-3">Sales</p>
-            {loading ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[...Array(2)].map((_, i) => (
-                  <Skeleton key={i} className="h-20 rounded-2xl" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {salesMetrics.map((stat, index) => (
-                  <StatCard
-                    key={stat.title}
-                    title={stat.title}
-                    value={stat.value}
-                    icon={stat.icon}
-                    color={stat.color}
-                    bgColor={stat.bgColor}
-                    trend={stat.trend}
-                    delay={index * 0.03}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Quick Actions */}
-          <div>
-            <p className="section-header mb-3">Quick Actions</p>
-            <div className="grid grid-cols-4 gap-3">
-              {quickActions.map((action) => (
-                <QuickActionCard key={action.to} {...action} />
-              ))}
-            </div>
-          </div>
-
-          {/* Charts & Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {loading ? (
-              <>
-                <Skeleton className="h-[320px] rounded-2xl" />
-                <Skeleton className="h-[320px] rounded-2xl" />
-              </>
-            ) : (
-              <>
-                <StockMovementChart data={dailyMovements} />
-                <RecentActivityList logs={recentLogs} />
-              </>
-            )}
-          </div>
-        </motion.div>
+        ))}
       </div>
-    </AppLayout>
+    </div>
+  );
+}
+
+function AlertsPanel() {
+  const { data: notifications = [] } = useNotifications();
+  const alerts = notifications.filter((n) => !n.is_read).slice(0, 5);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10">
+      <div className="px-4 py-3 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2">
+        <Bell className="w-4 h-4 text-amber-600" />
+        <p className="font-semibold text-sm text-amber-800 dark:text-amber-400">การแจ้งเตือน ({alerts.length})</p>
+      </div>
+      <div className="divide-y divide-amber-200 dark:divide-amber-800">
+        {alerts.map((n) => (
+          <div key={n.id} className="px-4 py-3">
+            <p className="text-sm font-medium">{n.title}</p>
+            {n.body && <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { data: stats } = useDashboardStats();
+  const { data: pendingPOs = [] } = usePurchaseOrders("pending");
+
+  return (
+    <div className="min-h-screen bg-background pb-6">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-4 md:px-6 py-4 flex items-center gap-3">
+        <LayoutDashboard className="w-5 h-5 text-primary" />
+        <h1 className="text-lg font-semibold">แดชบอร์ด</h1>
+      </header>
+
+      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
+        {/* Metric cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <MetricCard
+            label="รายได้เดือนนี้"
+            value={`฿${(stats?.totalRevenue ?? 0).toLocaleString("th-TH", { maximumFractionDigits: 0 })}`}
+            color="text-emerald-600"
+            href="/financials"
+          />
+          <MetricCard
+            label="กำไรขั้นต้น"
+            value={`฿${(stats?.totalProfit ?? 0).toLocaleString("th-TH", { maximumFractionDigits: 0 })}`}
+            color={(stats?.totalProfit ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}
+            href="/financials"
+          />
+          <MetricCard
+            label="รายการขาย"
+            value={stats?.totalSales ?? 0}
+            color="text-primary"
+            href="/sales"
+          />
+          <MetricCard
+            label="สต็อกต่ำ"
+            value={stats?.lowStockCount ?? 0}
+            color={(stats?.lowStockCount ?? 0) > 0 ? "text-amber-600" : "text-muted-foreground"}
+            href="/stock"
+          />
+          <MetricCard
+            label="PO รออนุมัติ"
+            value={pendingPOs.length}
+            color={pendingPOs.length > 0 ? "text-amber-600" : "text-muted-foreground"}
+            href="/po-approval"
+          />
+          <MetricCard
+            label="การแจ้งเตือน"
+            value={stats?.unreadAlerts ?? 0}
+            color="text-muted-foreground"
+          />
+        </div>
+
+        <AlertsPanel />
+        <AgentHealthPanel />
+      </div>
+    </div>
   );
 }

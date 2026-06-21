@@ -1,71 +1,147 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Restrict CORS to Supabase internal callers (database webhooks only).
+// Browser-originated requests are not expected for this function.
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://rvtrwlcxdfnenqspagug.supabase.co',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 const LINE_PUSH_API_URL = "https://api.line.me/v2/bot/message/push";
 
+// Maximum allowed lengths to prevent injection via Flex Message content
+const MAX_TITLE_LENGTH = 200;
+const MAX_MESSAGE_LENGTH = 1000;
+
+// ─── In-memory rate limiter ───────────────────────────────────────────────────
+// Limits each LINE user to MAX_REQUESTS notifications per WINDOW_MS.
+// State resets when the Deno isolate restarts, which is acceptable for basic abuse prevention.
+const WINDOW_MS = 60_000;  // 1 minute
+const MAX_REQUESTS = 10;   // max 10 pushes per user per minute
+
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now - entry.windowStart > WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return false;
+  }
+
+  if (entry.count >= MAX_REQUESTS) return true;
+
+  entry.count += 1;
+  return false;
+}
+
+interface NotificationRecord {
+  user_id: string;
+  title: string;
+  message: string;
+  type?: string;
+  send_line?: boolean;
+}
+
+function isValidRecord(record: unknown): record is NotificationRecord {
+  if (!record || typeof record !== 'object') return false;
+  const r = record as Record<string, unknown>;
+  return (
+    typeof r.user_id === 'string' && r.user_id.length > 0 &&
+    typeof r.title === 'string' && r.title.length > 0 &&
+    typeof r.message === 'string' && r.message.length > 0
+  );
+}
+
 Deno.serve(async (req) => {
-  // 1. Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 2. รับ Payload จาก Database Webhook
-    // (SQL Trigger จะส่ง object ชื่อ 'record' มาให้)
-    const payload = await req.json()
-    const record = payload.record 
-
-    console.log("🔔 Webhook Payload received:", record);
-
-    // 3. กรอง: ถ้าไม่มี record หรือ send_line = false ให้ข้ามไปเลย
-    if (!record || !record.send_line) {
-      console.log("Skipping: send_line is false or no record provided");
-      return new Response(JSON.stringify({ message: 'Skipped' }), {
+    // Parse and validate payload structure
+    let payload: unknown;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      });
     }
 
-    // 4. เชื่อมต่อ Supabase
+    if (!payload || typeof payload !== 'object') {
+      return new Response(JSON.stringify({ error: 'Missing payload' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const record = (payload as Record<string, unknown>).record;
+
+    // Skip if send_line flag is false or record is missing/invalid
+    if (!record || !(record as Record<string, unknown>).send_line) {
+      return new Response(JSON.stringify({ message: 'Skipped' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!isValidRecord(record)) {
+      return new Response(JSON.stringify({ error: 'Invalid record structure' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Sanitize string lengths to prevent oversized Flex Message content
+    const title = record.title.slice(0, MAX_TITLE_LENGTH);
+    const message = record.message.slice(0, MAX_MESSAGE_LENGTH);
+
+    // Connect to Supabase with service role (server-side only — never exposed to browser)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    // 5. หา LINE User ID ของคนรับ (จาก user_id)
+    // Look up the recipient's LINE User ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('line_user_id')
       .eq('user_id', record.user_id)
-      .single()
+      .single();
 
     if (profileError || !profile?.line_user_id) {
-      console.log(`User ${record.user_id} has no LINE ID linked.`)
-      // ไม่ถือเป็น Error แค่บอกว่าส่งไม่ได้
       return new Response(JSON.stringify({ message: 'User not linked to LINE' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      });
     }
 
-    // 6. เลือกสีหัวข้อตามความด่วน (type)
-    let headerColor = '#1DB446'; // เขียว (ค่าเริ่มต้น / info)
+    // Rate limit per LINE user ID
+    if (isRateLimited(profile.line_user_id)) {
+      return new Response(JSON.stringify({ message: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Map severity type to header color
+    let headerColor = '#1DB446'; // green (default / info)
     let headerText = 'การแจ้งเตือน';
 
     if (record.type === 'critical') {
-      headerColor = '#EF4444'; // แดง
+      headerColor = '#EF4444'; // red
       headerText = '⚠️ ด่วนมาก';
     } else if (record.type === 'warning') {
-      headerColor = '#F59E0B'; // เหลือง
+      headerColor = '#F59E0B'; // amber
       headerText = 'แจ้งเตือน';
     }
 
-    // 7. สร้าง Flex Message (ใช้ Title/Message จาก Database ตรงๆ)
+    // Build LINE Flex Message
     const flexMessage = {
       type: 'flex',
-      altText: `${record.title}: ${record.message}`,
+      altText: `${title}: ${message}`,
       contents: {
         type: 'bubble',
         header: {
@@ -76,10 +152,10 @@ Deno.serve(async (req) => {
               type: 'text',
               text: headerText,
               color: '#FFFFFF',
-              weight: 'bold'
-            }
+              weight: 'bold',
+            },
           ],
-          backgroundColor: headerColor
+          backgroundColor: headerColor,
         },
         body: {
           type: 'box',
@@ -87,25 +163,25 @@ Deno.serve(async (req) => {
           contents: [
             {
               type: 'text',
-              text: record.title,
+              text: title,
               weight: 'bold',
               size: 'lg',
-              wrap: true
+              wrap: true,
             },
             {
               type: 'text',
-              text: record.message,
+              text: message,
               size: 'md',
               color: '#666666',
               wrap: true,
-              margin: 'md'
-            }
-          ]
-        }
-      }
+              margin: 'md',
+            },
+          ],
+        },
+      },
     };
 
-    // 8. ยิงเข้า LINE API
+    // Push notification to LINE API
     const lineRes = await fetch(LINE_PUSH_API_URL, {
       method: 'POST',
       headers: {
@@ -116,24 +192,23 @@ Deno.serve(async (req) => {
         to: profile.line_user_id,
         messages: [flexMessage],
       }),
-    })
+    });
 
     if (!lineRes.ok) {
-      const errorText = await lineRes.text()
-      throw new Error(`LINE API Error: ${errorText}`)
+      const errorText = await lineRes.text();
+      throw new Error(`LINE API Error: ${errorText}`);
     }
-
-    console.log("✅ Notification sent to LINE successfully!");
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    });
 
   } catch (error) {
-    console.error("Internal Error:", error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
+    // Log full details server-side; return a generic message to the caller
+    console.error('[line-push-notification] Internal error:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    });
   }
-})
+});
