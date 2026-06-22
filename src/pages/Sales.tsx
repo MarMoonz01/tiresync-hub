@@ -7,13 +7,13 @@ import { StockItem } from "@/hooks/useStockLookup";
 import { useStockLookup } from "@/hooks/useStockLookup";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShoppingCart } from "lucide-react";
 
 export default function Sales() {
   const [selectedTire, setSelectedTire] = useState<StockItem | null>(null);
   const [activeTab, setActiveTab] = useState<"sell" | "stock">("sell");
   const isMobile = useIsMobile();
 
-  // Flat lookup for selecting by ID (from REX/TREND)
   const { data: allStock = [] } = useStockLookup("");
   const selectById = (id: string) => {
     const tire = allStock.find((t) => t.id === id);
@@ -25,63 +25,55 @@ export default function Sales() {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-4 py-3">
-          <h1 className="text-lg font-semibold">ขายยาง</h1>
-        </header>
+      <div className="min-h-screen pb-20">
+        <div className="p-4">
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2 mb-4">
+            <ShoppingCart className="w-6 h-6 text-primary" /> ขายยาง
+          </h1>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "sell" | "stock")}>
+            <TabsList className="w-full grid grid-cols-2 rounded-xl">
+              <TabsTrigger value="sell" className="rounded-lg">บันทึกการขาย</TabsTrigger>
+              <TabsTrigger value="stock" className="rounded-lg">เลือกยาง</TabsTrigger>
+            </TabsList>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "sell" | "stock")}>
-          <TabsList className="w-full rounded-none border-b border-border">
-            <TabsTrigger value="sell" className="flex-1">บันทึกการขาย</TabsTrigger>
-            <TabsTrigger value="stock" className="flex-1">เลือกยาง</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="sell" className="p-4">
-            <SalesForm
-              selectedTire={selectedTire}
-              onSelectTireById={selectById}
-              onComplete={() => setSelectedTire(null)}
-            />
-            <div className="mt-6">
+            <TabsContent value="sell" className="pt-4 space-y-4">
+              <SalesForm selectedTire={selectedTire} onSelectTireById={selectById} onComplete={() => setSelectedTire(null)} />
               <RecentSales />
-            </div>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="stock" className="p-4 h-[calc(100vh-10rem)]">
-            <StockTable
-              onSelect={(t) => { setSelectedTire(t); setActiveTab("sell"); }}
-              selectedId={selectedTire?.id}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="stock" className="pt-4 h-[calc(100vh-12rem)]">
+              <StockTable onSelect={(t) => { setSelectedTire(t); setActiveTab("sell"); }} selectedId={selectedTire?.id} />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-6 py-4">
-        <h1 className="text-xl font-semibold">ขายยาง</h1>
-      </header>
-
-      <div className="p-6 grid grid-cols-2 gap-6 h-[calc(100vh-5rem)]">
-        {/* Left: Sale form */}
-        <div className="flex flex-col gap-4 overflow-y-auto">
-          <SalesForm
-            selectedTire={selectedTire}
-            onSelectTireById={selectById}
-            onComplete={() => setSelectedTire(null)}
-          />
-          <TRENDPanel onSuggest={selectById} />
-          <RecentSales />
+    <div className="min-h-screen pb-8">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
+        <div className="pt-2">
+          <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+            <ShoppingCart className="w-6 h-6 text-primary" /> ขายยาง
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">เลือกยาง บันทึกการขาย — สต็อกอัปเดตทันที</p>
         </div>
 
-        {/* Right: Stock table */}
-        <div className="h-full overflow-hidden">
-          <StockTable
-            onSelect={setSelectedTire}
-            selectedId={selectedTire?.id}
-          />
+        <div className="grid grid-cols-2 gap-5 items-start">
+          {/* picker */}
+          <div className="h-[calc(100vh-13rem)]">
+            <StockTable onSelect={setSelectedTire} selectedId={selectedTire?.id} />
+          </div>
+          {/* form */}
+          <div className="flex flex-col gap-4">
+            <SalesForm selectedTire={selectedTire} onSelectTireById={selectById} onComplete={() => setSelectedTire(null)} />
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-4">
+          <TRENDPanel onSuggest={selectById} />
+          <RecentSales />
         </div>
       </div>
     </div>
