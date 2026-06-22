@@ -18,8 +18,7 @@
 begin;
 
 -- ── Identity placeholders — REPLACE THESE ───────────────────────────────────
-\set ON_ERROR_STOP on
--- (The Supabase SQL editor ignores \set; replace the literals inline instead.)
+-- (Replace the UUID literals inline in each block below.)
 -- A store owner whose store HAS ≥1 accepted partner:
 --   STORE_A_OWNER_UID  = '00000000-0000-0000-0000-00000000000A'
 -- A store owner whose store has NO accepted links:
