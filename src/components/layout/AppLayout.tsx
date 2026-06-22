@@ -32,10 +32,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <TopNavbar onMenuClick={() => setMobileMenuOpen(true)} />
 
         {/* B. เนื้อหาหลักของหน้า */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6 relative scroll-smooth">
-          <div className="mx-auto max-w-7xl animate-in fade-in duration-300 slide-in-from-bottom-2">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 md:pb-6 relative scroll-smooth">
+          {children}
         </main>
       </div>
 

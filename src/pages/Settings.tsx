@@ -1,30 +1,30 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { Globe, Bell, LogOut } from "lucide-react";
+import { Settings as SettingsIcon, Globe, Bell, LogOut, Building2, BadgeCheck } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "Store Owner",
-  staff: "Staff",
-  interbranch: "Interbranch",
+  owner: "เจ้าของร้าน",
+  staff: "พนักงาน",
+  interbranch: "สาขา",
 };
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border"><h3 className="font-bold text-[15px]">{title}</h3></div>
+      {children}
+    </div>
+  );
+}
 
 export default function Settings() {
   const { profile, store, role, isOwner } = useAuth();
   const navigate = useNavigate();
 
-  const initials = profile?.full_name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() || "U";
+  const initials = profile?.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -32,91 +32,77 @@ export default function Settings() {
   };
 
   return (
-    <AppLayout>
-      <div className="page-container">
-        <div className="space-y-6 max-w-2xl mx-auto">
-          <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-muted-foreground">Manage your preferences</p>
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
+      <div className="pt-2">
+        <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6 text-primary" /> ตั้งค่า
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">บัญชี ร้านค้า และการแสดงผล</p>
+      </div>
+
+      {/* Profile */}
+      <Panel title="โปรไฟล์">
+        <div className="p-5 flex items-center gap-4">
+          <Avatar className="w-14 h-14">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base truncate">{profile?.full_name || "User"}</p>
+            <p className="text-sm text-muted-foreground truncate">{profile?.email}</p>
           </div>
-
-          {/* Profile */}
-          <Card className="border-0 shadow-sm bg-card/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16 border-2 border-background shadow-sm">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg truncate">{profile?.full_name || "User"}</h3>
-                  <p className="text-muted-foreground text-sm truncate">{profile?.email}</p>
-                  {role && (
-                    <Badge variant="outline" className="mt-2 text-xs">
-                      {ROLE_LABELS[role] ?? role}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Store info (owner only) */}
-          {store && isOwner && (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">ร้านค้า</p>
-                <p className="font-medium">{store.name}</p>
-                {store.address && <p className="text-sm text-muted-foreground">{store.address}</p>}
-              </CardContent>
-            </Card>
+          {role && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+              <BadgeCheck className="w-3.5 h-3.5" /> {ROLE_LABELS[role] ?? role}
+            </span>
           )}
+        </div>
+      </Panel>
 
-          {/* Preferences */}
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-0 divide-y">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                    <Globe className="w-4 h-4 text-orange-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Language</p>
-                    <p className="text-xs text-muted-foreground">Select your preferred language</p>
-                  </div>
-                </div>
-                <LanguageToggle />
+      {/* Store (owner) */}
+      {store && isOwner && (
+        <Panel title="ข้อมูลร้าน">
+          <div className="p-5 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center shrink-0"><Building2 className="w-5 h-5" /></span>
+            <div>
+              <p className="font-semibold">{store.name}</p>
+              {store.address && <p className="text-sm text-muted-foreground">{store.address}</p>}
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* Preferences */}
+      <Panel title="การแสดงผล">
+        <div className="divide-y divide-border">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center"><Globe className="w-4.5 h-4.5" /></span>
+              <div>
+                <p className="font-semibold text-sm">ภาษา</p>
+                <p className="text-xs text-muted-foreground">เลือกภาษาที่ต้องการ</p>
               </div>
-
-              <div className="flex items-center justify-between p-4 opacity-50 cursor-not-allowed">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                    <Bell className="w-4 h-4 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Notifications</p>
-                    <p className="text-xs text-muted-foreground">Coming soon</p>
-                  </div>
-                </div>
-                <Switch disabled />
+            </div>
+            <LanguageToggle />
+          </div>
+          <div className="flex items-center justify-between p-4 opacity-50">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center"><Bell className="w-4.5 h-4.5" /></span>
+              <div>
+                <p className="font-semibold text-sm">การแจ้งเตือน</p>
+                <p className="text-xs text-muted-foreground">เร็วๆ นี้</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="pt-2">
-            <Button
-              variant="destructive"
-              className="w-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </AppLayout>
+      </Panel>
+
+      <button
+        onClick={handleLogout}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-600 px-4 py-3 text-sm font-semibold hover:bg-rose-500/10 transition"
+      >
+        <LogOut className="w-4 h-4" /> ออกจากระบบ
+      </button>
+    </div>
   );
 }

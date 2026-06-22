@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Public
@@ -76,44 +77,44 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pending" element={<Pending />} />
 
-                {/* Staff + owner */}
+                {/* Staff + owner (all wrapped in the AppLayout shell: sidebar + topbar) */}
                 <Route path="/sales" element={
-                  <ProtectedRoute><Sales /></ProtectedRoute>
+                  <ProtectedRoute><AppLayout><Sales /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/stock" element={
-                  <ProtectedRoute><Stock /></ProtectedRoute>
+                  <ProtectedRoute><AppLayout><Stock /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/customers" element={
-                  <ProtectedRoute><Customers /></ProtectedRoute>
+                  <ProtectedRoute><AppLayout><Customers /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/settings" element={
-                  <ProtectedRoute><Settings /></ProtectedRoute>
+                  <ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>
                 } />
 
                 {/* Owner-only */}
                 <Route path="/dashboard" element={
-                  <ProtectedRoute ownerOnly><Dashboard /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Dashboard /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/financials" element={
-                  <ProtectedRoute ownerOnly><Financials /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Financials /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/stock-management" element={
-                  <ProtectedRoute ownerOnly><StockManagement /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><StockManagement /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/po-approval" element={
-                  <ProtectedRoute ownerOnly><POApproval /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><POApproval /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/promotions" element={
-                  <ProtectedRoute ownerOnly><Promotions /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Promotions /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/content-approval" element={
-                  <ProtectedRoute ownerOnly><ContentApproval /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><ContentApproval /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/crm" element={
-                  <ProtectedRoute ownerOnly><CRM /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><CRM /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/intelligence" element={
-                  <ProtectedRoute ownerOnly><Intelligence /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Intelligence /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/audit-log" element={
                   <ProtectedRoute ownerOnly><AuditLog /></ProtectedRoute>
@@ -122,17 +123,17 @@ const App = () => (
                   <ProtectedRoute ownerOnly><Staff /></ProtectedRoute>
                 } />
                 <Route path="/network" element={
-                  <ProtectedRoute ownerOnly><Network /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Network /></AppLayout></ProtectedRoute>
                 } />
 
-                {/* Subscription paywall — must stay reachable while inactive */}
+                {/* Subscription paywall — standalone (no shell) so it stays reachable while inactive */}
                 <Route path="/billing" element={
                   <ProtectedRoute skipSubscriptionGate><Billing /></ProtectedRoute>
                 } />
 
                 {/* Interbranch-only */}
                 <Route path="/interbranch" element={
-                  <ProtectedRoute interbranchOnly><Interbranch /></ProtectedRoute>
+                  <ProtectedRoute interbranchOnly><AppLayout><Interbranch /></AppLayout></ProtectedRoute>
                 } />
 
                 {/* Platform-admin only (hidden) */}
