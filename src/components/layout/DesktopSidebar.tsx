@@ -102,18 +102,23 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
-        <Link to="/sales" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <TireLogo size={20} className="text-primary-foreground" />
+        <Link to="/sales" className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-[0_8px_20px_-8px_hsl(var(--primary)/0.6)] shrink-0">
+            <TireLogo size={20} className="text-white" />
           </div>
           {!collapsed && (
-            <motion.span
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="font-semibold text-lg text-sidebar-foreground uppercase tracking-wider"
+              className="min-w-0"
             >
-              TireHub
-            </motion.span>
+              <div className="font-extrabold text-lg text-sidebar-foreground tracking-tight leading-none">BAANAKE</div>
+              {store?.name && (
+                <div className="text-[10px] font-semibold text-sidebar-foreground/50 tracking-wide truncate max-w-[150px] mt-0.5">
+                  {store.name}
+                </div>
+              )}
+            </motion.div>
           )}
         </Link>
       </div>

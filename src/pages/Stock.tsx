@@ -2,82 +2,107 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useStockLookup } from "@/hooks/useStockLookup";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search, CircleDot } from "lucide-react";
+
+const baht = (n: number) => "฿" + (n ?? 0).toLocaleString("en-US");
+
+function Mini({ label, value, tone }: { label: string; value: string | number; tone?: "amber" | "default" }) {
+  return (
+    <div className="text-right">
+      <div className={`text-lg font-extrabold tabular-nums ${tone === "amber" ? "text-amber-600" : ""}`}>{value}</div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
 
 export default function Stock() {
   const [search, setSearch] = useState("");
   const { data: items = [], isLoading } = useStockLookup(search);
 
+  const totalUnits = items.reduce((a, i) => a + (i.quantity ?? 0), 0);
   const lowCount = items.filter((i) => i.quantity <= i.min_threshold).length;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-4 md:px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">สต็อกยาง</h1>
-        {lowCount > 0 && (
-          <div className="flex items-center gap-1 text-amber-600 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            {lowCount} รายการสต็อกต่ำ
+    <div className="min-h-screen pb-20">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+        {/* Page head */}
+        <div className="flex items-end justify-between gap-4 flex-wrap pt-2">
+          <div>
+            <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+              <CircleDot className="w-6 h-6 text-primary" /> สต็อกยาง
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">ยางคงเหลือในร้าน — ค้นหาและตรวจสอบจำนวน</p>
           </div>
-        )}
-      </header>
-
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="ค้นหา เช่น Bridgestone, 195/65R15"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="flex items-center gap-6">
+            <Mini label="SKU ทั้งหมด" value={items.length} />
+            <Mini label="เส้นคงเหลือ" value={totalUnits} />
+            <Mini label="สต็อกต่ำ" value={lowCount} tone="amber" />
+          </div>
         </div>
 
-        {isLoading && <p className="text-center text-muted-foreground py-8">กำลังโหลด...</p>}
+        {/* Card: search + table */}
+        <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                className="pl-9 bg-secondary/60 border-border rounded-xl"
+                placeholder="ค้นหา เช่น Bridgestone, 195/65R15"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
 
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">ยาง</th>
-                <th className="text-left px-4 py-3 font-medium hidden md:table-cell">ขนาด</th>
-                <th className="text-right px-4 py-3 font-medium">ราคาขาย</th>
-                <th className="text-right px-4 py-3 font-medium">คงเหลือ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {items.map((item) => {
-                const isLow = item.quantity <= item.min_threshold;
-                return (
-                  <tr key={item.id} className={isLow ? "bg-amber-50/50 dark:bg-amber-900/10" : ""}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{item.brand} {item.model}</p>
-                      <p className="text-xs text-muted-foreground md:hidden">{item.size}</p>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{item.size}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-primary">
-                      ฿{item.sell_price.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {isLow && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
-                        <Badge variant={item.quantity > 0 ? "outline" : "destructive"}>
-                          {item.quantity}
-                        </Badge>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {!isLoading && items.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                    ไม่พบยาง
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  {["ยาง", "ขนาด", "ราคาขาย", "สถานะ", "คงเหลือ"].map((h, i) => (
+                    <th key={h} className={`px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${i >= 2 ? "text-right" : "text-left"} ${i === 1 ? "hidden md:table-cell" : ""}`}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {items.map((item) => {
+                  const st = item.quantity === 0 ? "out" : item.quantity <= item.min_threshold ? "low" : "ok";
+                  return (
+                    <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <p className="font-semibold">{item.brand} {item.model}</p>
+                        <p className="text-xs text-muted-foreground md:hidden tabular-nums">{item.size}</p>
+                      </td>
+                      <td className="px-5 py-3.5 text-muted-foreground tabular-nums hidden md:table-cell">{item.size}</td>
+                      <td className="px-5 py-3.5 text-right font-semibold tabular-nums">{baht(item.sell_price)}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <Badge
+                          variant="outline"
+                          className={
+                            st === "out" ? "border-transparent bg-rose-500/10 text-rose-600"
+                            : st === "low" ? "border-transparent bg-amber-500/10 text-amber-600"
+                            : "border-transparent bg-emerald-500/10 text-emerald-600"
+                          }
+                        >
+                          {st === "out" ? "หมด" : st === "low" ? "ใกล้หมด" : "พอขาย"}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-bold tabular-nums">
+                        <span className={st === "out" ? "text-rose-600" : st === "low" ? "text-amber-600" : ""}>{item.quantity}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {isLoading && (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">กำลังโหลด...</td></tr>
+                )}
+                {!isLoading && items.length === 0 && (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">ไม่พบยาง</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
