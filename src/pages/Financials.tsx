@@ -1,11 +1,24 @@
 import { useState } from "react";
 import { useFinancials } from "@/hooks/useFinancials";
-import { TrendingUp, TrendingDown } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Truck, Trophy, Zap } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-function formatMoney(n: number | null | undefined) {
-  return `฿${(n ?? 0).toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+const money = (n: number | null | undefined) => "฿" + (n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+function StatCard({ label, value, icon: Icon, tint }: { label: string; value: string; icon: LucideIcon; tint: string }) {
+  const tints: Record<string, string> = {
+    emerald: "bg-emerald-500/10 text-emerald-600",
+    amber: "bg-amber-500/10 text-amber-600",
+    violet: "bg-violet-500/10 text-violet-600",
+    primary: "bg-primary/10 text-primary",
+  };
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <span className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${tints[tint]}`}><Icon className="w-5 h-5" /></span>
+      <p className="text-2xl font-extrabold tracking-tight tabular-nums">{value}</p>
+      <p className="text-xs text-muted-foreground font-medium mt-1">{label}</p>
+    </div>
+  );
 }
 
 export default function Financials() {
@@ -19,72 +32,63 @@ export default function Financials() {
   const marginPct = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
   return (
-    <div className="min-h-screen bg-background pb-6">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-4 md:px-6 py-4 flex items-center gap-3">
-        <TrendingUp className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-semibold">การเงิน</h1>
-        <div className="ml-auto">
+    <div className="min-h-screen pb-8">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+        <div className="flex items-end justify-between gap-4 flex-wrap pt-2">
+          <div>
+            <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-primary" /> การเงิน
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">งบกำไรขาดทุน · รายเดือน</p>
+          </div>
           <input
             type="month"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background"
+            className="text-sm border border-border rounded-xl px-3 py-2 bg-card font-medium"
           />
         </div>
-      </header>
 
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: "รายได้รวม", value: formatMoney(totalRevenue), color: "text-emerald-600" },
-            { label: "ต้นทุน (COGS)", value: formatMoney(totalCogs), color: "text-amber-600" },
-            { label: "กำไรขั้นต้น", value: formatMoney(totalProfit), color: totalProfit >= 0 ? "text-emerald-600" : "text-red-600" },
-            { label: "อัตรากำไร", value: `${marginPct}%`, color: "text-primary" },
-          ].map((card) => (
-            <div key={card.label} className="rounded-lg border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-              <p className={`text-xl font-bold mt-1 ${card.color}`}>{card.value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatCard label="รายได้รวม" value={money(totalRevenue)} icon={TrendingUp} tint="emerald" />
+          <StatCard label="ต้นทุน (COGS)" value={money(totalCogs)} icon={Truck} tint="amber" />
+          <StatCard label="กำไรขั้นต้น" value={money(totalProfit)} icon={Trophy} tint={totalProfit >= 0 ? "emerald" : "violet"} />
+          <StatCard label="อัตรากำไร" value={`${marginPct}%`} icon={Zap} tint="primary" />
         </div>
 
-        {/* Transaction table */}
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">วันที่</th>
-                <th className="text-left px-4 py-3 font-medium">ประเภท</th>
-                <th className="text-right px-4 py-3 font-medium">รายได้</th>
-                <th className="text-right px-4 py-3 font-medium">กำไร</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">กำลังโหลด...</td></tr>
-              )}
-              {!isLoading && rows.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">ไม่มีข้อมูลในเดือนนี้</td></tr>
-              )}
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="px-4 py-3 text-muted-foreground">{row.period_day ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline" className="text-xs">{row.type}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">{formatMoney(row.revenue)}</td>
-                  <td className={`px-4 py-3 text-right font-medium ${(row.gross_profit ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {(row.gross_profit ?? 0) >= 0 ? (
-                      <span className="inline-flex items-center gap-1"><TrendingUp className="w-3 h-3" />{formatMoney(row.gross_profit)}</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1"><TrendingDown className="w-3 h-3" />{formatMoney(row.gross_profit)}</span>
-                    )}
-                  </td>
+        <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="font-bold text-[15px]">งบกำไรขาดทุน</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  {["วันที่", "ประเภท", "รายได้", "กำไร"].map((h, i) => (
+                    <th key={h} className={`px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${i >= 2 ? "text-right" : "text-left"}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {isLoading && <tr><td colSpan={4} className="px-5 py-10 text-center text-muted-foreground">กำลังโหลด...</td></tr>}
+                {!isLoading && rows.length === 0 && <tr><td colSpan={4} className="px-5 py-10 text-center text-muted-foreground">ไม่มีข้อมูลในเดือนนี้</td></tr>}
+                {rows.map((row) => {
+                  const profit = row.gross_profit ?? 0;
+                  const tone = row.type === "sale" ? "bg-emerald-500/10 text-emerald-600" : row.type === "expense" ? "bg-rose-500/10 text-rose-600" : "bg-amber-500/10 text-amber-600";
+                  return (
+                    <tr key={row.id} className="hover:bg-secondary/40 transition-colors">
+                      <td className="px-5 py-3.5 text-muted-foreground tabular-nums">{row.period_day ?? "—"}</td>
+                      <td className="px-5 py-3.5"><span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${tone}`}>{row.type}</span></td>
+                      <td className="px-5 py-3.5 text-right tabular-nums">{row.revenue ? money(row.revenue) : "—"}</td>
+                      <td className={`px-5 py-3.5 text-right font-bold tabular-nums ${profit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                        {profit < 0 ? "−" : ""}{money(Math.abs(profit))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
