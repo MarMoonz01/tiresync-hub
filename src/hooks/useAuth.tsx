@@ -81,6 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<Store | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [subscription, setSubscription] = useState<StoreSubscription | null>(null);
+  // True when the store_subscriptions table isn't deployed yet — gate fails open
+  // so the app stays usable until the billing migrations are applied.
+  const [subsUnavailable, setSubsUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
@@ -117,11 +120,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchSubscription = async (storeId: string): Promise<void> => {
     try {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("store_subscriptions")
         .select("id, store_id, plan, status, trial_ends_at")
         .eq("store_id", storeId)
         .maybeSingle();
+      if (error) {
+        const code = (error as { code?: string }).code;
+        const msg = (error as { message?: string }).message ?? "";
+        // Table not deployed yet → fail open (don't paywall a feature that doesn't exist).
+        if (code === "42P01" || /does not exist|schema cache|could not find the table/i.test(msg)) {
+          setSubsUnavailable(true);
+          setSubscription(null);
+          return;
+        }
+        setSubscription(null);
+        return;
+      }
+      setSubsUnavailable(false);
       setSubscription((data as StoreSubscription) ?? null);
     } catch {
       setSubscription(null);
@@ -237,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isOwner = role === "owner";
   const isStaff = role === "staff";
   const isInterbranch = role === "interbranch";
-  const subscriptionActive = isSubscriptionActive(subscription);
+  const subscriptionActive = subsUnavailable ? true : isSubscriptionActive(subscription);
 
   return (
     <AuthContext.Provider
