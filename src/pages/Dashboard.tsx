@@ -1,10 +1,9 @@
-import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useAuth } from "@/hooks/useAuth";
 import {
   TrendingUp, ShoppingCart, Bell,
-  Package, Wallet, Trophy, CheckSquare, Plus, ChevronRight,
+  Package, Wallet, Trophy, Plus, ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
@@ -57,22 +56,11 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 
 function NeedsAttention() {
   const { data: notifications = [] } = useNotifications();
-  const { data: pendingPOs = [] } = usePurchaseOrders("pending");
   const alerts = notifications.filter((n) => !n.is_read).slice(0, 4);
 
   return (
     <Panel title="รอการดำเนินการ">
       <div className="p-3 flex flex-col gap-2.5">
-        {pendingPOs.length > 0 && (
-          <Link to="/po-approval" className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-secondary/50 hover:border-primary hover:bg-primary/5 transition-colors">
-            <span className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0"><CheckSquare className="w-5 h-5" /></span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold"><span className="tabular-nums">{pendingPOs.length}</span> ใบสั่งซื้อรออนุมัติ</p>
-              <p className="text-[11px] text-muted-foreground">ใบสั่งซื้อ</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </Link>
-        )}
         {alerts.map((n) => (
           <div key={n.id} className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-secondary/50">
             <span className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"><Bell className="w-5 h-5" /></span>
@@ -82,7 +70,7 @@ function NeedsAttention() {
             </div>
           </div>
         ))}
-        {pendingPOs.length === 0 && alerts.length === 0 && (
+        {alerts.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-6">ไม่มีรายการรอดำเนินการ 🎉</p>
         )}
       </div>
@@ -92,7 +80,6 @@ function NeedsAttention() {
 
 export default function Dashboard() {
   const { data: stats } = useDashboardStats();
-  const { data: pendingPOs = [] } = usePurchaseOrders("pending");
   const { profile, store } = useAuth();
 
   const hr = new Date().getHours();
@@ -121,7 +108,6 @@ export default function Dashboard() {
           <StatCard label="กำไรขั้นต้น" value={baht(stats?.totalProfit ?? 0)} icon={Trophy} tint="emerald" href="/financials" />
           <StatCard label="รายการขาย" value={stats?.totalSales ?? 0} icon={ShoppingCart} tint="sky" href="/sales" />
           <StatCard label="สต็อกต่ำ" value={stats?.lowStockCount ?? 0} icon={Package} tint="amber" href="/stock" />
-          <StatCard label="PO รออนุมัติ" value={pendingPOs.length} icon={CheckSquare} tint="violet" href="/po-approval" />
           <StatCard label="การแจ้งเตือน" value={stats?.unreadAlerts ?? 0} icon={Wallet} tint="rose" />
         </div>
 

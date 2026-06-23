@@ -28,9 +28,6 @@ const Settings     = lazy(() => import("./pages/Settings"));
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Financials       = lazy(() => import("./pages/Financials"));
 const StockManagement  = lazy(() => import("./pages/StockManagement"));
-const POApproval       = lazy(() => import("./pages/POApproval"));
-const Promotions       = lazy(() => import("./pages/Promotions"));
-const ContentApproval  = lazy(() => import("./pages/ContentApproval"));
 const CRM              = lazy(() => import("./pages/CRM"));
 const AuditLog         = lazy(() => import("./pages/AuditLog"));
 const Staff            = lazy(() => import("./pages/Staff"));
@@ -103,15 +100,6 @@ const App = () => (
                 } />
                 <Route path="/stock-management" element={
                   <ProtectedRoute ownerOnly><AppLayout><StockManagement /></AppLayout></ProtectedRoute>
-                } />
-                <Route path="/po-approval" element={
-                  <ProtectedRoute ownerOnly><AppLayout><POApproval /></AppLayout></ProtectedRoute>
-                } />
-                <Route path="/promotions" element={
-                  <ProtectedRoute ownerOnly><AppLayout><Promotions /></AppLayout></ProtectedRoute>
-                } />
-                <Route path="/content-approval" element={
-                  <ProtectedRoute ownerOnly><AppLayout><ContentApproval /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/crm" element={
                   <ProtectedRoute ownerOnly><AppLayout><CRM /></AppLayout></ProtectedRoute>

@@ -14,10 +14,7 @@ import {
   TrendingUp,
   DollarSign,
   Package,
-  Star,
-  FileCheck,
   GitBranch,
-  CheckSquare,
   Network,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,9 +49,6 @@ const ownerNavItems: NavItem[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: TrendingUp, labelKey: "financials", path: "/financials" },
   { icon: Package, labelKey: "stockManagement", path: "/stock-management" },
-  { icon: CheckSquare, labelKey: "poApproval", path: "/po-approval" },
-  { icon: Star, labelKey: "promotions", path: "/promotions" },
-  { icon: FileCheck, labelKey: "contentApproval", path: "/content-approval" },
   { icon: DollarSign, labelKey: "crm", path: "/crm" },
   { icon: Network, labelKey: "network", path: "/network" },
   { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },
@@ -74,16 +68,16 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isOwner, isInterbranch, profile, store, role } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const displayName = profile?.full_name || profile?.email || "ผู้ใช้";
   const initial = (profile?.full_name || profile?.email || "?").charAt(0).toUpperCase();
   const roleLabel = role === "owner" ? "เจ้าของร้าน" : role === "staff" ? "พนักงาน" : role === "interbranch" ? "สาขา" : "";
 
-  const navItems: NavItem[] = [
-    ...(isInterbranch ? interbranchNavItems : staffNavItems),
-    ...(isOwner ? ownerNavItems : []),
-    ...bottomNavItems,
+  const navSections: { label: string; items: NavItem[] }[] = [
+    { label: language === "th" ? "งานประจำวัน" : "DAILY OPS", items: isInterbranch ? interbranchNavItems : staffNavItems },
+    ...(isOwner ? [{ label: language === "th" ? "สำหรับเจ้าของร้าน" : "OWNER", items: ownerNavItems }] : []),
+    { label: "", items: bottomNavItems },
   ];
 
   const handleLogout = async () => {
@@ -122,53 +116,60 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          const label = t(item.labelKey);
+      <nav className="flex-1 py-4 px-3 overflow-y-auto custom-scrollbar">
+        {navSections.map((section, si) => (
+          <div key={si} className={si > 0 ? "mt-5" : ""}>
+            {!collapsed && section.label && (
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const isActive = location.pathname === item.path;
+                const Icon = item.icon;
+                const label = t(item.labelKey);
 
-          const linkContent = (
-            <Link
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative group",
-                isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full"
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-primary" : "group-hover:scale-110 transition-transform")} />
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-sm truncate"
-                >
-                  {label}
-                </motion.span>
-              )}
-            </Link>
-          );
+                const linkContent = (
+                  <Link
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative group",
+                      isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeIndicator"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full"
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-primary" : "group-hover:scale-110 transition-transform")} />
+                    {!collapsed && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm truncate">
+                        {label}
+                      </motion.span>
+                    )}
+                  </Link>
+                );
 
-          if (collapsed) {
-            return (
-              <Tooltip key={item.path} delayDuration={0}>
-                <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
-              </Tooltip>
-            );
-          }
+                if (collapsed) {
+                  return (
+                    <Tooltip key={item.path} delayDuration={0}>
+                      <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                      <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
 
-          return <div key={item.path}>{linkContent}</div>;
-        })}
+                return <div key={item.path}>{linkContent}</div>;
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
