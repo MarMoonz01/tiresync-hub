@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { LineIntegrationCard } from "@/components/store/LineIntegrationCard";
 import { Settings as SettingsIcon, Globe, Bell, LogOut, Building2, BadgeCheck } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -71,6 +72,9 @@ export default function Settings() {
           </div>
         </Panel>
       )}
+
+      {/* LINE webhook integration (owner only) */}
+      {isOwner && store && <LineIntegrationCard />}
 
       {/* Preferences */}
       <Panel title="การแสดงผล">
