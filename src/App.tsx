@@ -117,10 +117,10 @@ const App = () => (
                   <ProtectedRoute ownerOnly><AppLayout><Intelligence /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/audit-log" element={
-                  <ProtectedRoute ownerOnly><AuditLog /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><AuditLog /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/staff" element={
-                  <ProtectedRoute ownerOnly><Staff /></ProtectedRoute>
+                  <ProtectedRoute ownerOnly><AppLayout><Staff /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/network" element={
                   <ProtectedRoute ownerOnly><AppLayout><Network /></AppLayout></ProtectedRoute>

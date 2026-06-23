@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Users, Store, Clock, UserPlus, Loader2, KeyRound, Copy, RefreshCw, Check } from "lucide-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -192,7 +191,7 @@ export default function Staff() {
 
   if (!store) {
     return (
-      <AppLayout>
+      <>
         <div className="page-container">
           <div className="text-center py-12">
             <Store className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -202,12 +201,12 @@ export default function Staff() {
             </p>
           </div>
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="page-container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -250,7 +249,7 @@ export default function Staff() {
           </div>
 
           {/* Store join PIN — share with staff so they can join instantly */}
-          <div className="glass-card p-4 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="rounded-2xl border border-border bg-card shadow-soft p-4 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 <KeyRound className="w-5 h-5" />
@@ -275,17 +274,17 @@ export default function Staff() {
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="glass-card p-4 rounded-xl">
+            <div className="rounded-2xl border border-border bg-card shadow-soft p-4 rounded-xl">
               <p className="text-2xl font-bold text-foreground">{storeMembers.length}</p>
               <p className="text-sm text-muted-foreground">Total Staff</p>
             </div>
-            <div className="glass-card p-4 rounded-xl">
+            <div className="rounded-2xl border border-border bg-card shadow-soft p-4 rounded-xl">
               <p className="text-2xl font-bold text-primary">
                 {storeMembers.filter((m) => m.role === "manager").length}
               </p>
               <p className="text-sm text-muted-foreground">Managers</p>
             </div>
-            <div className="glass-card p-4 rounded-xl">
+            <div className="rounded-2xl border border-border bg-card shadow-soft p-4 rounded-xl">
               <p className="text-2xl font-bold text-warning">
                 {requests.length}
               </p>
@@ -456,6 +455,6 @@ export default function Staff() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
 }

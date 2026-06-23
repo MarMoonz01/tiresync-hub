@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,12 +31,10 @@ export default function Interbranch() {
         .from("tires_interbranch_view")
         .select("store_id, store_name, brand, model, size, quantity")
         .order("brand");
-
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;
         query = query.or(`brand.ilike.${term},model.ilike.${term},size.ilike.${term}`);
       }
-
       const { data, error } = await query.limit(200);
       if (error) throw error;
       return (data ?? []) as InterbranchTire[];
@@ -46,56 +43,44 @@ export default function Interbranch() {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-4 py-4 flex items-center gap-3">
-        <GitBranch className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-semibold">สต็อกเครือข่าย</h1>
-      </header>
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
+      <div className="pt-2">
+        <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+          <GitBranch className="w-6 h-6 text-primary" /> สต็อกเครือข่าย
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">ยางคงเหลือจากร้านในเครือข่ายที่เชื่อมต่อ</p>
+      </div>
 
-      <div className="p-4 max-w-2xl mx-auto space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="ค้นหายาง"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input className="pl-9 rounded-xl bg-secondary/60" placeholder="ค้นหายาง" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
 
-        {isLoading && <p className="text-center text-muted-foreground py-8">กำลังโหลด...</p>}
-
-        <div className="rounded-lg border border-border overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">ร้าน</th>
-                <th className="text-left px-4 py-3 font-medium">ยาง</th>
-                <th className="text-right px-4 py-3 font-medium">สต็อก</th>
+            <thead>
+              <tr className="border-b border-border">
+                {[["ร้าน", "left"], ["ยาง", "left"], ["สต็อก", "right"]].map(([h, a]) => (
+                  <th key={h} className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground text-${a}`}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
+              {isLoading && <tr><td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">กำลังโหลด...</td></tr>}
+              {!isLoading && items.length === 0 && <tr><td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">ยังไม่มีสต็อกจากร้านในเครือข่าย</td></tr>}
               {items.map((item, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-3 text-muted-foreground">{item.store_name}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{item.brand} {item.model}</p>
-                    <p className="text-xs text-muted-foreground">{item.size}</p>
+                <tr key={i} className="hover:bg-secondary/40 transition-colors">
+                  <td className="px-4 py-3.5 text-muted-foreground">{item.store_name}</td>
+                  <td className="px-4 py-3.5">
+                    <p className="font-semibold">{item.brand} {item.model}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{item.size}</p>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Badge variant={item.quantity > 0 ? "outline" : "destructive"}>
-                      {item.quantity}
-                    </Badge>
+                  <td className="px-4 py-3.5 text-right">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums ${item.quantity > 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}>{item.quantity}</span>
                   </td>
                 </tr>
               ))}
-              {!isLoading && items.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                    ยังไม่มีสต็อกจากร้านในเครือข่าย
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
