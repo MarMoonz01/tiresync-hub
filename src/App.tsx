@@ -8,6 +8,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { OperatorProvider } from "@/hooks/useOperator";
+import { OperatorGate } from "@/components/auth/OperatorGate";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Public
@@ -70,6 +72,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <OperatorProvider>
+            <OperatorGate>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public */}
@@ -144,6 +148,8 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </OperatorGate>
+            </OperatorProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
