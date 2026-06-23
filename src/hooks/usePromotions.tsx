@@ -64,30 +64,6 @@ export function useApprovePromotion() {
   });
 }
 
-export function useGenerateContent() {
-  const { store, session } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (promotion_id: string) => {
-      if (!session) throw new Error("Session expired");
-      const { data, error } = await supabase.functions.invoke("intel-pixel", {
-        body: { store_id: store?.id, promotion_id },
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: "PIXEL — content generated" });
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Failed", description: err.message, variant: "destructive" });
-    },
-  });
-}
-
 export function usePublishPromotion() {
   const { store, session } = useAuth();
   const { toast } = useToast();

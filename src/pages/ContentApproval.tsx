@@ -1,11 +1,10 @@
-import { usePromotions, useApprovePromotion, useGenerateContent, usePublishPromotion } from "@/hooks/usePromotions";
+import { usePromotions, useApprovePromotion, usePublishPromotion } from "@/hooks/usePromotions";
 import { Button } from "@/components/ui/button";
-import { FileCheck, Check, X, Send, RefreshCw } from "lucide-react";
+import { FileCheck, Check, X, Send } from "lucide-react";
 
 export default function ContentApproval() {
   const { data: promotions = [], isLoading } = usePromotions("pending_approval");
   const { mutate: approve, isPending: approving } = useApprovePromotion();
-  const { mutate: genContent, isPending: generating } = useGenerateContent();
   const { mutate: publish, isPending: publishing } = usePublishPromotion();
 
   return (
@@ -51,14 +50,7 @@ export default function ContentApproval() {
             <div>
               <p className="text-xs font-bold text-primary mb-2">📘 Facebook</p>
               <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 min-h-[100px] text-sm">
-                {p.facebook_copy ?? (
-                  <div className="flex flex-col items-center justify-center h-20 gap-2 text-muted-foreground">
-                    <p className="text-xs">ยังไม่มี content</p>
-                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => genContent(p.id)} disabled={generating}>
-                      {generating ? <RefreshCw className="w-3 h-3 animate-spin" /> : "สร้าง Content"}
-                    </Button>
-                  </div>
-                )}
+                {p.facebook_copy ?? <span className="text-muted-foreground text-xs">ยังไม่มี content</span>}
               </div>
             </div>
             <div>

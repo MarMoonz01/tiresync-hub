@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { usePromotions, useApprovePromotion, useGenerateContent, usePublishPromotion } from "@/hooks/usePromotions";
-import { useRunSpark } from "@/hooks/useIntelligenceReports";
+import { usePromotions, useApprovePromotion, usePublishPromotion } from "@/hooks/usePromotions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Star, Sparkles, Check, X, Eye, Send, RefreshCw } from "lucide-react";
+import { Star, Check, X, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -19,23 +18,15 @@ export default function Promotions() {
   const [tab, setTab] = useState("pending_approval");
   const { data: promotions = [], isLoading } = usePromotions(tab !== "all" ? tab : undefined);
   const { mutate: approve, isPending: approving } = useApprovePromotion();
-  const { mutate: genContent, isPending: generating } = useGenerateContent();
   const { mutate: publish, isPending: publishing } = usePublishPromotion();
-  const { mutate: runSpark, isPending: sparkPending } = useRunSpark();
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
-      <div className="flex items-end justify-between gap-4 pt-2">
-        <div>
-          <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
-            <Star className="w-6 h-6 text-primary" /> โปรโมชัน
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">แคมเปญที่สร้างโดย SPARK</p>
-        </div>
-        <button onClick={() => runSpark()} disabled={sparkPending}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-sm font-semibold hover:bg-secondary transition disabled:opacity-50">
-          {sparkPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} SPARK
-        </button>
+      <div className="pt-2">
+        <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+          <Star className="w-6 h-6 text-primary" /> โปรโมชัน
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">จัดการแคมเปญและส่วนลด</p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -86,11 +77,6 @@ export default function Promotions() {
                     <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true, locale: th })}</span>
                   </div>
                   <div className="flex gap-1.5">
-                    {p.status === "draft" && (
-                      <Button size="sm" variant="outline" className="rounded-lg" onClick={() => genContent(p.id)} disabled={generating}>
-                        <Eye className="w-3.5 h-3.5 mr-1" /> สร้าง Content
-                      </Button>
-                    )}
                     {p.status === "pending_approval" && (
                       <>
                         <Button size="sm" variant="outline" className="rounded-lg text-rose-600 border-rose-200" onClick={() => approve({ id: p.id, action: "rejected" })} disabled={approving}>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Shield, Store as StoreIcon, Users, Ticket, BarChart3, Copy, Check,
-  Plus, Trash2, Power, Loader2, LogOut, RefreshCw, CreditCard, Cpu,
+  Plus, Trash2, Power, Loader2, LogOut, RefreshCw, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ export default function Admin() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
-    metrics, codes, stores, users, subscriptions, agentUsage,
+    metrics, codes, stores, users, subscriptions,
     generateCode, revokeCode, setStoreActive, setUserStatus, setSubscription,
   } = useAdmin();
 
@@ -77,12 +77,11 @@ export default function Admin() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full max-w-3xl grid-cols-3 sm:grid-cols-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3 sm:grid-cols-5">
             <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="w-4 h-4" />ภาพรวม</TabsTrigger>
             <TabsTrigger value="codes" className="gap-1.5"><Ticket className="w-4 h-4" />รหัสเชิญ</TabsTrigger>
             <TabsTrigger value="stores" className="gap-1.5"><StoreIcon className="w-4 h-4" />ร้านค้า</TabsTrigger>
             <TabsTrigger value="subs" className="gap-1.5"><CreditCard className="w-4 h-4" />สมาชิก</TabsTrigger>
-            <TabsTrigger value="usage" className="gap-1.5"><Cpu className="w-4 h-4" />ต้นทุน AI</TabsTrigger>
             <TabsTrigger value="users" className="gap-1.5"><Users className="w-4 h-4" />ผู้ใช้</TabsTrigger>
           </TabsList>
 
@@ -212,39 +211,6 @@ export default function Admin() {
                 })}
                 {subscriptions.data?.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">ยังไม่มีข้อมูลสมาชิก</p>}
               </>
-            )}
-          </TabsContent>
-
-          {/* ── Agent usage / AI cost ────────────────────────────────────── */}
-          <TabsContent value="usage" className="mt-6 space-y-2">
-            {agentUsage.isLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mt-10" />
-            ) : (
-              <div className="rounded-xl border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left px-4 py-3 font-medium">ร้านค้า</th>
-                      <th className="text-right px-4 py-3 font-medium">โทเคน</th>
-                      <th className="text-right px-4 py-3 font-medium">เรียก</th>
-                      <th className="text-right px-4 py-3 font-medium">ต้นทุน (USD)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(agentUsage.data ?? []).map((r, i) => (
-                      <tr key={i}>
-                        <td className="px-4 py-3 font-medium">{r.store_name ?? storeName(r.store_id)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{Number(r.total_tokens).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{Number(r.call_count).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-primary">${Number(r.total_cost_usd).toFixed(4)}</td>
-                      </tr>
-                    ))}
-                    {(agentUsage.data ?? []).length === 0 && (
-                      <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">ยังไม่มีการใช้งาน AI</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
             )}
           </TabsContent>
 

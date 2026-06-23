@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-// New tables (store_subscriptions, store_network_links, agent_usage_log) aren't in
+// New tables (store_subscriptions, store_network_links) aren't in
 // the generated Database types yet — reach them through an untyped client view.
 const sb = supabase as unknown as SupabaseClient;
 

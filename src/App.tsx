@@ -32,7 +32,6 @@ const POApproval       = lazy(() => import("./pages/POApproval"));
 const Promotions       = lazy(() => import("./pages/Promotions"));
 const ContentApproval  = lazy(() => import("./pages/ContentApproval"));
 const CRM              = lazy(() => import("./pages/CRM"));
-const Intelligence     = lazy(() => import("./pages/Intelligence"));
 const AuditLog         = lazy(() => import("./pages/AuditLog"));
 const Staff            = lazy(() => import("./pages/Staff"));
 
@@ -116,9 +115,6 @@ const App = () => (
                 } />
                 <Route path="/crm" element={
                   <ProtectedRoute ownerOnly><AppLayout><CRM /></AppLayout></ProtectedRoute>
-                } />
-                <Route path="/intelligence" element={
-                  <ProtectedRoute ownerOnly><AppLayout><Intelligence /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/audit-log" element={
                   <ProtectedRoute ownerOnly><AppLayout><AuditLog /></AppLayout></ProtectedRoute>

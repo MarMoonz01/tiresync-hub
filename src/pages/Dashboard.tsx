@@ -1,15 +1,12 @@
-import { useAgentRuns } from "@/hooks/useAgentRuns";
 import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  CheckCircle, AlertCircle, Clock, TrendingUp, ShoppingCart, Bell,
+  TrendingUp, ShoppingCart, Bell,
   Package, Wallet, Trophy, CheckSquare, Plus, ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
-import { th } from "date-fns/locale";
 import type { LucideIcon } from "lucide-react";
 
 const baht = (n: number) => "฿" + (n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -58,54 +55,6 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   );
 }
 
-function AgentHealthPanel() {
-  const { data: runs = [], isLoading } = useAgentRuns(30);
-  const latestByAgent = runs.reduce<Record<string, (typeof runs)[0]>>((acc, run) => {
-    if (!acc[run.agent] || run.created_at > acc[run.agent].created_at) acc[run.agent] = run;
-    return acc;
-  }, {});
-  const agents = Object.values(latestByAgent);
-  const healthy = agents.filter((a) => a.status === "success").length;
-
-  return (
-    <Panel
-      title="AI Agent Health"
-      action={
-        agents.length > 0 ? (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {healthy}/{agents.length} ปกติ
-          </span>
-        ) : undefined
-      }
-    >
-      {isLoading && <p className="p-5 text-sm text-muted-foreground">กำลังโหลด...</p>}
-      {!isLoading && agents.length === 0 && (
-        <p className="p-5 text-sm text-muted-foreground">ยังไม่มีข้อมูล — agents จะแสดงหลัง cron แรกทำงาน</p>
-      )}
-      <div className="grid sm:grid-cols-2 gap-2.5 p-3">
-        {agents.map((run) => {
-          const ok = run.status === "success";
-          const err = run.status === "error";
-          return (
-            <div key={run.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/60 border border-border/60">
-              <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ok ? "bg-emerald-500/10 text-emerald-600" : err ? "bg-rose-500/10 text-rose-600" : "bg-amber-500/10 text-amber-600"}`}>
-                {ok ? <CheckCircle className="w-4 h-4" /> : err ? <AlertCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold tracking-wide">{run.agent}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{run.summary ?? "—"}</p>
-              </div>
-              <p className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: th })}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </Panel>
-  );
-}
-
 function NeedsAttention() {
   const { data: notifications = [] } = useNotifications();
   const { data: pendingPOs = [] } = usePurchaseOrders("pending");
@@ -119,7 +68,7 @@ function NeedsAttention() {
             <span className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0"><CheckSquare className="w-5 h-5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-bold"><span className="tabular-nums">{pendingPOs.length}</span> ใบสั่งซื้อรออนุมัติ</p>
-              <p className="text-[11px] text-muted-foreground">HAWK</p>
+              <p className="text-[11px] text-muted-foreground">ใบสั่งซื้อ</p>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </Link>
@@ -177,10 +126,7 @@ export default function Dashboard() {
         </div>
 
         {/* Panels */}
-        <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
-          <AgentHealthPanel />
-          <NeedsAttention />
-        </div>
+        <NeedsAttention />
       </div>
     </div>
   );

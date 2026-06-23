@@ -57,14 +57,6 @@ export interface AdminSubscription {
   trial_ends_at: string | null;
 }
 
-export interface AgentUsageRow {
-  store_id: string | null;
-  store_name: string | null;
-  total_tokens: number;
-  total_cost_usd: number;
-  call_count: number;
-}
-
 export function useAdmin() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -123,15 +115,6 @@ export function useAdmin() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as AdminSubscription[];
-    },
-  });
-
-  const agentUsage = useQuery({
-    queryKey: ["admin", "agent-usage"],
-    queryFn: async (): Promise<AgentUsageRow[]> => {
-      const { data, error } = await sb.rpc("admin_agent_usage_by_store");
-      if (error) throw error;
-      return (data ?? []) as AgentUsageRow[];
     },
   });
 
@@ -211,7 +194,7 @@ export function useAdmin() {
   });
 
   return {
-    metrics, codes, stores, users, subscriptions, agentUsage,
+    metrics, codes, stores, users, subscriptions,
     generateCode, revokeCode, setStoreActive, setUserStatus, setSubscription,
   };
 }
