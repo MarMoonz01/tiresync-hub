@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // Restrict CORS to Supabase internal callers (database webhooks only).
 // Browser-originated requests are not expected for this function.
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://rvtrwlcxdfnenqspagug.supabase.co',
+  // Auto-derives from the project the function is deployed to (Supabase injects SUPABASE_URL).
+  'Access-Control-Allow-Origin': Deno.env.get('SUPABASE_URL') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 

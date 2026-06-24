@@ -10,7 +10,8 @@ import { useWebhookStatus } from "@/hooks/useWebhookStatus";
 import { WebhookConnectionStatus } from "@/components/store/WebhookConnectionStatus";
 import { OwnerVerificationSection } from "@/components/store/OwnerVerificationSection";
 
-const WEBHOOK_URL = `https://rvtrwlcxdfnenqspagug.supabase.co/functions/v1/line-webhook`;
+// Derived from the configured Supabase project so switching projects only needs .env.
+const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/line-webhook`;
 
 interface WebhookSetupSectionProps {
   storeId?: string;
