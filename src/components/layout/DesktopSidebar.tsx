@@ -14,6 +14,7 @@ import {
   TrendingUp,
   DollarSign,
   Package,
+  Sheet,
   GitBranch,
   Network,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const ownerNavItems: NavItem[] = [
   { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
   { icon: TrendingUp, labelKey: "financials", path: "/financials" },
   { icon: Package, labelKey: "stockManagement", path: "/stock-management" },
+  { icon: Sheet, labelKey: "stockSheet", path: "/stock-sheet" },
   { icon: DollarSign, labelKey: "crm", path: "/crm" },
   { icon: Network, labelKey: "network", path: "/network" },
   { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },

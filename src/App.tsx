@@ -28,6 +28,7 @@ const Settings     = lazy(() => import("./pages/Settings"));
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Financials       = lazy(() => import("./pages/Financials"));
 const StockManagement  = lazy(() => import("./pages/StockManagement"));
+const StockSheet       = lazy(() => import("./pages/StockSheet"));
 const CRM              = lazy(() => import("./pages/CRM"));
 const AuditLog         = lazy(() => import("./pages/AuditLog"));
 const Staff            = lazy(() => import("./pages/Staff"));
@@ -100,6 +101,9 @@ const App = () => (
                 } />
                 <Route path="/stock-management" element={
                   <ProtectedRoute ownerOnly><AppLayout><StockManagement /></AppLayout></ProtectedRoute>
+                } />
+                <Route path="/stock-sheet" element={
+                  <ProtectedRoute ownerOnly><AppLayout><StockSheet /></AppLayout></ProtectedRoute>
                 } />
                 <Route path="/crm" element={
                   <ProtectedRoute ownerOnly><AppLayout><CRM /></AppLayout></ProtectedRoute>
