@@ -1,4 +1,4 @@
-project_id = "rvtrwlcxdfnenqspagug"
+project_id = "hcaqjrfxsldacwikaolh"
 
 # JWT verification disabled for functions called without user context
 [functions.register-store]
@@ -11,17 +11,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.line-push-notification]
-verify_jwt = false
-
-# Cron-triggered functions have no user JWT
-[functions.scout-daily]
-verify_jwt = false
-
-[functions.hawk-reorder]
-verify_jwt = false
-
-[functions.atlas-weekly]
-verify_jwt = false
-
-[functions.lens-deadstock]
 verify_jwt = false
