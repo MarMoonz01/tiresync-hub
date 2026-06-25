@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { LanguageToggle } from "@/components/LanguageToggle"; // เพิ่ม Import นี้
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 interface TopNavbarProps {
   onMenuClick?: () => void;
@@ -53,6 +54,9 @@ export function TopNavbar({ onMenuClick }: TopNavbarProps) {
         {/* 🌐 ปุ่มเปลี่ยนภาษา (เพิ่มตรงนี้) */}
         {/* ใช้ variant="compact" เพื่อให้เป็นปุ่มเล็กๆ เหมาะกับ Navbar */}
         <LanguageToggle variant="compact" />
+
+        {/* ⬇️ ปุ่มติดตั้งแอป (แสดงเฉพาะเมื่อเบราว์เซอร์รองรับ) */}
+        <InstallAppButton variant="icon" />
 
         {/* 🔔 ปุ่มแจ้งเตือน */}
         <NotificationDropdown />

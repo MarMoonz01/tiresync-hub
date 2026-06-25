@@ -2,7 +2,7 @@ import { Download } from "lucide-react";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 
 interface Props {
-  variant?: "ghost" | "primary";
+  variant?: "ghost" | "primary" | "icon";
   className?: string;
   label?: string;
 }
@@ -11,6 +11,20 @@ interface Props {
 export function InstallAppButton({ variant = "ghost", className = "", label = "ติดตั้งแอป" }: Props) {
   const { canInstall, install } = usePwaInstall();
   if (!canInstall) return null;
+
+  // Compact icon-only button for the top nav bar.
+  if (variant === "icon") {
+    return (
+      <button
+        onClick={install}
+        title={label}
+        aria-label={label}
+        className={`h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition ${className}`}
+      >
+        <Download className="w-[18px] h-[18px]" />
+      </button>
+    );
+  }
 
   const styles =
     variant === "primary"
