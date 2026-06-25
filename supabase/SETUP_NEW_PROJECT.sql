@@ -349,6 +349,7 @@ CREATE POLICY "Admins can manage all stock logs"
     ON public.stock_logs FOR ALL
     TO authenticated
     USING (public.has_role(auth.uid(), 'admin'));
+
 -- ===== 20260126073912_76fa07ee-6d86-437e-920c-236a00288c92.sql =====
 
 -- Fix Issue 1: profiles_table_public_exposure
@@ -357,6 +358,7 @@ DROP POLICY IF EXISTS "Approved users can view all profiles" ON public.profiles;
 
 -- Fix Issue 2: stores_contact_data_exposure  
 -- Create a public view for stores that excludes sensitive contact information
+drop view if exists public.stores_public cascade;
 CREATE VIEW public.stores_public
 WITH (security_invoker=on) AS
 SELECT 
@@ -388,6 +390,7 @@ USING (
 
 -- Grant SELECT on the public view to authenticated users
 GRANT SELECT ON public.stores_public TO authenticated;
+
 -- ===== 20260126145437_da1ec3f7-187f-4cf7-baad-0535b1b4af50.sql =====
 
 -- Create orders table to track interest expressions
@@ -452,6 +455,7 @@ EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Enable realtime for orders
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+
 -- ===== 20260126151940_56ad3ba0-ef1c-4129-aa19-6bd816127d46.sql =====
 
 -- Create favorites table for wishlist functionality
@@ -489,6 +493,7 @@ CREATE POLICY "Admins can manage all favorites"
 ON public.favorites
 FOR ALL
 USING (has_role(auth.uid(), 'admin'::app_role));
+
 -- ===== 20260126153433_b9a51082-5b1c-4c9c-82eb-67e9b5f9c50e.sql =====
 
 -- Create store_members table to track which users belong to which store
@@ -528,6 +533,7 @@ CREATE TRIGGER update_store_members_updated_at
 BEFORE UPDATE ON public.store_members
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== 20260127070108_241dec3f-5e1f-4a2e-a609-465958b6c9b7.sql =====
 
 -- Phase 1: Add LINE Integration to Profiles
@@ -696,12 +702,14 @@ CREATE POLICY "Admins can view all link codes"
 ON public.line_link_codes
 FOR SELECT
 USING (has_role(auth.uid(), 'admin'::app_role));
+
 -- ===== 20260127084631_1002660d-4d4e-4813-868c-0ada0dacf254.sql =====
 
 -- Add webhook verification columns to stores table
 ALTER TABLE public.stores 
 ADD COLUMN IF NOT EXISTS line_webhook_verified BOOLEAN DEFAULT false,
 ADD COLUMN IF NOT EXISTS line_webhook_verified_at TIMESTAMP WITH TIME ZONE;
+
 -- ===== 20260127093215_80dedbbe-e3d4-4135-ac33-c1bc43a5eab0.sql =====
 
 -- Fix has_store_permission to give owners all permissions immediately
@@ -766,6 +774,7 @@ AS $$
       WHERE s.owner_id = p.user_id
     )
 $$;
+
 -- ===== 20260127095517_a47f7783-95d2-4969-8a66-3e9755833e0d.sql =====
 
 -- Update get_line_user_permissions to accept optional store_id parameter
@@ -848,12 +857,14 @@ AS $$
   WHERE sm.user_id = _user_id
     AND s.owner_id != _user_id
 $$;
+
 -- ===== 20260129043033_5b220636-ed64-4bdb-94d2-6a9ada5836a7.sql =====
 
 -- Create a public view for store search during signup
 -- Only exposes minimal info (id, name) for active stores
 -- Accessible to unauthenticated users (anon role)
 
+drop view if exists public.stores_signup_search cascade;
 CREATE VIEW public.stores_signup_search 
 WITH (security_invoker = false) AS
 SELECT 
@@ -865,6 +876,7 @@ WHERE is_active = true;
 -- Grant access to both anonymous and authenticated users
 GRANT SELECT ON public.stores_signup_search TO anon;
 GRANT SELECT ON public.stores_signup_search TO authenticated;
+
 -- ===== 20260129043101_f89b686d-12c7-456f-8f9a-d6b9b2d35a52.sql =====
 
 -- The stores_signup_search view intentionally uses security_invoker=false
@@ -875,6 +887,7 @@ GRANT SELECT ON public.stores_signup_search TO authenticated;
 -- Adding a comment to document this intentional design decision
 
 COMMENT ON VIEW public.stores_signup_search IS 'Public view for store search during signup. Intentionally accessible to anon users. Only exposes store id and name for active stores - no sensitive fields.';
+
 -- ===== 20260131_add_partnership_fixed.sql =====
 
 -- 1. Create Partnership Status Enum
@@ -1034,6 +1047,7 @@ DROP TRIGGER IF EXISTS on_partnership_change ON public.store_partnerships;
 CREATE TRIGGER on_partnership_change
     AFTER INSERT OR UPDATE ON public.store_partnerships
     FOR EACH ROW EXECUTE FUNCTION public.handle_partnership_notification();
+
 -- ===== 20260201120000_add_centralized_notifications.sql =====
 
 -- 1. ปรับปรุงโครงสร้างตาราง Notifications (Safe Add Columns)
@@ -1230,6 +1244,7 @@ DROP TRIGGER IF EXISTS on_role_change ON public.store_members;
 CREATE TRIGGER on_role_change
     AFTER UPDATE ON public.store_members
     FOR EACH ROW EXECUTE FUNCTION public.notify_role_change();
+
 -- ===== 20260205000000_init_master_tires.sql =====
 
 -- Create master_tires table if it doesn't exist
@@ -1857,6 +1872,7 @@ USING (
 -- which bypasses RLS on the underlying table.  This is intentional: the view
 -- is the *only* way for non-members to discover other stores, and it
 -- deliberately omits every sensitive column.
+drop view if exists public.stores_public cascade;
 CREATE OR REPLACE VIEW public.stores_public AS
 SELECT
   id,
@@ -2268,6 +2284,7 @@ create policy "service_role_all_agent_runs"
 -- security_invoker = true means the view still obeys the caller's RLS policies
 
 -- Staff view: sell_price visible, avg_cost/supplier absent
+drop view if exists public.tires_staff_view cascade;
 create or replace view public.tires_staff_view
   with (security_invoker = true) as
   select id, store_id, brand, model, size, quantity, sell_price, is_active, min_threshold
@@ -2275,6 +2292,7 @@ create or replace view public.tires_staff_view
   where is_active = true;
 
 -- Interbranch view: stock availability only — no prices
+drop view if exists public.tires_interbranch_view cascade;
 create or replace view public.tires_interbranch_view
   with (security_invoker = true) as
   select store_id, brand, model, size, quantity
@@ -2282,11 +2300,13 @@ create or replace view public.tires_interbranch_view
   where is_active = true and quantity > 0;
 
 -- Owner view: all columns (for stock-management page)
+drop view if exists public.tires_owner_view cascade;
 create or replace view public.tires_owner_view
   with (security_invoker = true) as
   select * from public.tires;
 
 -- Staff sales view: no cost_at_sale or gross_profit
+drop view if exists public.sales_log_staff_view cascade;
 create or replace view public.sales_log_staff_view
   with (security_invoker = true) as
   select id, store_id, staff_id, tire_name, car_model, plate_number,
@@ -2463,11 +2483,13 @@ create trigger notify_stock_low
 -- Ensure stores_signup_search and stores_public views exist
 -- (used by Auth.tsx store search during signup)
 
+drop view if exists public.stores_signup_search cascade;
 create or replace view public.stores_signup_search as
 select id, name
 from public.stores
 where is_active = true;
 
+drop view if exists public.stores_public cascade;
 create or replace view public.stores_public as
 select id, name, address, phone, is_active, created_at
 from public.stores
@@ -3534,6 +3556,7 @@ grant execute on function public.revoke_network_link(uuid)  to authenticated;
 -- scoped by linked_store_ids(). Availability only — no sell_price, no cost —
 -- so linked competitors never see each other's pricing.
 drop view if exists public.tires_interbranch_view cascade;
+drop view if exists public.tires_interbranch_view cascade;
 create view public.tires_interbranch_view as
   select t.store_id,
          s.name as store_name,
@@ -3554,6 +3577,7 @@ grant select on public.tires_interbranch_view to authenticated;
 -- discover other stores or resolve a partner's name. This definer view exposes
 -- id + name of active stores ONLY (no addresses, phones, or business data) — the
 -- minimum needed for a B2B link directory.
+drop view if exists public.store_directory cascade;
 create or replace view public.store_directory as
   select id, name, is_active
   from public.stores
@@ -3737,6 +3761,7 @@ drop view if exists public.tires_owner_view       cascade;
 drop view if exists public.sales_log_staff_view   cascade;
 
 -- Staff view: sell_price visible, avg_cost/supplier absent. Scoped to caller's store.
+drop view if exists public.tires_staff_view cascade;
 create view public.tires_staff_view as
   select id, store_id, brand, model, size, quantity, sell_price, is_active, min_threshold
   from public.tires
@@ -3744,17 +3769,20 @@ create view public.tires_staff_view as
     and store_id = (select store_id from public.profiles where user_id = auth.uid());
 
 -- Interbranch view: network-wide stock availability only — no prices, no cost.
+drop view if exists public.tires_interbranch_view cascade;
 create view public.tires_interbranch_view as
   select store_id, brand, model, size, quantity
   from public.tires
   where is_active = true and quantity > 0;
 
 -- Owner view: all columns, scoped to caller's store.
+drop view if exists public.tires_owner_view cascade;
 create view public.tires_owner_view as
   select t.* from public.tires t
   where t.store_id = (select store_id from public.profiles where user_id = auth.uid());
 
 -- Staff sales view: no cost_at_sale or gross_profit. Scoped to caller's store.
+drop view if exists public.sales_log_staff_view cascade;
 create view public.sales_log_staff_view as
   select id, store_id, staff_id, tire_name, car_model, plate_number,
          quantity_sold, services, sell_price, total_revenue, created_at
