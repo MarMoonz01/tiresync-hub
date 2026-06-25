@@ -1,74 +1,53 @@
 import { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requireApproval?: boolean;
-  requireAdmin?: boolean;
-  requireStore?: boolean;
   ownerOnly?: boolean;
-  requireModerator?: boolean;
+  interbranchOnly?: boolean;
+  adminOnly?: boolean;
+  /** Set on the /billing route so it stays reachable when the subscription is inactive. */
+  skipSubscriptionGate?: boolean;
 }
 
 export function ProtectedRoute({
   children,
-  requireApproval = true,
-  requireAdmin = false,
-  requireStore = false,
   ownerOnly = false,
-  requireModerator = false,
+  interbranchOnly = false,
+  adminOnly = false,
+  skipSubscriptionGate = false,
 }: ProtectedRouteProps) {
-  const { user, loading, isApproved, isAdmin, hasStore, isOwner, isStaff, storeMembership, isModerator } = useAuth();
-  const location = useLocation();
+  const {
+    user, isApproved, isOwner, isInterbranch, isPlatformAdmin,
+    store, subscriptionActive, loading,
+  } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+  if (loading) return null;
+
+  if (!user) return <Navigate to="/auth" replace />;
+
+  // Platform-admin routes: only the operator. Admins don't need a store or an
+  // approved store-profile, so skip the approval/role/subscription gates entirely.
+  if (adminOnly) {
+    return isPlatformAdmin ? <>{children}</> : <Navigate to="/" replace />;
   }
 
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+  if (!isApproved) return <Navigate to="/pending" replace />;
+
+  // Tenant subscription gate (paywall UX — data isolation is still enforced by RLS).
+  // Platform admins are exempt; the /billing route opts out so it stays reachable.
+  if (!skipSubscriptionGate && !isPlatformAdmin && store && !subscriptionActive) {
+    return <Navigate to="/billing" replace />;
   }
 
-  // If user is pending and requireApproval is true
-  if (requireApproval && !isApproved && !isAdmin) {
-    return <Navigate to="/pending" replace />;
-  }
+  if (ownerOnly && !isOwner) return <Navigate to="/sales" replace />;
+  if (interbranchOnly && !isInterbranch) return <Navigate to="/sales" replace />;
 
-  // If admin access is required
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // If moderator access is required
-  if (requireModerator && !isModerator && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // If this route is for owners only (e.g., /store/setup)
-  if (ownerOnly && isStaff) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // If store is required
-  if (requireStore) {
-    // Owner without store → go to setup
-    if (!hasStore && !isStaff) {
-      return <Navigate to="/store/setup" replace />;
-    }
-    // Staff without approved membership → go to pending
-    if (isStaff && !storeMembership?.is_approved) {
-      return <Navigate to="/pending" replace />;
-    }
-  }
+  // Interbranch users are locked to /interbranch unless the route explicitly allows them
+  if (isInterbranch && !interbranchOnly) return <Navigate to="/interbranch" replace />;
 
   return <>{children}</>;
 }
+
+export default ProtectedRoute;

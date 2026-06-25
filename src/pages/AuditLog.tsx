@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,8 +128,7 @@ export default function AuditLog() {
   const uniqueDates = Object.keys(groupedLogs);
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -372,7 +370,6 @@ export default function AuditLog() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </AppLayout>
+    </div>
   );
 }

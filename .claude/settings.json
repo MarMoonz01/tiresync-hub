@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(code-review)",
+      "Skill(code-review:*)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(awk -F= '/VITE_SUPABASE_PUBLISHABLE_KEY/{print substr\\($2,1,8\\)\"... \\(len=\"length\\($2\\)\"\\)\"}' .env)",
+      "Bash(npx vitest *)"
+    ]
+  }
+}

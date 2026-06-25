@@ -26,8 +26,8 @@ export function useWebhookStatus(storeId: string | undefined): WebhookStatusResu
         setIsVerified(data.line_webhook_verified ?? false);
         setVerifiedAt(data.line_webhook_verified_at ?? null);
       }
-    } catch (err) {
-      console.error("Failed to check webhook status:", err);
+    } catch {
+      // Non-critical — status indicator will remain in last-known state
     }
   }, [storeId]);
 

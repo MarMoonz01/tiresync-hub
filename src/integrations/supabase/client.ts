@@ -7,7 +7,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY; // ใช้ค่า Key ที่คุณมีอยู่
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error("Missing Supabase configuration. Check your .env file.");
+  throw new Error("Missing Supabase configuration. Check your .env file (VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY).");
 }
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {

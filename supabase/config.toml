@@ -1,4 +1,11 @@
-project_id = "wqqaqafhpxytwbwykqbg"
+project_id = "hcaqjrfxsldacwikaolh"
+
+# JWT verification disabled for functions called without user context
+[functions.register-store]
+verify_jwt = false
+
+[functions.join-store]
+verify_jwt = false
 
 [functions.line-webhook]
 verify_jwt = false

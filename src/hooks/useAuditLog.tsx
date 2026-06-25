@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { subDays, startOfDay, endOfDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 
@@ -43,6 +44,7 @@ export function useAuditLog(
   customDate?: DateRange
 ) {
   const { store } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [stats, setStats] = useState<AuditStats>({
@@ -82,9 +84,11 @@ export function useAuditLog(
     try {
       setLoading(true);
 
-      // Get all tires for the store
+      // Get all tires for the store.
+      // Use the owner view — direct SELECT on the base `tires` table is revoked
+      // from the authenticated role (column isolation).
       const { data: tiresData, error: tiresError } = await supabase
-        .from("tires")
+        .from("tires_owner_view")
         .select("id, brand, model, size")
         .eq("store_id", store.id);
 
@@ -203,7 +207,7 @@ export function useAuditLog(
       });
 
     } catch (err) {
-      console.error("Error fetching audit logs:", err);
+      toast({ title: "Error", description: "Failed to load audit log", variant: "destructive" });
     } finally {
       setLoading(false);
     }

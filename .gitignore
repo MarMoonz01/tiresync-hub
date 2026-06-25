@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment — keep project URLs/keys out of git (set them per machine/host)
+.env
+.env.local
+.env.*.local
+
+# Local Claude Code settings — may contain machine-specific tokens; never commit
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,228 +1,115 @@
-import { motion } from "framer-motion";
-import { User, Store, Bell, Shield, LogOut, Globe, MessageCircle, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { LineSettingsCard } from "@/components/store/LineSettingsCard";
+import { LineIntegrationCard } from "@/components/store/LineIntegrationCard";
+import { InstallAppButton } from "@/components/InstallAppButton";
+import { Settings as SettingsIcon, Globe, Bell, LogOut, Building2, BadgeCheck } from "lucide-react";
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "เจ้าของร้าน",
+  staff: "พนักงาน",
+  interbranch: "สาขา",
+};
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border"><h3 className="font-bold text-[15px]">{title}</h3></div>
+      {children}
+    </div>
+  );
+}
 
 export default function Settings() {
-  const { profile, store, isAdmin, isModerator, roles, storeMembership } = useAuth();
-  const { isOwner, isAdmin: isSystemAdmin } = usePermissions();
+  const { profile, store, role, isOwner } = useAuth();
   const navigate = useNavigate();
 
-  const initials = profile?.full_name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() || "U";
+  const initials = profile?.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
 
-  const getRoleBadge = () => {
-    if (isOwner) return { label: "Store Owner", variant: "default" as const };
-    if (storeMembership?.role) {
-      const roleName = storeMembership.role.charAt(0).toUpperCase() + storeMembership.role.slice(1);
-      let variant: "default" | "secondary" | "outline" = "outline";
-      switch (storeMembership.role.toLowerCase()) {
-        case 'manager': variant = "default"; break;
-        case 'sales': variant = "secondary"; break;
-        default: variant = "outline";
-      }
-      return { label: roleName, variant };
-    }
-    if (isAdmin) return { label: "System Admin", variant: "destructive" as const };
-    if (isModerator) return { label: "Moderator", variant: "secondary" as const };
-    return { label: "User", variant: "outline" as const };
-  };
-
-  const roleBadge = getRoleBadge();
-
-  const accountMenuItems = [
-    {
-      icon: User,
-      title: "Edit Profile",
-      description: "Update personal details",
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-      onClick: () => navigate("/profile"),
-    },
-    {
-      icon: Shield,
-      title: "Security",
-      description: "Password & authentication",
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
-      onClick: () => {}, 
-    },
-  ];
-
   return (
-    <AppLayout>
-      <div className="page-container">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6 max-w-2xl mx-auto"
-        >
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-            <p className="text-muted-foreground">Manage your preferences and store settings</p>
-          </div>
-
-          {/* Profile Section */}
-          <Card className="border-0 shadow-sm bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16 border-2 border-background shadow-sm">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg truncate">
-                    {profile?.full_name || "User"}
-                  </h3>
-                  <p className="text-muted-foreground text-sm truncate">
-                    {profile?.email}
-                  </p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant={roleBadge.variant} className="px-2 py-0.5 text-xs">
-                      {roleBadge.label}
-                    </Badge>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
-                  Edit
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Store Settings */}
-          {(store && (isOwner || isSystemAdmin)) && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                Store Settings
-              </h2>
-              
-              <Card 
-                className="cursor-pointer hover:bg-accent/5 transition-colors border-0 shadow-sm"
-                onClick={() => navigate("/store")}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Store className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">{store.name}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {store.address || "No address set"}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
-                </CardContent>
-              </Card>
-
-              {/* ✅ ตรงนี้ครับที่เปลี่ยน: ส่ง line_channel_access_token เข้าไป */}
-              <LineSettingsCard 
-                lineEnabled={store.line_enabled || false}
-                // ถ้าใน useAuth ยังไม่ได้แก้ Type ให้ใช้ as any เพื่อ bypass (ถ้าคุณไม่อยากแก้ไฟล์อื่น)
-                lineChannelAccessToken={(store as any).line_channel_access_token || ""} 
-                lineChannelSecret={store.line_channel_secret || ""}
-              />
-            </div>
-          )}
-
-          {/* Preferences */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
-              Preferences
-            </h2>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-0 divide-y">
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                      <Globe className="w-4 h-4 text-orange-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Language</p>
-                      <p className="text-xs text-muted-foreground">Select your preferred language</p>
-                    </div>
-                  </div>
-                  <LanguageToggle />
-                </div>
-
-                <div className="flex items-center justify-between p-4 opacity-50 cursor-not-allowed">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                      <Bell className="w-4 h-4 text-purple-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Notifications</p>
-                      <p className="text-xs text-muted-foreground">Manage app notifications (Coming Soon)</p>
-                    </div>
-                  </div>
-                  <Switch disabled />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Account */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
-              Account
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {accountMenuItems.map((item) => (
-                <Card 
-                  key={item.title}
-                  className="cursor-pointer hover:shadow-md transition-all border-0 shadow-sm"
-                  onClick={item.onClick}
-                >
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${item.bgColor} flex items-center justify-center`}>
-                      <item.icon className={`w-5 h-5 ${item.color}`} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <Button 
-              variant="destructive" 
-              className="w-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              TireSync Hub v1.0.0
-            </p>
-          </div>
-
-        </motion.div>
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
+      <div className="pt-2">
+        <h1 className="text-2xl md:text-[26px] font-extrabold tracking-tight flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6 text-primary" /> ตั้งค่า
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">บัญชี ร้านค้า และการแสดงผล</p>
       </div>
-    </AppLayout>
+
+      {/* Profile */}
+      <Panel title="โปรไฟล์">
+        <div className="p-5 flex items-center gap-4">
+          <Avatar className="w-14 h-14">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base truncate">{profile?.full_name || "User"}</p>
+            <p className="text-sm text-muted-foreground truncate">{profile?.email}</p>
+          </div>
+          {role && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+              <BadgeCheck className="w-3.5 h-3.5" /> {ROLE_LABELS[role] ?? role}
+            </span>
+          )}
+        </div>
+      </Panel>
+
+      {/* Store (owner) */}
+      {store && isOwner && (
+        <Panel title="ข้อมูลร้าน">
+          <div className="p-5 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center shrink-0"><Building2 className="w-5 h-5" /></span>
+            <div>
+              <p className="font-semibold">{store.name}</p>
+              {store.address && <p className="text-sm text-muted-foreground">{store.address}</p>}
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* LINE webhook integration (owner only) */}
+      {isOwner && store && <LineIntegrationCard />}
+
+      {/* Preferences */}
+      <Panel title="การแสดงผล">
+        <div className="divide-y divide-border">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center"><Globe className="w-4.5 h-4.5" /></span>
+              <div>
+                <p className="font-semibold text-sm">ภาษา</p>
+                <p className="text-xs text-muted-foreground">เลือกภาษาที่ต้องการ</p>
+              </div>
+            </div>
+            <LanguageToggle />
+          </div>
+          <div className="flex items-center justify-between p-4 opacity-50">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center"><Bell className="w-4.5 h-4.5" /></span>
+              <div>
+                <p className="font-semibold text-sm">การแจ้งเตือน</p>
+                <p className="text-xs text-muted-foreground">เร็วๆ นี้</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <InstallAppButton variant="primary" className="w-full justify-center py-3" label="ติดตั้งแอปลงเครื่อง" />
+
+      <button
+        onClick={handleLogout}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-600 px-4 py-3 text-sm font-semibold hover:bg-rose-500/10 transition"
+      >
+        <LogOut className="w-4 h-4" /> ออกจากระบบ
+      </button>
+    </div>
   );
 }

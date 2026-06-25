@@ -1,85 +1,85 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  LayoutDashboard, 
-  CircleDot, 
-  Store, 
-  Search, 
+import {
+  LayoutDashboard,
+  CircleDot,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Upload,
   Users,
   UserCog,
   LogOut,
-  BarChart3,
   ClipboardList,
-  ShieldAlert // Icon สำหรับ Moderator
+  ShoppingCart,
+  TrendingUp,
+  DollarSign,
+  Package,
+  Sheet,
+  GitBranch,
+  Network,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { TireLogo } from "@/components/icons/TireLogo";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TranslationKey } from "@/lib/translations";
+
+interface NavItem {
+  icon: React.ElementType;
+  labelKey: TranslationKey;
+  path: string;
+}
 
 interface DesktopSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
-// เมนูพื้นฐานที่ทุกคนเห็น
-const baseNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
-  { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
-  { icon: CircleDot, labelKey: "inventory", path: "/inventory" },
-  { icon: Upload, labelKey: "import", path: "/import" },
-  { icon: Store, labelKey: "myStore", path: "/store" },
-  { icon: Search, labelKey: "marketplace", path: "/marketplace" },
-  { icon: Users, labelKey: "network", path: "/network" },
+// Staff + owner
+const staffNavItems: NavItem[] = [
+  { icon: ShoppingCart, labelKey: "sales", path: "/sales" },
+  { icon: CircleDot, labelKey: "stock", path: "/stock" },
+  { icon: Users, labelKey: "customers", path: "/customers" },
 ];
 
-// เมนูสำหรับ Admin/Owner ร้าน
-const adminOnlyNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
-  { icon: BarChart3, labelKey: "salesReport", path: "/sales-report" },
+// Owner-only
+const ownerNavItems: NavItem[] = [
+  { icon: LayoutDashboard, labelKey: "dashboard", path: "/dashboard" },
+  { icon: TrendingUp, labelKey: "financials", path: "/financials" },
+  { icon: Package, labelKey: "stockManagement", path: "/stock-management" },
+  { icon: Sheet, labelKey: "stockSheet", path: "/stock-sheet" },
+  { icon: DollarSign, labelKey: "crm", path: "/crm" },
+  { icon: Network, labelKey: "network", path: "/network" },
   { icon: ClipboardList, labelKey: "auditLog", path: "/audit-log" },
   { icon: UserCog, labelKey: "staff", path: "/staff" },
 ];
 
-const bottomNavItems: { icon: any; labelKey: TranslationKey; path: string }[] = [
+// Interbranch-only
+const interbranchNavItems: NavItem[] = [
+  { icon: GitBranch, labelKey: "interbranch", path: "/interbranch" },
+];
+
+const bottomNavItems: NavItem[] = [
   { icon: Settings, labelKey: "settings", path: "/settings" },
 ];
 
 export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // ✅ แก้ไขตรงนี้: ดึง isModerator และ isAdmin มาใช้โดยตรง
-  const { isOwner, isAdmin, hasStore, isStaff, isModerator } = useAuth(); 
-  const { t } = useLanguage();
+  const { isOwner, isInterbranch, profile, store, role } = useAuth();
+  const { t, language } = useLanguage();
 
-  const canAccessAdminItems = (isOwner || isAdmin) && hasStore;
+  const displayName = profile?.full_name || profile?.email || "ผู้ใช้";
+  const initial = (profile?.full_name || profile?.email || "?").charAt(0).toUpperCase();
+  const roleLabel = role === "owner" ? "เจ้าของร้าน" : role === "staff" ? "พนักงาน" : role === "interbranch" ? "สาขา" : "";
 
-  const filteredBaseNavItems = baseNavItems.filter(item => {
-    if (item.path === "/import" && isStaff) return false;
-    if (item.path === "/store" && !isOwner) return false;
-    return true;
-  });
-
-  const navItems = [
-    ...filteredBaseNavItems,
-
-    // ✅ แก้ไขเงื่อนไข: ใช้ isModerator || isAdmin แทน userRole
-    ...((isModerator || isAdmin) ? [{
-      icon: ShieldAlert,
-      labelKey: "moderator" as TranslationKey,
-      path: "/moderator"
-    }] : []),
-
-    ...(canAccessAdminItems ? adminOnlyNavItems : []),
-    ...bottomNavItems,
+  const navSections: { label: string; items: NavItem[] }[] = [
+    { label: language === "th" ? "งานประจำวัน" : "DAILY OPS", items: isInterbranch ? interbranchNavItems : staffNavItems },
+    ...(isOwner ? [{ label: language === "th" ? "สำหรับเจ้าของร้าน" : "OWNER", items: ownerNavItems }] : []),
+    { label: "", items: bottomNavItems },
   ];
 
   const handleLogout = async () => {
@@ -94,87 +94,126 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0"
     >
-      {/* Logo Section */}
+      {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <TireLogo size={20} className="text-primary-foreground" />
+        <Link to="/sales" className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-[0_8px_20px_-8px_hsl(var(--primary)/0.6)] shrink-0">
+            <TireLogo size={20} className="text-white" />
           </div>
           {!collapsed && (
-            <motion.span
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="font-semibold text-lg text-sidebar-foreground uppercase tracking-wider"
+              className="min-w-0"
             >
-              BAANAKE
-            </motion.span>
+              <div className="font-extrabold text-lg text-sidebar-foreground tracking-tight leading-none">BAANAKE</div>
+              {store?.name && (
+                <div className="text-[10px] font-semibold text-sidebar-foreground/50 tracking-wide truncate max-w-[150px] mt-0.5">
+                  {store.name}
+                </div>
+              )}
+            </motion.div>
           )}
         </Link>
       </div>
 
-      {/* Navigation Section */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          // ถ้ายังไม่มีคำแปล ให้ใช้คำว่า Moderator ไปก่อน
-          const label = item.labelKey === "moderator" ? "Moderator" : t(item.labelKey);
+      {/* Navigation */}
+      <nav className="flex-1 py-4 px-3 overflow-y-auto custom-scrollbar">
+        {navSections.map((section, si) => (
+          <div key={si} className={si > 0 ? "mt-5" : ""}>
+            {!collapsed && section.label && (
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const isActive = location.pathname === item.path;
+                const Icon = item.icon;
+                const label = t(item.labelKey);
 
-          const linkContent = (
-            <Link
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative group",
-                isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full"
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-primary" : "group-hover:scale-110 transition-transform")} />
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-sm truncate"
-                >
-                  {label}
-                </motion.span>
-              )}
-            </Link>
-          );
+                const linkContent = (
+                  <Link
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative group",
+                      isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeIndicator"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full"
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-primary" : "group-hover:scale-110 transition-transform")} />
+                    {!collapsed && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm truncate">
+                        {label}
+                      </motion.span>
+                    )}
+                  </Link>
+                );
 
-          if (collapsed) {
-            return (
-              <Tooltip key={item.path} delayDuration={0}>
-                <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                <TooltipContent side="right" className="font-medium">
-                  {label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
+                if (collapsed) {
+                  return (
+                    <Tooltip key={item.path} delayDuration={0}>
+                      <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                      <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
 
-          return <div key={item.path}>{linkContent}</div>;
-        })}
+                return <div key={item.path}>{linkContent}</div>;
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Footer Section */}
+      {/* Footer */}
       <div className="p-3 border-t border-sidebar-border/50 space-y-1">
+        {/* Profile */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Link
+              to="/settings"
+              className={cn(
+                "flex items-center gap-3 px-2 py-2 rounded-xl transition-colors hover:bg-sidebar-accent mb-1",
+                collapsed && "justify-center"
+              )}
+            >
+              <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0 overflow-hidden">
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : initial}
+              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-sidebar-foreground truncate">{displayName}</p>
+                  <p className="text-[11px] text-sidebar-foreground/60 truncate">
+                    {roleLabel}{store?.name ? ` · ${store.name}` : ""}
+                  </p>
+                </div>
+              )}
+            </Link>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right" className="font-medium">
+              {displayName}{roleLabel ? ` · ${roleLabel}` : ""}
+            </TooltipContent>
+          )}
+        </Tooltip>
+
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <button
               onClick={handleLogout}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-sidebar-foreground/60 hover:text-destructive hover:text-destructive-foreground hover:bg-destructive/10",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10",
                 collapsed && "justify-center"
               )}
             >
@@ -183,7 +222,9 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
             </button>
           </TooltipTrigger>
           {collapsed && (
-            <TooltipContent side="right" className="bg-destructive text-destructive-foreground">{t("logout")}</TooltipContent>
+            <TooltipContent side="right" className="bg-destructive text-destructive-foreground">
+              {t("logout")}
+            </TooltipContent>
           )}
         </Tooltip>
 
@@ -196,11 +237,7 @@ export function DesktopSidebar({ collapsed, onToggle }: DesktopSidebarProps) {
             collapsed ? "justify-center" : "justify-end"
           )}
         >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </Button>
       </div>
     </motion.aside>
