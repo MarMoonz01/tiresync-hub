@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { LineIntegrationCard } from "@/components/store/LineIntegrationCard";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { Settings as SettingsIcon, Globe, Bell, LogOut, Building2, BadgeCheck } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -100,6 +101,8 @@ export default function Settings() {
           </div>
         </div>
       </Panel>
+
+      <InstallAppButton variant="primary" className="w-full justify-center py-3" label="ติดตั้งแอปลงเครื่อง" />
 
       <button
         onClick={handleLogout}

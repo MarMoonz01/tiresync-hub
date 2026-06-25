@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import {
   ShoppingCart, BarChart3, Users, CheckCircle2, ArrowRight, Shield,
   Layers, Network, MessageCircle, TrendingUp, Trophy, Lock, Zap, Star,
@@ -58,6 +59,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
+            <span className="hidden sm:inline-flex"><InstallAppButton /></span>
             <button onClick={() => navigate("/auth")}
               className="hidden sm:inline-flex rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition">
               เข้าสู่ระบบ
