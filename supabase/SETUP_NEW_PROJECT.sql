@@ -1,10 +1,45 @@
 -- ============================================================
--- TIREHUB — NEW PROJECT SETUP (paste-once) — v2 (full migration chain)
--- Runs the real migration history in order: base schema first, then the
--- June feature set, view hotfix, SaaS layer, agent removal, per-DOT stock, seed.
--- Run ONCE on an EMPTY project. If it stops on an error, copy the error to me
--- (do not blindly re-run — the earliest CREATE TABLEs are not idempotent).
+-- TIREHUB — NEW PROJECT SETUP (paste-once, RE-RUNNABLE) — v3
+-- Safe to run repeatedly: it RESETS the public schema first, then rebuilds.
+-- ⚠️  RUN ONLY ON THE NEW/EMPTY PROJECT — it DROPS everything in schema public.
 -- ============================================================
+
+-- ---------- 0. RESET (wipes public; harmless extensions stay) ----------
+drop schema if exists public cascade;
+create schema public;
+grant usage on schema public to anon, authenticated, service_role;
+grant all on schema public to postgres, service_role;
+alter default privileges in schema public grant all on tables    to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
+
+-- ---------- 1. GENESIS (tables/functions the original Lovable base made,
+--                         which are missing from the migration export) ----------
+create or replace function public.get_current_user_store_id()
+returns uuid language plpgsql stable security definer set search_path = public as $genesis$
+declare sid uuid;
+begin
+  select store_id into sid from public.profiles where user_id = auth.uid() limit 1;
+  return sid;
+exception when others then return null;
+end $genesis$;
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  store_id uuid, user_id uuid,
+  type text default 'info', title text default '', message text default '',
+  body text, link text, metadata jsonb default '{}'::jsonb,
+  is_read boolean not null default false,
+  reference_id uuid, reference_type text,
+  send_line boolean default false, line_sent_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- legacy (abandoned marketplace) — stubs so old triggers can attach/detach cleanly
+create table public.broadcast_requests (id uuid primary key default gen_random_uuid(), store_id uuid, title text, created_at timestamptz default now());
+create table public.broadcast_offers   (id uuid primary key default gen_random_uuid(), request_id uuid, store_id uuid, created_at timestamptz default now());
+
+-- ---------- 2. MIGRATION CHAIN (chronological) ----------
 
 -- ===== 20260126054943_9dda628f-4af2-424c-9ad7-b695c13e24b4.sql =====
 
@@ -3783,7 +3818,7 @@ VALUES
 
 ON CONFLICT (brand, model, size) DO NOTHING;
 
--- ===== ensure removed agents are not scheduled (no-op if absent) =====
+-- ---------- 3. unschedule removed agents (no-op if absent) ----------
 do $$ begin
   perform cron.unschedule(jobname) from cron.job
    where jobname in ('scout-daily','hawk-reorder','atlas-weekly','lens-deadstock');
